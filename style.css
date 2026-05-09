@@ -602,3 +602,130 @@ h1 {
         padding: 40px 16px;
     }
 }
+
+/* Weather Section */
+.weather-scroll-container {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding: 8px 4px 20px 4px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--notion-border) transparent;
+}
+
+.weather-card {
+    flex: 0 0 100px;
+    background: var(--notion-hover);
+    border: 1px solid var(--notion-border);
+    border-radius: 12px;
+    padding: 16px 8px;
+    text-align: center;
+    transition: transform 0.2s;
+}
+
+.weather-card:hover {
+    transform: translateY(-4px);
+}
+
+.weather-card.today {
+    border-color: var(--notion-blue);
+    background: rgba(35, 131, 226, 0.05);
+}
+
+.weather-date {
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.weather-icon {
+    font-size: 24px;
+    margin: 8px 0;
+}
+
+.weather-temp {
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.weather-temp .max { color: #ff5f56; }
+.weather-temp .min { color: #2383e2; margin-left: 4px; }
+
+/* Timebox Section */
+.section-header-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.timebox-wrapper {
+    overflow-x: auto;
+    background: var(--notion-bg);
+    border: 1px solid var(--notion-border);
+    border-radius: 12px;
+    padding: 20px;
+    scrollbar-width: thin;
+}
+
+.timebox-grid {
+    display: grid;
+    grid-template-columns: 50px repeat(24, 60px); /* 시간 레이블 + 24시간 */
+    grid-template-rows: repeat(4, 40px); /* 15, 30, 45, 00분 */
+    gap: 2px;
+    min-width: 1500px; /* 모든 시간이 다 보이게 최소 너비 설정 */
+}
+
+.time-label-col {
+    grid-column: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: var(--notion-text-light);
+    font-weight: 600;
+    border-right: 1px solid var(--notion-border);
+}
+
+.hour-header {
+    grid-row: 1;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--notion-border);
+}
+
+.time-cell {
+    background: var(--notion-hover);
+    border: 1px solid rgba(0,0,0,0.03);
+    cursor: pointer;
+    transition: background 0.1s;
+    position: relative;
+}
+
+.time-cell:hover {
+    background: var(--notion-border);
+}
+
+.time-cell.selected {
+    background: var(--notion-blue) !important;
+    opacity: 0.8;
+}
+
+.time-cell.has-event {
+    background: #4caf50;
+    border-color: #388e3c;
+}
+
+.time-cell.has-event::after {
+    content: attr(data-event-title);
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 10px;
+    color: white;
+    white-space: nowrap;
+    pointer-events: none;
+}

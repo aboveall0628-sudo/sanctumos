@@ -11,8 +11,10 @@
     <script type="module">
       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-app.js";
       import { getFirestore } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore.js";
-      // Firebase 설정은 script.js에서 연동합니다.
     </script>
+    <!-- Google API & GIS -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://apis.google.com/js/api.js" async defer></script>
 </head>
 <body>
     <div id="loading-overlay" class="loading-overlay">
@@ -83,6 +85,28 @@
                     <div class="memo-footer">
                         <span id="save-status" class="save-status"></span>
                         <button id="save-memo-btn" class="primary-btn">저장하기</button>
+                    </div>
+                </section>
+
+                <section class="weather-section">
+                    <h2 class="section-title">🌦️ 향후 7일 날씨</h2>
+                    <div id="weather-container" class="weather-scroll-container">
+                        <div class="loading-state">날씨 정보를 가져오는 중...</div>
+                    </div>
+                </section>
+
+                <section class="timebox-section">
+                    <div class="section-header-flex">
+                        <h2 class="section-title">🕒 타임박스</h2>
+                        <div id="gcal-controls">
+                            <button id="auth-btn" class="text-btn">Google 로그인</button>
+                            <button id="sync-btn" class="text-btn hidden">일정 동기화</button>
+                        </div>
+                    </div>
+                    <div class="timebox-wrapper">
+                        <div id="timebox-grid" class="timebox-grid">
+                            <!-- 24x4 그리드가 스크립트에서 생성됩니다 -->
+                        </div>
                     </div>
                 </section>
             </div>

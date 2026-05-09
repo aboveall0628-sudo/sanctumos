@@ -9,6 +9,16 @@ const firebaseConfig = {
   measurementId: "G-BG79MS3FZP"
 };
 
+// --- Google API Config (사용자가 나중에 채워넣을 부분) ---
+const GOOGLE_CLIENT_ID = 'YOUR_CLIENT_ID.apps.googleusercontent.com';
+const GOOGLE_API_KEY = 'YOUR_API_KEY';
+const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"];
+const SCOPES = "https://www.googleapis.com/auth/calendar.events";
+
+let tokenClient;
+let gapiInited = false;
+let gisInited = false;
+
 // Initialize Firebase via CDN modules
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-app.js";
 import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore.js";
@@ -204,6 +214,9 @@ function finishLoading() {
     switchView('dashboard'); // Default to Dashboard view
     setupMobileMenu();
     setupSaveButton();
+    setupWeather();
+    setupTimebox();
+    setupGoogleAuth();
 }
 
 function setupMobileMenu() {
@@ -692,6 +705,164 @@ function getFullBookName(abbr) {
         "마": "마태복음", "막": "마가복음", "눅": "누가복음", "요": "요한복음", "행": "사도행전", "롬": "로마서", "고전": "고린도전서", "고후": "고린도후서", "갈": "갈라디아서", "엡": "에베소서", "빌": "빌립보서", "골": "골로새서", "살전": "데살로니가전서", "살후": "데살로니가후서", "딤전": "디모데전서", "딤후": "디모데후서", "딛": "디도서", "몬": "빌레몬서", "히": "히브리서", "약": "야고보서", "벧전": "베드로전서", "벧후": "베드로후서", "요일": "요한1서", "요이": "요한2서", "요삼": "요한3서", "유": "유다서", "계": "요한계시록"
     };
     return names[abbr] || abbr;
+}
+
+/**
+ * Weather System
+ */
+async function setupWeather() {
+    const container = document.getElementById('weather-container');
+    if (!container) return;
+
+    try {
+        // 서울 기준 위경도 (나중에 브라우저 위치 정보로 확장 가능)
+        const lat = 37.5665;
+        const lon = 126.9780;
+        const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto`);
+        const data = await response.json();
+        
+        renderWeather(data.daily);
+    } catch (e) {
+        console.error("Weather load error:", e);
+        container.innerHTML = '<p class="subtitle">날씨 정보를 가져올 수 없습니다.</p>';
+    }
+}
+
+function renderWeather(daily) {
+    const container = document.getElementById('weather-container');
+    container.innerHTML = '';
+
+    const weatherIcons = {
+        0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️',
+        45: '🌫️', 48: '🌫️',
+        51: '🌦️', 53: '🌦️', 55: '🌦️',
+        61: '🌧️', 63: '🌧️', 65: '🌧️',
+        71: '❄️', 73: '❄️', 75: '❄️',
+        95: '⛈️'
+    };
+
+    daily.time.forEach((time, i) => {
+        const date = new Date(time);
+        const dayName = date.toLocaleDateString('ko-KR', { weekday: 'short' });
+        const dayNum = date.getDate();
+        const code = daily.weathercode[i];
+        const icon = weatherIcons[code] || '❓';
+
+        const card = document.createElement('div');
+        card.className = 'weather-card' + (i === 0 ? ' today' : '');
+        card.innerHTML = `
+            <div class="weather-date">${dayNum}일(${dayName})</div>
+            <div class="weather-icon">${icon}</div>
+            <div class="weather-temp">
+                <span class="max">${Math.round(daily.temperature_2m_max[i])}°</span>
+                <span class="min">${Math.round(daily.temperature_2m_min[i])}°</span>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+/**
+ * Timebox System
+ */
+let isDragging = false;
+let startCell = null;
+
+function setupTimebox() {
+    const grid = document.getElementById('timebox-grid');
+    if (!grid) return;
+
+    grid.innerHTML = '';
+
+    // Create 15, 30, 45, 00 labels for rows
+    const rowLabels = ['15분', '30분', '45분', '00분'];
+    rowLabels.forEach((label, i) => {
+        const div = document.createElement('div');
+        div.className = 'time-label-col';
+        div.style.gridRow = i + 1;
+        div.textContent = label;
+        grid.appendChild(div);
+    });
+
+    // Create Hour headers and cells
+    for (let h = 0; h < 24; h++) {
+        const header = document.createElement('div');
+        header.className = 'hour-header';
+        header.style.gridColumn = h + 2;
+        header.textContent = `${h}시`;
+        grid.appendChild(header);
+
+        for (let m = 0; m < 4; m++) {
+            const cell = document.createElement('div');
+            cell.className = 'time-cell';
+            cell.dataset.hour = h;
+            cell.dataset.min = m;
+            cell.style.gridColumn = h + 2;
+            cell.style.gridRow = m + 1;
+
+            cell.addEventListener('mousedown', startSelect);
+            cell.addEventListener('mouseover', updateSelect);
+            cell.addEventListener('mouseup', endSelect);
+            
+            // Touch support
+            cell.addEventListener('touchstart', (e) => { e.preventDefault(); startSelect(e); }, {passive: false});
+            cell.addEventListener('touchmove', handleTouchMove, {passive: false});
+            cell.addEventListener('touchend', endSelect);
+
+            grid.appendChild(cell);
+        }
+    }
+}
+
+function startSelect(e) {
+    isDragging = true;
+    const cell = e.target.closest('.time-cell');
+    if (!cell) return;
+    
+    startCell = cell;
+    cell.classList.toggle('selected');
+}
+
+function updateSelect(e) {
+    if (!isDragging) return;
+    const cell = e.target.closest('.time-cell');
+    if (cell && cell !== startCell) {
+        cell.classList.add('selected');
+    }
+}
+
+function endSelect() {
+    isDragging = false;
+    startCell = null;
+}
+
+function handleTouchMove(e) {
+    if (!isDragging) return;
+    const touch = e.touches[0];
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    const cell = el?.closest('.time-cell');
+    if (cell) {
+        cell.classList.add('selected');
+    }
+}
+
+/**
+ * Google Auth System
+ */
+function setupGoogleAuth() {
+    const authBtn = document.getElementById('auth-btn');
+    if (authBtn) {
+        authBtn.addEventListener('click', handleAuthClick);
+    }
+}
+
+function handleAuthClick() {
+    if (GOOGLE_CLIENT_ID === 'YOUR_CLIENT_ID.apps.googleusercontent.com') {
+        alert('Google API 설정을 위해 Client ID가 필요합니다. 계획서를 확인해 주세요!');
+        return;
+    }
+    // 구글 인증 로직 (GIS 라이브러리 연동)
+    tokenClient.requestAccessToken({prompt: 'consent'});
 }
 
 init();
