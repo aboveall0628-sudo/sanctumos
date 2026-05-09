@@ -99,9 +99,10 @@
 
                 <section class="memo-section">
                     <h2 class="section-title meditation-title">묵상하기</h2>
-                    <textarea id="memo-input" placeholder="여기에 내용을 입력하거나 크롭한 본문이 자동으로 추가됩니다..." spellcheck="false"></textarea>
+                    <div id="block-editor" class="block-editor" contenteditable="true" data-placeholder="여기에 내용을 입력하거나 크롭한 본문이 자동으로 추가됩니다..."></div>
                     <div class="memo-footer">
                         <span id="save-status" class="save-status"></span>
+
                     </div>
                 </section>
 
@@ -155,6 +156,19 @@
                 <p>© 2026 Sanctum OS. Notion-inspired Design.</p>
             </footer>
         </main>
+    </div>
+
+    <!-- Timebox Event Modal -->
+    <div id="timebox-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h3>일정 기록하기</h3>
+            <p id="timebox-modal-time" class="modal-time-desc"></p>
+            <input type="text" id="timebox-event-input" placeholder="무엇을 할 계획이신가요?" autocomplete="off" />
+            <div class="modal-actions">
+                <button id="timebox-cancel-btn" class="text-btn">취소</button>
+                <button id="timebox-save-btn" class="primary-btn">저장</button>
+            </div>
+        </div>
     </div>
 
     <script src="bibleData.js"></script>

@@ -224,6 +224,7 @@ function finishLoading() {
     setupSaveButton();
     setupWeather();
     setupTimebox();
+    setupTimeboxModal();
     
     // Google API는 비동기로 별도 처리하여 앱 멈춤 방지
     try {
@@ -378,22 +379,21 @@ async function loadAllMeditations() {
 
 let saveTimeout = null;
 function setupMemoAutoResize() {
-    const memo = document.getElementById('memo-input');
-    if (memo) {
-        // 무제한 확장을 위해 초기 높이 설정 제거 및 자동 조절
-        memo.style.height = 'auto';
-        memo.style.height = (memo.scrollHeight) + 'px';
+    const editor = document.getElementById('block-editor');
+    if (editor) {
+        // 엔터 칠 때 기본 div 대신 p태그 또는 줄바꿈 최적화
+        editor.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                // Notion-like: shift+enter = br, enter = new div
+                // 브라우저 기본 동작이 div 생성이므로 특별한 처리 없어도 됨
+            }
+        });
 
-        memo.addEventListener('input', function() {
-            this.style.height = 'auto';
-            const newHeight = this.scrollHeight;
-            this.style.height = newHeight + 'px';
-            
-            // Debounced save
+        editor.addEventListener('input', function() {
             clearTimeout(saveTimeout);
             saveTimeout = setTimeout(() => {
                 const dateStr = document.getElementById('calendar-input').value;
-                saveMeditationNote(dateStr, this.value);
+                saveMeditationNote(dateStr, this.innerHTML);
             }, 1000);
         });
     }
@@ -421,25 +421,22 @@ async function saveMeditationNote(dateStr, content) {
 
 async function loadMeditationNote(dateStr) {
     if (!db) return;
-    const memo = document.getElementById('memo-input');
-    if (!memo) return;
+    const editor = document.getElementById('block-editor');
+    if (!editor) return;
 
-    memo.value = "불러오는 중...";
+    editor.innerHTML = "<div style='color: var(--notion-text-light);'>불러오는 중...</div>";
     try {
         const docRef = doc(db, "memos", dateStr);
         const docSnap = await getDoc(docRef);
         
-        if (docSnap.exists()) {
-            memo.value = docSnap.data().content;
+        if (docSnap.exists() && docSnap.data().content) {
+            editor.innerHTML = docSnap.data().content;
         } else {
-            memo.value = "";
+            editor.innerHTML = "";
         }
-        // Resize after loading
-        memo.style.height = 'auto';
-        memo.style.height = (memo.scrollHeight) + 'px';
     } catch (e) {
         console.error("Load error:", e);
-        memo.value = ""; // 에러 시 빈 칸으로 처리하여 사용 방해 안함
+        editor.innerHTML = ""; // 에러 시 빈 칸으로 처리하여 사용 방해 안함
     }
 }
 
@@ -448,7 +445,8 @@ function setupSaveButton() {
     if (saveBtn) {
         saveBtn.addEventListener('click', () => {
             const dateStr = document.getElementById('calendar-input').value;
-            const content = document.getElementById('memo-input').value;
+            const editor = document.getElementById('block-editor');
+            const content = editor ? editor.innerHTML : '';
             saveMeditationNote(dateStr, content);
         });
     }
@@ -864,8 +862,12 @@ function updateSelect(e) {
 }
 
 function endSelect() {
+    if (!isDragging) return;
     isDragging = false;
-    selectedCells = [];
+    
+    if (selectedCells.length > 0) {
+        openTimeboxModal(selectedCells);
+    }
 }
 
 function handleTouchMove(e) {
@@ -881,6 +883,111 @@ function handleTouchMove(e) {
             selectedCells.push(currentIndex);
         }
     }
+}
+
+let currentSelectedCells = [];
+
+function openTimeboxModal(cells) {
+    if (cells.length === 0) return;
+    currentSelectedCells = [...cells];
+    
+    const minIdx = Math.min(...cells);
+    const maxIdx = Math.max(...cells);
+    
+    const startH = Math.floor(minIdx / 4);
+    const startM = (minIdx % 4) * 15;
+    
+    const endH = Math.floor((maxIdx + 1) / 4);
+    const endM = ((maxIdx + 1) % 4) * 15;
+    
+    const timeStr = `${startH}시 ${startM === 0 ? '00' : startM}분 ~ ${endH}시 ${endM === 0 ? '00' : endM}분`;
+    
+    document.getElementById('timebox-modal-time').innerText = timeStr;
+    document.getElementById('timebox-event-input').value = '';
+    document.getElementById('timebox-modal').classList.remove('hidden');
+    setTimeout(() => document.getElementById('timebox-event-input').focus(), 100);
+}
+
+function setupTimeboxModal() {
+    const cancelBtn = document.getElementById('timebox-cancel-btn');
+    const saveBtn = document.getElementById('timebox-save-btn');
+    
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', () => {
+            document.getElementById('timebox-modal').classList.add('hidden');
+            currentSelectedCells.forEach(idx => {
+                const cell = document.querySelector(`.time-cell[data-index="${idx}"]`);
+                if (cell) cell.classList.remove('selected');
+            });
+            selectedCells = [];
+            currentSelectedCells = [];
+        });
+    }
+    
+    if (saveBtn) {
+        saveBtn.addEventListener('click', () => {
+            const title = document.getElementById('timebox-event-input').value.trim();
+            if (!title) return;
+            
+            document.getElementById('timebox-modal').classList.add('hidden');
+            
+            const startIdx = Math.min(...currentSelectedCells);
+            currentSelectedCells.forEach(idx => {
+                const cell = document.querySelector(`.time-cell[data-index="${idx}"]`);
+                if (cell) {
+                    cell.classList.remove('selected');
+                    cell.classList.add('has-event', 'custom-event');
+                    if (idx === startIdx) {
+                        cell.setAttribute('data-event-title', title);
+                    }
+                }
+            });
+            
+            saveTimeboxToFirebase(currentSelectedCells, title);
+            selectedCells = [];
+            currentSelectedCells = [];
+        });
+    }
+}
+
+async function saveTimeboxToFirebase(cells, title) {
+    if (!db) return;
+    const dateStr = document.getElementById('calendar-input').value;
+    const docRef = doc(db, "memos", dateStr);
+    
+    try {
+        const docSnap = await getDoc(docRef);
+        let data = docSnap.exists() ? docSnap.data() : { content: '' };
+        let events = data.timeboxEvents || [];
+        
+        events.push({ indices: cells, title: title });
+        
+        await setDoc(docRef, { ...data, timeboxEvents: events, updatedAt: serverTimestamp() });
+    } catch (e) {
+        console.error("Timebox save error:", e);
+    }
+}
+
+function renderCustomTimeboxEvents(events) {
+    document.querySelectorAll('.time-cell.custom-event').forEach(el => {
+        el.classList.remove('custom-event', 'has-event');
+        el.removeAttribute('data-event-title');
+    });
+    
+    if (!events) return;
+    
+    events.forEach(ev => {
+        const startIdx = Math.min(...ev.indices);
+        ev.indices.forEach(idx => {
+            const cell = document.querySelector(`.time-cell[data-index="${idx}"]`);
+            if (cell) {
+                cell.classList.add('has-event', 'custom-event');
+                if (idx === startIdx) {
+                    cell.setAttribute('data-event-title', ev.title);
+                }
+            }
+        });
+    });
 }
 
 /**

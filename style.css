@@ -299,12 +299,11 @@ h1 {
     border: 1px solid var(--notion-border);
 }
 
-#memo-input {
+.block-editor {
     width: 100%;
     min-height: 120px;
     background: transparent;
     border: none;
-    resize: none;
     font-family: var(--font-pretendard);
     font-size: 16px;
     line-height: 1.6;
@@ -312,12 +311,36 @@ h1 {
     padding: 12px;
     border-radius: 8px;
     outline: none;
-    overflow: hidden;
+    transition: background 0.2s;
 }
 
-#memo-input:focus {
+.block-editor:focus {
     background: var(--notion-bg);
-    box-shadow: 0 0 0 1px var(--notion-blue);
+}
+
+.block-editor:empty:before {
+    content: attr(data-placeholder);
+    color: var(--notion-text-light);
+    pointer-events: none;
+    display: block; /* For Firefox */
+}
+
+/* Notion-like block hovering effect */
+.block-editor div {
+    padding: 4px 8px;
+    border-radius: 4px;
+    margin-bottom: 4px;
+    transition: background 0.1s;
+}
+
+.block-editor div:hover {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+.block-editor div:focus {
+    background: transparent;
+    border-left: 3px solid var(--notion-blue);
+    padding-left: 5px; /* Adjust for border */
 }
 
 /* Progress Section */
@@ -734,4 +757,71 @@ h1 {
     text-overflow: ellipsis;
     width: 90%;
     pointer-events: none;
+}
+
+.section-divider {
+    border: none;
+    border-top: 1px solid var(--notion-border);
+    margin: 80px 0 40px 0; /* 날씨 위젯 위 공간 띄우기 */
+}
+
+/* Modal Overlay */
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    backdrop-filter: blur(2px);
+    opacity: 1;
+    transition: opacity 0.2s;
+}
+
+.modal-overlay.hidden {
+    display: none;
+    opacity: 0;
+}
+
+.modal-content {
+    background: var(--notion-bg);
+    padding: 24px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+}
+
+.modal-content h3 {
+    margin: 0 0 8px 0;
+    font-size: 18px;
+}
+
+.modal-time-desc {
+    font-size: 13px;
+    color: var(--notion-blue);
+    margin-bottom: 16px;
+    font-weight: 500;
+}
+
+.modal-content input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--notion-border);
+    border-radius: 6px;
+    font-family: var(--font-pretendard);
+    font-size: 15px;
+    margin-bottom: 20px;
+    outline: none;
+}
+
+.modal-content input:focus {
+    border-color: var(--notion-blue);
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
 }
