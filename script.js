@@ -221,7 +221,6 @@ function finishLoading() {
     renderForDate(today);
     switchView('dashboard'); // Default to Dashboard view
     setupMobileMenu();
-    setupSaveButton();
     setupWeather();
     setupTimebox();
     setupTimeboxModal();
@@ -489,7 +488,7 @@ function copySelectedVerses() {
         resultHTML += `<div><strong>${groupKey}</strong></div>`;
         grouped[groupKey].sort((a, b) => a.num - b.num);
         grouped[groupKey].forEach(v => {
-            resultHTML += `<div>${v.num}절 ${v.text}</div>`;
+            resultHTML += `<div>${v.num} ${v.text}</div>`;
         });
         resultHTML += `<br>`;
     });

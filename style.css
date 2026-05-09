@@ -6,6 +6,21 @@
     --notion-hover: rgba(55, 53, 47, 0.04);
     --notion-blue: #2383e2;
     --font-pretendard: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+    --event-1-bg: rgba(235, 87, 87, 0.15);
+    --event-1-border: #eb5757;
+    --event-1-text: #c0392b;
+    --event-2-bg: rgba(45, 156, 219, 0.15);
+    --event-2-border: #2d9cdb;
+    --event-2-text: #2980b9;
+    --event-3-bg: rgba(242, 153, 74, 0.15);
+    --event-3-border: #f2994a;
+    --event-3-text: #d35400;
+    --event-4-bg: rgba(155, 81, 224, 0.15);
+    --event-4-border: #9b51e0;
+    --event-4-text: #8e44ad;
+    --event-5-bg: rgba(39, 174, 96, 0.15);
+    --event-5-border: #27ae60;
+    --event-5-text: #16a085;
 }
 
 body.dark-mode {
@@ -14,6 +29,21 @@ body.dark-mode {
     --notion-text-light: #9b9b9b;
     --notion-border: rgba(255, 255, 255, 0.1);
     --notion-hover: rgba(255, 255, 255, 0.05);
+    --event-1-bg: rgba(255, 107, 107, 0.2);
+    --event-1-border: #ff6b6b;
+    --event-1-text: #ff9999;
+    --event-2-bg: rgba(84, 160, 255, 0.2);
+    --event-2-border: #54a0ff;
+    --event-2-text: #a4b0f9;
+    --event-3-bg: rgba(255, 159, 67, 0.2);
+    --event-3-border: #ff9f43;
+    --event-3-text: #ffcc99;
+    --event-4-bg: rgba(162, 155, 254, 0.2);
+    --event-4-border: #a29bfe;
+    --event-4-text: #d0c9ff;
+    --event-5-bg: rgba(0, 210, 211, 0.2);
+    --event-5-border: #00d2d3;
+    --event-5-text: #81ecec;
 }
 
 * {
@@ -743,20 +773,20 @@ h1 {
     border-left: 4px solid #4caf50;
 }
 
-.time-cell.has-event.event-color-1 { background: rgba(255, 153, 153, 0.15); border-left-color: #ff6b6b; }
-.time-cell.has-event.event-color-1::after { color: #d63031; }
+.time-cell.has-event.event-color-1 { background: var(--event-1-bg); border-left-color: var(--event-1-border); }
+.time-cell.has-event.event-color-1::after { color: var(--event-1-text); }
 
-.time-cell.has-event.event-color-2 { background: rgba(153, 204, 255, 0.15); border-left-color: #54a0ff; }
-.time-cell.has-event.event-color-2::after { color: #2e86de; }
+.time-cell.has-event.event-color-2 { background: var(--event-2-bg); border-left-color: var(--event-2-border); }
+.time-cell.has-event.event-color-2::after { color: var(--event-2-text); }
 
-.time-cell.has-event.event-color-3 { background: rgba(255, 204, 153, 0.15); border-left-color: #ff9f43; }
-.time-cell.has-event.event-color-3::after { color: #e15f41; }
+.time-cell.has-event.event-color-3 { background: var(--event-3-bg); border-left-color: var(--event-3-border); }
+.time-cell.has-event.event-color-3::after { color: var(--event-3-text); }
 
-.time-cell.has-event.event-color-4 { background: rgba(204, 153, 255, 0.15); border-left-color: #a29bfe; }
-.time-cell.has-event.event-color-4::after { color: #6c5ce7; }
+.time-cell.has-event.event-color-4 { background: var(--event-4-bg); border-left-color: var(--event-4-border); }
+.time-cell.has-event.event-color-4::after { color: var(--event-4-text); }
 
-.time-cell.has-event.event-color-5 { background: rgba(153, 255, 204, 0.15); border-left-color: #00d2d3; }
-.time-cell.has-event.event-color-5::after { color: #01a3a4; }
+.time-cell.has-event.event-color-5 { background: var(--event-5-bg); border-left-color: var(--event-5-border); }
+.time-cell.has-event.event-color-5::after { color: var(--event-5-text); }
 
 .time-cell.has-event::after {
     content: attr(data-event-title);
