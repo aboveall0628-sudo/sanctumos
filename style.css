@@ -791,12 +791,14 @@ h1 {
     border-right: 1px solid var(--notion-border);
     border-bottom: none;
     position: relative;
+    line-height: 1;
 }
 
 .timebox-header-cell span {
     position: absolute;
     left: 0;
-    transform: translateX(-50%);
+    top: 50%;
+    transform: translate(-50%, -50%);
     background: var(--notion-bg);
     padding: 0 4px;
     z-index: 5;
@@ -813,6 +815,7 @@ h1 {
     color: var(--notion-text);
     border-right: 1px solid var(--notion-border);
     border-bottom: 1px solid var(--notion-border);
+    line-height: 1;
 }
 
 .time-cell {
