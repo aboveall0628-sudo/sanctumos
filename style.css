@@ -780,7 +780,7 @@ h1 {
 }
 
 .timebox-header-cell {
-    background: var(--notion-hover);
+    background: var(--notion-bg);
     padding: 0;
     display: flex;
     align-items: center;
@@ -789,7 +789,7 @@ h1 {
     font-weight: 700;
     color: var(--notion-text-light);
     border-right: 1px solid var(--notion-border);
-    border-bottom: 1px solid var(--notion-border);
+    border-bottom: none;
     position: relative;
 }
 
@@ -797,13 +797,13 @@ h1 {
     position: absolute;
     left: 0;
     transform: translateX(-50%);
-    background: var(--notion-hover);
+    background: var(--notion-bg);
     padding: 0 4px;
     z-index: 5;
 }
 
 .time-label-row {
-    background: var(--notion-hover);
+    background: var(--notion-bg);
     display: flex;
     align-items: center;
     justify-content: center;

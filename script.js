@@ -777,12 +777,12 @@ function setupTimebox() {
 
     grid.innerHTML = '';
 
-    // 헤더 행 생성 (빈 칸, 00, 15, 30, 45)
-    const headers = ['H', '00', '15', '30', '45'];
+    // 헤더 행 생성 (빈 칸, 00(삭제), 15, 30, 45)
+    const headers = ['H', '', '15', '30', '45'];
     headers.forEach(h => {
         const div = document.createElement('div');
         div.className = 'timebox-header-cell';
-        if (h !== 'H') {
+        if (h !== 'H' && h !== '') {
             div.innerHTML = `<span>${h}</span>`;
         } else {
             div.textContent = h;
