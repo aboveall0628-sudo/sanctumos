@@ -153,7 +153,14 @@ async function init() {
         } else {
             // 2. Fetch from Remote
             updateLoadingStatus("데이터 동기화 중...", "GitHub에서 최신 성경 데이터를 가져오고 있습니다 (약 5MB).");
-            const response = await fetch(REMOTE_URL);
+            
+            // 데이터 로드가 너무 오래 걸리면 강제 종료 방지를 위해 타임아웃 설정
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10초 제한
+
+            const response = await fetch(REMOTE_URL, { signal: controller.signal });
+            clearTimeout(timeoutId);
+
             if (!response.ok) throw new Error("네트워크 응답이 좋지 않습니다.");
             
             bibleData = await response.json();
