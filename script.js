@@ -11,7 +11,7 @@ const firebaseConfig = {
 
 // Initialize Firebase via CDN modules
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-app.js";
-import { getFirestore, doc, setDoc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore.js";
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
@@ -256,12 +256,16 @@ function setupEventListeners() {
     // Navigation
     const navToday = document.getElementById('nav-today');
     const navDashboard = document.getElementById('nav-dashboard');
+    const navPast = document.getElementById('nav-past');
     
     if (navToday) {
         navToday.addEventListener('click', () => switchView('today'));
     }
     if (navDashboard) {
         navDashboard.addEventListener('click', () => switchView('dashboard'));
+    }
+    if (navPast) {
+        navPast.addEventListener('click', () => switchView('past'));
     }
 
     // Toolbar
@@ -288,6 +292,60 @@ function switchView(viewId) {
     
     const activeNav = document.getElementById(`nav-${viewId}`);
     if (activeNav) activeNav.classList.add('active');
+
+    // If switching to past view, load data
+    if (viewId === 'past') {
+        loadAllMeditations();
+    }
+}
+
+async function loadAllMeditations() {
+    const listContainer = document.getElementById('past-meditations-list');
+    if (!listContainer || !db) return;
+
+    listContainer.innerHTML = '<div class="loading-state"><div class="spinner"></div><p>묵상 기록을 불러오는 중...</p></div>';
+
+    try {
+        const q = query(collection(db, "memos"), orderBy("updatedAt", "desc"));
+        const querySnapshot = await getDocs(q);
+        
+        if (querySnapshot.empty) {
+            listContainer.innerHTML = '<p class="subtitle">아직 저장된 묵상이 없습니다.</p>';
+            return;
+        }
+
+        listContainer.innerHTML = '';
+        querySnapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            const dateStr = docSnap.id;
+            
+            const card = document.createElement('div');
+            card.className = 'past-card';
+            card.innerHTML = `
+                <div class="past-card-header">
+                    <span class="past-card-date">${dateStr}</span>
+                </div>
+                <div class="past-card-excerpt">${data.content || "내용 없음"}</div>
+            `;
+            
+            card.addEventListener('click', () => {
+                // Switch to today's view and load this date
+                const [y, m, d] = dateStr.split('-').map(Number);
+                const targetDate = new Date(y, m - 1, d);
+                
+                const calendar = document.getElementById('calendar-input');
+                if (calendar) calendar.value = dateStr;
+                
+                renderForDate(targetDate);
+                switchView('today');
+            });
+            
+            listContainer.appendChild(card);
+        });
+    } catch (e) {
+        console.error("Load all error:", e);
+        listContainer.innerHTML = '<p class="subtitle">데이터를 불러오는 중 오류가 발생했습니다.</p>';
+    }
 }
 
 let saveTimeout = null;

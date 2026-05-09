@@ -38,6 +38,9 @@
                 <button class="sidebar-item" id="nav-today">
                     <span class="icon">📅</span> 오늘의 말씀
                 </button>
+                <button class="sidebar-item" id="nav-past">
+                    <span class="icon">📜</span> 이전 묵상
+                </button>
             </nav>
             <div class="sidebar-footer">
                 <button id="theme-toggle-btn">
@@ -86,6 +89,16 @@
                     <h2 class="section-title">파트별 통독률</h2>
                     <div id="progress-container"></div>
                 </section>
+            </div>
+
+            <div id="view-past" class="view hidden">
+                <header class="notion-header">
+                    <h1>📜 이전 묵상 기록</h1>
+                    <p class="subtitle">지금까지 기록한 묵상 노트들입니다.</p>
+                </header>
+                <div id="past-meditations-list" class="past-list">
+                    <!-- 묵상 리스트가 여기에 렌더링됩니다 -->
+                </div>
             </div>
 
             <footer class="notion-footer">
