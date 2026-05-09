@@ -204,7 +204,6 @@ function finishLoading() {
     switchView('dashboard'); // Default to Dashboard view
     setupMobileMenu();
     setupSaveButton();
-    setupChecklistButton();
 }
 
 function setupMobileMenu() {
@@ -355,14 +354,9 @@ function setupMemoAutoResize() {
     const memo = document.getElementById('memo-input');
     if (memo) {
         memo.addEventListener('input', function() {
-            // 현재 스크롤 위치 저장 (화면 흔들림 방지)
-            const scrollPos = window.scrollY;
-            
+            // 박스 크기를 글자 양에 맞게 조절
             this.style.height = 'auto';
             this.style.height = (this.scrollHeight) + 'px';
-            
-            // 스크롤 위치 복구
-            window.scrollTo(0, scrollPos);
             
             // Debounced save to Firestore
             clearTimeout(saveTimeout);
@@ -425,36 +419,6 @@ function setupSaveButton() {
             const dateStr = document.getElementById('calendar-input').value;
             const content = document.getElementById('memo-input').value;
             saveMeditationNote(dateStr, content);
-        });
-    }
-}
-
-function setupChecklistButton() {
-    const checklistBtn = document.getElementById('add-checklist-btn');
-    const memo = document.getElementById('memo-input');
-    
-    if (checklistBtn && memo) {
-        checklistBtn.addEventListener('click', () => {
-            const start = memo.selectionStart;
-            const end = memo.selectionEnd;
-            const text = memo.value;
-            const before = text.substring(0, start);
-            const after = text.substring(end);
-            
-            // 줄의 시작인지 확인하여 줄바꿈 여부 결정
-            const isStartOfLine = start === 0 || text[start - 1] === '\n';
-            const checklistStr = isStartOfLine ? "- [ ] " : "\n- [ ] ";
-            
-            memo.value = before + checklistStr + after;
-            
-            // 커서 위치 조정
-            const newPos = start + checklistStr.length;
-            memo.focus();
-            memo.setSelectionRange(newPos, newPos);
-            
-            // 높이 재조정
-            memo.style.height = 'auto';
-            memo.style.height = (memo.scrollHeight) + 'px';
         });
     }
 }
