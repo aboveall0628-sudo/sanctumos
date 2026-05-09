@@ -782,7 +782,12 @@ function setupTimebox() {
     headers.forEach(h => {
         const div = document.createElement('div');
         div.className = 'timebox-header-cell';
-        div.textContent = h;
+        if (h !== 'H') {
+            div.innerHTML = `<span>${h}</span>`;
+        } else {
+            div.textContent = h;
+            div.style.justifyContent = 'center';
+        }
         grid.appendChild(div);
     });
 

@@ -771,8 +771,8 @@ h1 {
 .timebox-grid {
     display: grid;
     /* 세로축(시간) 24줄 + 헤더 1줄 / 가로축(분) 헤더 1줄 + 4칸 */
-    grid-template-columns: 60px repeat(4, 1fr);
-    grid-template-rows: 30px repeat(24, 35px);
+    grid-template-columns: 50px repeat(4, 1fr);
+    grid-template-rows: 25px repeat(24, 25px);
     gap: 0;
     background: var(--notion-bg);
     border: 1px solid var(--notion-border);
@@ -781,22 +781,34 @@ h1 {
 
 .timebox-header-cell {
     background: var(--notion-hover);
-    padding: 4px 8px;
-    text-align: left;
-    font-size: 12px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    font-size: 11px;
     font-weight: 700;
     color: var(--notion-text-light);
     border-right: 1px solid var(--notion-border);
     border-bottom: 1px solid var(--notion-border);
+    position: relative;
+}
+
+.timebox-header-cell span {
+    position: absolute;
+    left: 0;
+    transform: translateX(-50%);
+    background: var(--notion-hover);
+    padding: 0 4px;
+    z-index: 5;
 }
 
 .time-label-row {
     background: var(--notion-hover);
     display: flex;
-    align-items: flex-start;
-    justify-content: flex-start;
-    padding: 4px 8px;
-    font-size: 12px;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    font-size: 11px;
     font-weight: 700;
     color: var(--notion-text);
     border-right: 1px solid var(--notion-border);
@@ -808,7 +820,7 @@ h1 {
     cursor: pointer;
     transition: background 0.1s;
     position: relative;
-    min-height: 35px;
+    min-height: 25px;
     border-right: 1px solid var(--notion-border);
     border-bottom: 1px solid var(--notion-border);
 }
@@ -824,37 +836,39 @@ h1 {
 
 .time-cell.has-event {
     background: rgba(76, 175, 80, 0.1);
-    border-left: 4px solid #4caf50;
+    /* border-left 제거 */
 }
 
-.time-cell.has-event.event-color-1 { background: var(--event-1-bg); border-left-color: var(--event-1-border); }
+.time-cell.has-event.event-color-1 { background: var(--event-1-bg); }
 .time-cell.has-event.event-color-1::after { color: var(--event-1-text); }
-.time-cell.has-event.event-color-2 { background: var(--event-2-bg); border-left-color: var(--event-2-border); }
+.time-cell.has-event.event-color-2 { background: var(--event-2-bg); }
 .time-cell.has-event.event-color-2::after { color: var(--event-2-text); }
-.time-cell.has-event.event-color-3 { background: var(--event-3-bg); border-left-color: var(--event-3-border); }
+.time-cell.has-event.event-color-3 { background: var(--event-3-bg); }
 .time-cell.has-event.event-color-3::after { color: var(--event-3-text); }
-.time-cell.has-event.event-color-4 { background: var(--event-4-bg); border-left-color: var(--event-4-border); }
+.time-cell.has-event.event-color-4 { background: var(--event-4-bg); }
 .time-cell.has-event.event-color-4::after { color: var(--event-4-text); }
-.time-cell.has-event.event-color-5 { background: var(--event-5-bg); border-left-color: var(--event-5-border); }
+.time-cell.has-event.event-color-5 { background: var(--event-5-bg); }
 .time-cell.has-event.event-color-5::after { color: var(--event-5-text); }
-.time-cell.has-event.event-color-6 { background: var(--event-6-bg); border-left-color: var(--event-6-border); }
+.time-cell.has-event.event-color-6 { background: var(--event-6-bg); }
 .time-cell.has-event.event-color-6::after { color: var(--event-6-text); }
-.time-cell.has-event.event-color-7 { background: var(--event-7-bg); border-left-color: var(--event-7-border); }
+.time-cell.has-event.event-color-7 { background: var(--event-7-bg); }
 .time-cell.has-event.event-color-7::after { color: var(--event-7-text); }
-.time-cell.has-event.event-color-8 { background: var(--event-8-bg); border-left-color: var(--event-8-border); }
+.time-cell.has-event.event-color-8 { background: var(--event-8-bg); }
 .time-cell.has-event.event-color-8::after { color: var(--event-8-text); }
-.time-cell.has-event.event-color-9 { background: var(--event-9-bg); border-left-color: var(--event-9-border); }
+.time-cell.has-event.event-color-9 { background: var(--event-9-bg); }
 .time-cell.has-event.event-color-9::after { color: var(--event-9-text); }
-.time-cell.has-event.event-color-10 { background: var(--event-10-bg); border-left-color: var(--event-10-border); }
+.time-cell.has-event.event-color-10 { background: var(--event-10-bg); }
 .time-cell.has-event.event-color-10::after { color: var(--event-10-text); }
 
 .time-cell.has-event.event-middle {
+    border-right: none;
     border-bottom: none;
 }
 .time-cell.has-event.event-end {
-    /* Keep bottom border for the last cell */
+    /* Keep borders for the last cell */
 }
 .time-cell.has-event.event-start {
+    border-right: none;
     border-bottom: none;
 }
 
