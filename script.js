@@ -14,7 +14,7 @@ const firebaseConfig = {
 const GOOGLE_CLIENT_ID = '760231593146-7gkia8st114oiojjgjljjk0rdduhgafl.apps.googleusercontent.com';
 const GOOGLE_API_KEY = 'AIzaSyDdQAmIWoKy5z1I6w4BWE3xK9a1ryBZXHQ'; 
 const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"];
-const SCOPES = "https://www.googleapis.com/auth/calendar.events";
+const SCOPES = "https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email";
 
 let tokenClient;
 let gapiInited = false;
@@ -213,7 +213,8 @@ function finishLoading() {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     
-    if (now.getHours() < 5) today.setDate(today.getDate() - 1);
+    // 자정(0시) 기준으로 날짜 변경 (사용자 요청 반영)
+    // if (now.getHours() < 5) today.setDate(today.getDate() - 1);
 
     switchView('today');
     
@@ -1193,6 +1194,8 @@ async function intializeGapiClient() {
             
             const gcalWrapper = document.getElementById('gcal-checkbox-wrapper');
             if (gcalWrapper) gcalWrapper.style.display = 'flex';
+            
+            loadUserProfile();
         }
     }
     
@@ -1232,6 +1235,7 @@ function handleAuthClick() {
         const gcalWrapper = document.getElementById('gcal-checkbox-wrapper');
         if (gcalWrapper) gcalWrapper.style.display = 'flex';
         
+        loadUserProfile();
         await listUpcomingEvents();
     };
 
@@ -1239,6 +1243,30 @@ function handleAuthClick() {
         tokenClient.requestAccessToken({prompt: 'consent'});
     } else {
         tokenClient.requestAccessToken({prompt: ''});
+    }
+}
+
+async function loadUserProfile() {
+    try {
+        const token = gapi.client.getToken();
+        if (!token) return;
+
+        const resp = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { 'Authorization': `Bearer ${token.access_token}` }
+        });
+        const userInfo = await resp.json();
+
+        if (userInfo.name) {
+            document.getElementById('user-profile').classList.remove('hidden');
+            document.getElementById('user-name').textContent = userInfo.name;
+            const avatar = document.getElementById('user-avatar');
+            if (avatar && userInfo.picture) {
+                avatar.src = userInfo.picture;
+                avatar.style.display = 'block';
+            }
+        }
+    } catch (e) {
+        console.warn("프로필 정보를 가져오지 못했어요:", e);
     }
 }
 

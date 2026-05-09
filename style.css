@@ -132,6 +132,37 @@ body {
     font-weight: 600;
 }
 
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    margin-top: 15px;
+    background: var(--notion-hover);
+    border-radius: 8px;
+    font-size: 13px;
+}
+
+.user-profile img {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #ddd;
+}
+
+.user-info {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#user-name {
+    font-weight: 600;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+
 .sidebar-nav {
     flex: 1;
 }
