@@ -656,56 +656,58 @@ h1 {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 16px;
+    margin-top: 48px;
+    margin-bottom: 24px;
 }
 
 .timebox-wrapper {
-    overflow-x: auto;
     background: var(--notion-bg);
     border: 1px solid var(--notion-border);
     border-radius: 12px;
-    padding: 20px;
-    scrollbar-width: thin;
+    padding: 24px;
+    overflow-x: auto;
 }
 
 .timebox-grid {
     display: grid;
-    grid-template-columns: 50px repeat(24, 60px); /* 시간 레이블 + 24시간 */
-    grid-template-rows: repeat(4, 40px); /* 15, 30, 45, 00분 */
-    gap: 2px;
-    min-width: 1500px; /* 모든 시간이 다 보이게 최소 너비 설정 */
+    /* 세로축(시간) 24줄 + 헤더 1줄 / 가로축(분) 헤더 1줄 + 4칸 */
+    grid-template-columns: 80px repeat(4, 1fr);
+    grid-template-rows: auto repeat(24, 50px);
+    gap: 1px;
+    background: var(--notion-border);
+    border: 1px solid var(--notion-border);
+    min-width: 400px;
 }
 
-.time-label-col {
-    grid-column: 1;
+.timebox-header-cell {
+    background: var(--notion-hover);
+    padding: 12px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--notion-text-light);
+}
+
+.time-label-row {
+    background: var(--notion-hover);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 12px;
-    color: var(--notion-text-light);
-    font-weight: 600;
-    border-right: 1px solid var(--notion-border);
-}
-
-.hour-header {
-    grid-row: 1;
-    text-align: center;
     font-size: 13px;
-    font-weight: 600;
-    padding-bottom: 8px;
-    border-bottom: 2px solid var(--notion-border);
+    font-weight: 700;
+    color: var(--notion-text);
 }
 
 .time-cell {
-    background: var(--notion-hover);
-    border: 1px solid rgba(0,0,0,0.03);
+    background: var(--notion-bg);
     cursor: pointer;
     transition: background 0.1s;
     position: relative;
+    min-height: 50px;
 }
 
 .time-cell:hover {
-    background: var(--notion-border);
+    background: var(--notion-hover);
 }
 
 .time-cell.selected {
@@ -714,18 +716,22 @@ h1 {
 }
 
 .time-cell.has-event {
-    background: #4caf50;
-    border-color: #388e3c;
+    background: rgba(76, 175, 80, 0.1);
+    border-left: 4px solid #4caf50;
 }
 
 .time-cell.has-event::after {
     content: attr(data-event-title);
     position: absolute;
     top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 10px;
-    color: white;
+    left: 12px;
+    transform: translateY(-50%);
+    font-size: 11px;
+    color: #2e7d32;
+    font-weight: 500;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 90%;
     pointer-events: none;
 }

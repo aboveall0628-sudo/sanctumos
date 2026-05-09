@@ -216,7 +216,13 @@ function finishLoading() {
     setupSaveButton();
     setupWeather();
     setupTimebox();
-    setupGoogleAuth();
+    
+    // Google API는 비동기로 별도 처리하여 앱 멈춤 방지
+    try {
+        setupGoogleAuth();
+    } catch (e) {
+        console.warn("Google Auth init failed, but continuing app:", e);
+    }
 }
 
 function setupMobileMenu() {
@@ -366,12 +372,16 @@ let saveTimeout = null;
 function setupMemoAutoResize() {
     const memo = document.getElementById('memo-input');
     if (memo) {
+        // 무제한 확장을 위해 초기 높이 설정 제거 및 자동 조절
+        memo.style.height = 'auto';
+        memo.style.height = (memo.scrollHeight) + 'px';
+
         memo.addEventListener('input', function() {
-            // 박스 크기를 글자 양에 맞게 조절
             this.style.height = 'auto';
-            this.style.height = (this.scrollHeight) + 'px';
+            const newHeight = this.scrollHeight;
+            this.style.height = newHeight + 'px';
             
-            // Debounced save to Firestore
+            // Debounced save
             clearTimeout(saveTimeout);
             saveTimeout = setTimeout(() => {
                 const dateStr = document.getElementById('calendar-input').value;
@@ -763,10 +773,10 @@ function renderWeather(daily) {
 }
 
 /**
- * Timebox System
+ * Timebox System (축 반전: 세로 시간, 가로 분)
  */
 let isDragging = false;
-let startCell = null;
+let selectedCells = [];
 
 function setupTimebox() {
     const grid = document.getElementById('timebox-grid');
@@ -774,37 +784,36 @@ function setupTimebox() {
 
     grid.innerHTML = '';
 
-    // Create 15, 30, 45, 00 labels for rows
-    const rowLabels = ['15분', '30분', '45분', '00분'];
-    rowLabels.forEach((label, i) => {
+    // 헤더 행 생성 (빈 칸, 00, 15, 30, 45)
+    const headers = ['', '00', '15', '30', '45'];
+    headers.forEach(h => {
         const div = document.createElement('div');
-        div.className = 'time-label-col';
-        div.style.gridRow = i + 1;
-        div.textContent = label;
+        div.className = 'timebox-header-cell';
+        div.textContent = h;
         grid.appendChild(div);
     });
 
-    // Create Hour headers and cells
+    // 24시간 행 생성
     for (let h = 0; h < 24; h++) {
-        const header = document.createElement('div');
-        header.className = 'hour-header';
-        header.style.gridColumn = h + 2;
-        header.textContent = `${h}시`;
-        grid.appendChild(header);
+        // 시간 레이블 (첫 번째 열)
+        const label = document.createElement('div');
+        label.className = 'time-label-row';
+        label.textContent = `${h}시`;
+        grid.appendChild(label);
 
+        // 4개 칸 (00, 15, 30, 45분)
         for (let m = 0; m < 4; m++) {
             const cell = document.createElement('div');
             cell.className = 'time-cell';
             cell.dataset.hour = h;
             cell.dataset.min = m;
-            cell.style.gridColumn = h + 2;
-            cell.style.gridRow = m + 1;
+            cell.dataset.index = h * 4 + m; // 연속성 체크용 인덱스
 
             cell.addEventListener('mousedown', startSelect);
             cell.addEventListener('mouseover', updateSelect);
             cell.addEventListener('mouseup', endSelect);
             
-            // Touch support
+            // Touch
             cell.addEventListener('touchstart', (e) => { e.preventDefault(); startSelect(e); }, {passive: false});
             cell.addEventListener('touchmove', handleTouchMove, {passive: false});
             cell.addEventListener('touchend', endSelect);
@@ -819,21 +828,36 @@ function startSelect(e) {
     const cell = e.target.closest('.time-cell');
     if (!cell) return;
     
-    startCell = cell;
+    // 초기화 및 첫 칸 선택
     cell.classList.toggle('selected');
+    if (cell.classList.contains('selected')) {
+        selectedCells = [parseInt(cell.dataset.index)];
+    } else {
+        selectedCells = [];
+    }
 }
 
 function updateSelect(e) {
     if (!isDragging) return;
     const cell = e.target.closest('.time-cell');
-    if (cell && cell !== startCell) {
-        cell.classList.add('selected');
+    if (!cell) return;
+
+    const currentIndex = parseInt(cell.dataset.index);
+    if (selectedCells.length > 0) {
+        const lastIndex = selectedCells[selectedCells.length - 1];
+        // 오직 바로 다음 칸이거나 바로 이전 칸일 때만 (연속성 보장)
+        if (Math.abs(currentIndex - lastIndex) === 1) {
+            if (!selectedCells.includes(currentIndex)) {
+                cell.classList.add('selected');
+                selectedCells.push(currentIndex);
+            }
+        }
     }
 }
 
 function endSelect() {
     isDragging = false;
-    startCell = null;
+    selectedCells = [];
 }
 
 function handleTouchMove(e) {
@@ -842,7 +866,12 @@ function handleTouchMove(e) {
     const el = document.elementFromPoint(touch.clientX, touch.clientY);
     const cell = el?.closest('.time-cell');
     if (cell) {
-        cell.classList.add('selected');
+        const currentIndex = parseInt(cell.dataset.index);
+        const lastIndex = selectedCells[selectedCells.length - 1];
+        if (Math.abs(currentIndex - lastIndex) === 1 && !selectedCells.includes(currentIndex)) {
+            cell.classList.add('selected');
+            selectedCells.push(currentIndex);
+        }
     }
 }
 
