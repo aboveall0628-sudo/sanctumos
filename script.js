@@ -1283,6 +1283,7 @@ function renderEventsOnTimebox(events) {
     });
 
     if (!events) return;
+    events.forEach(event => {
         const start = new Date(event.start.dateTime || event.start.date);
         const end = new Date(event.end.dateTime || event.end.date);
         
