@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>성경 알리미 - 묵상 스케줄</title>
+    <!-- Pretendard Font -->
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-box">
+            <div class="spinner"></div>
+            <h2 id="loading-title">데이터 동기화 중...</h2>
+            <p id="loading-status">성경 데이터를 안전하게 불러오고 있습니다.</p>
+        </div>
+    </div>
+
+    <div class="main-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <span class="logo">📖 Bible Alimi</span>
+            </div>
+            <nav class="sidebar-nav">
+                <button class="sidebar-item active" id="nav-dashboard">
+                    <span class="icon">📊</span> 대시보드
+                </button>
+                <button class="sidebar-item" id="nav-today">
+                    <span class="icon">📅</span> 오늘의 말씀
+                </button>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="theme-toggle-btn">
+                    <span class="icon">🌙</span>
+                    <span class="text">다크 모드</span>
+                </button>
+            </div>
+        </aside>
+
+        <main class="content-area">
+            <div id="view-today" class="view">
+                <header class="notion-header">
+                    <div class="date-picker-wrapper">
+                        <h1 id="current-date-display">로딩 중...</h1>
+                        <input type="date" id="calendar-input">
+                    </div>
+                    <p class="subtitle">오늘의 묵상 말씀입니다.</p>
+                </header>
+
+                <div class="toolbar">
+                    <button id="toggle-all-btn" class="text-btn">전체 펼치기/접기</button>
+                    <button id="copy-btn" class="primary-btn hidden">복사하기</button>
+                </div>
+
+                <div id="meditation-content" class="notion-content">
+                </div>
+
+                <div class="daily-bible-link-container">
+                    <a href="https://sum.su.or.kr:8888/bible/today" target="_blank" class="daily-bible-link">
+                        <span class="icon">🔗</span> 매일성경 바로가기
+                    </a>
+                </div>
+
+                <section class="memo-section">
+                    <h2 class="section-title">📝 오늘의 메모</h2>
+                    <textarea id="memo-input" placeholder="여기에 내용을 입력하거나 크롭한 본문이 자동으로 추가됩니다..." spellcheck="false"></textarea>
+                </section>
+            </div>
+
+            <div id="view-dashboard" class="view hidden">
+                <header class="notion-header">
+                    <h1>📊 대시보드</h1>
+                    <p class="subtitle">나의 성경 통독 현황입니다.</p>
+                </header>
+                <section id="progress-section" class="notion-section">
+                    <h2 class="section-title">파트별 통독률</h2>
+                    <div id="progress-container"></div>
+                </section>
+            </div>
+
+            <footer class="notion-footer">
+                <p>© 2026 Bible Alimi. Notion-inspired Design.</p>
+            </footer>
+        </main>
+    </div>
+
+    <script src="bibleData.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
