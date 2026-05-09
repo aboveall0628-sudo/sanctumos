@@ -224,7 +224,7 @@ function finishLoading() {
     if (calendar) calendar.value = `${year}-${month}-${day}`;
     
     renderForDate(today);
-    switchView('dashboard'); // Default to Dashboard view
+    switchView('today'); 
     setupMobileMenu();
     setupWeather();
     setupTimebox();
@@ -859,6 +859,8 @@ function setupTimebox() {
 }
 
 let dragStartIndex = -1;
+let isDragging = false;
+let selectedCells = [];
 let currentSelectedCells = [];
 
 function startSelect(e) {

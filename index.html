@@ -28,19 +28,40 @@
     <!-- 보안 차단(CORS) 감지기 -->
     <script>
         window.appStarted = false;
+        // 전역 에러 핸들러 추가하여 문제 파악
+        window.onerror = function(message, source, lineno, colno, error) {
+            var overlay = document.getElementById('loading-overlay');
+            if (overlay) {
+                overlay.innerHTML = '<div class="loading-box" style="color: #ff5f56; text-align: left; max-width: 90vw;">' +
+                    '<h2>앗, 오류가 발생했어요</h2>' +
+                    '<p style="font-size: 14px; background: rgba(0,0,0,0.05); padding: 10px; border-radius: 4px;">' + message + '<br><small>' + source + ':' + lineno + '</small></p>' +
+                    '<p style="margin-top:10px; font-weight:bold;">새로고침을 해보시고, 계속 안 되면 알려주세요.</p>' +
+                    '</div>';
+            }
+            return false;
+        };
+
         setTimeout(function() {
             if (!window.appStarted) {
                 var overlay = document.getElementById('loading-overlay');
                 if (overlay) {
-                    overlay.innerHTML = '<div class="loading-box" style="color: #ff5f56;">' +
-                        '<h2>앗, 여기서는 열 수 없어요</h2>' +
-                        '<p>내 컴퓨터에서 직접 열면 보안 정책 때문에 작동하지 않아요.</p>' +
-                        '<p style="margin-top:10px; font-weight:bold;">이렇게 해보세요</p>' +
-                        '<p>1. 깃허브 주소(https://aboveall0628-sudo.github.io/sanctumos)로 접속하거나 2. VS Code Live Server로 열어보세요</p>' +
-                        '</div>';
+                    if (window.location.protocol === 'file:') {
+                        overlay.innerHTML = '<div class="loading-box" style="color: #ff5f56;">' +
+                            '<h2>앗, 여기서는 열 수 없어요</h2>' +
+                            '<p>내 컴퓨터에서 직접 열면 보안 정책 때문에 작동하지 않아요.</p>' +
+                            '<p style="margin-top:10px; font-weight:bold;">이렇게 해보세요</p>' +
+                            '<p>1. 깃허브 주소(https://aboveall0628-sudo.github.io/sanctumos)로 접속하거나 2. VS Code Live Server로 열어보세요</p>' +
+                            '</div>';
+                    } else {
+                        // 일반적인 로딩 지연 (인터넷 속도 등)
+                        overlay.innerHTML = '<div class="loading-box">' +
+                            '<h2>로딩이 조금 늦어지고 있어요</h2>' +
+                            '<p>말씀 데이터를 가져오는 데 시간이 걸리네요.<br>계속 안 열리면 새로고침(F5)을 해주세요.</p>' +
+                            '</div>';
+                    }
                 }
             }
-        }, 3000); // 3초 후에도 시작 안 하면 경고 표시
+        }, 10000); // 10초로 연장하여 저사양/느린 네트워크 배려
     </script>
 
     <div class="main-layout">
