@@ -1664,7 +1664,11 @@ async function saveQuickReview() {
         await fetchTodayDots(dateStr);
         const docRef = doc(db, "memos", dateStr);
         const docSnap = await getDoc(docRef);
-        renderCustomTimeboxEvents(docSnap.data()?.timeboxEvents || []);
+        const events = docSnap.data()?.timeboxEvents || [];
+        renderCustomTimeboxEvents(events);
+        renderDualTimeline(events);
+        renderWeeklyHeatmap();
+        updateDashboardCards();
     } catch (e) {
         console.error("Save dot error:", e);
     }
@@ -2021,16 +2025,34 @@ function renderWeeklyHeatmap() {
 /**
  * Dashboard Cards
  */
-function updateDashboardCards() {
+async function updateDashboardCards() {
+    // If data hasn't been computed yet (user went to dashboard first), fetch it
+    if (window._totalDots === undefined && db && currentUserId !== 'anonymous') {
+        const dateStr = document.getElementById('calendar-input')?.value;
+        if (dateStr) {
+            await fetchTodayDots(dateStr);
+            const docRef = doc(db, "memos", dateStr);
+            const docSnap = await getDoc(docRef);
+            const events = docSnap.data()?.timeboxEvents || [];
+            renderDualTimeline(events);
+        }
+    }
+
+    // Compute directly from todayDots for reliability
+    const dotCount = todayDots.length;
+    const avgSat = dotCount > 0
+        ? (todayDots.reduce((acc, d) => acc + (d.executionSatisfaction || 0), 0) / dotCount).toFixed(1)
+        : '--';
+
     const matchEl = document.getElementById('dash-match-rate');
     const adherenceEl = document.getElementById('dash-adherence');
     const satEl = document.getElementById('dash-avg-sat');
     const dotEl = document.getElementById('dash-dot-count');
 
-    if (matchEl) matchEl.textContent = (window._matchRate ?? '--') + '%';
-    if (adherenceEl) adherenceEl.textContent = (window._adherence ?? '--') + '%';
-    if (satEl) satEl.textContent = window._avgSatisfaction ?? '--';
-    if (dotEl) dotEl.textContent = window._totalDots ?? 0;
+    if (matchEl) matchEl.textContent = (window._matchRate ?? 0) + '%';
+    if (adherenceEl) adherenceEl.textContent = (window._adherence ?? 0) + '%';
+    if (satEl) satEl.textContent = avgSat;
+    if (dotEl) dotEl.textContent = dotCount;
 }
 
 init();
