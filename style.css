@@ -507,6 +507,44 @@ body.dark-mode #calendar-input {
     gap: 8px;
 }
 
+.section-desc {
+    font-size: 13px;
+    color: var(--notion-text-light);
+    margin-top: -16px;
+    margin-bottom: 16px;
+}
+
+/* Google Calendar Plan List */
+.gcal-plan-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.gcal-plan-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 14px;
+    background: var(--notion-hover);
+    border: 1px solid var(--notion-border);
+    border-radius: 8px;
+    font-size: 14px;
+    gap: 12px;
+}
+
+.gcal-plan-item .plan-time {
+    font-size: 12px;
+    color: var(--notion-text-light);
+    font-variant-numeric: tabular-nums;
+    min-width: 100px;
+}
+
+.gcal-plan-item .plan-title {
+    font-weight: 500;
+    color: var(--notion-text);
+    flex: 1;
+}
+
 .progress-item {
     margin-bottom: 24px;
     background: var(--notion-hover);

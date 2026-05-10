@@ -33,6 +33,7 @@ let currentUserId = "anonymous"; // Default
 let userSettings = null;
 let todayDots = [];
 let pinnedPrinciple = null;
+let gcalEvents = []; // Google Calendar events for plan comparison
 
 const BIBLE_METADATA = {
     parts: [
@@ -943,19 +944,12 @@ function endSelect() {
     
     if (selectedCells.length > 0) {
         const minIdx = Math.min(...selectedCells);
-        const now = new Date();
-        const currentIdx = now.getHours() * 4 + Math.floor(now.getMinutes() / 15);
+        const cell = document.querySelector(`.time-cell[data-index="${minIdx}"]`);
+        const eventId = cell?.dataset.eventId || null;
+        const title = cell?.getAttribute('data-event-title') || '';
         
-        if (minIdx < currentIdx) {
-            // Past: Review / Record Actual
-            const cell = document.querySelector(`.time-cell[data-index="${minIdx}"]`);
-            const eventId = cell.dataset.eventId;
-            const title = cell.getAttribute('data-event-title') || '';
-            openQuickReviewModal(minIdx, eventId, title, selectedCells);
-        } else {
-            // Future: Plan
-            openTimeboxModal(selectedCells);
-        }
+        // 시계부: 항상 기록/평가 모달 열기
+        openQuickReviewModal(minIdx, eventId, title, selectedCells);
     }
 }
 
@@ -1462,7 +1456,7 @@ async function listUpcomingEvents() {
             'timeMax': endOfDay,
             'showDeleted': false,
             'singleEvents': true,
-            'maxResults': 10,
+            'maxResults': 20,
             'orderBy': 'startTime',
         });
     } catch (err) {
@@ -1471,13 +1465,45 @@ async function listUpcomingEvents() {
     }
 
     const events = response.result.items;
+    gcalEvents = events || [];
+    
     if (!events || events.length == 0) {
-        alert('오늘 일정이 없습니다.');
+        const planList = document.getElementById('gcal-plan-list');
+        if (planList) planList.innerHTML = '<div class="no-data">오늘 일정이 없습니다.</div>';
         return;
     }
 
-    renderEventsOnTimebox(events);
+    renderGcalPlanList(events);
+    
+    // Also refresh dual timeline with new plan data
+    const dateStr = document.getElementById('calendar-input').value;
+    const docRef = doc(db, "memos", dateStr);
+    const docSnap = await getDoc(docRef);
+    const timeboxEvents = docSnap.data()?.timeboxEvents || [];
+    renderDualTimeline(timeboxEvents);
 }
+
+function renderGcalPlanList(events) {
+    const container = document.getElementById('gcal-plan-list');
+    if (!container) return;
+    container.innerHTML = '';
+
+    events.forEach(event => {
+        const start = new Date(event.start.dateTime || event.start.date);
+        const end = new Date(event.end.dateTime || event.end.date);
+        const startStr = `${String(start.getHours()).padStart(2,'0')}:${String(start.getMinutes()).padStart(2,'0')}`;
+        const endStr = `${String(end.getHours()).padStart(2,'0')}:${String(end.getMinutes()).padStart(2,'0')}`;
+
+        const item = document.createElement('div');
+        item.className = 'gcal-plan-item';
+        item.innerHTML = `
+            <span class="plan-time">${startStr} ~ ${endStr}</span>
+            <span class="plan-title">${event.summary || '(제목 없음)'}</span>
+        `;
+        container.appendChild(item);
+    });
+}
+
 
 function renderEventsOnTimebox(events) {
     // 구글 캘린더에서 가져온 이벤트만 골라서 제거 (사용자가 직접 만든 .custom-event는 유지)
@@ -1893,21 +1919,30 @@ function renderDualTimeline(timeboxEvents) {
     const now = new Date();
     const currentIdx = now.getHours() * 4 + Math.floor(now.getMinutes() / 15);
 
-    // Build plan map: index → task title
+    // Build PLAN map from Google Calendar events
     const planMap = {};
+    (gcalEvents || []).forEach(event => {
+        const start = new Date(event.start.dateTime || event.start.date);
+        const startSlot = start.getHours() * 4 + Math.floor(start.getMinutes() / 15);
+        planMap[startSlot] = event.summary || '(제목 없음)';
+    });
+
+    // Build ACTUAL map from custom timebox events (시계부)
+    const actualMap = {};
     (timeboxEvents || []).forEach(ev => {
         const sorted = [...ev.indices].sort((a, b) => a - b);
         const start = sorted[0];
-        planMap[start] = ev.title;
+        actualMap[start] = ev.title;
     });
 
-    // Build actual map from dots
-    const actualMap = {};
+    // Also include dots that have actualTask
     todayDots.forEach(d => {
-        actualMap[d.timeSlot] = d.actualTask || d.plannedTask || '';
+        if (d.actualTask && !actualMap[d.timeSlot]) {
+            actualMap[d.timeSlot] = d.actualTask;
+        }
     });
 
-    // Get all hours that have either plan or actual
+    // Get all slots that have either plan or actual
     const allSlots = new Set([...Object.keys(planMap).map(Number), ...Object.keys(actualMap).map(Number)]);
     const sortedSlots = [...allSlots].sort((a, b) => a - b).filter(s => s < currentIdx);
 
@@ -1942,7 +1977,7 @@ function renderDualTimeline(timeboxEvents) {
     });
 
     if (sortedSlots.length === 0) {
-        body.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--notion-text-light);">아직 비교할 데이터가 없어요.</div>';
+        body.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--notion-text-light);">Google Calendar 연동 후, 시계부에 실제 시간을 기록하면 비교가 시작됩니다.</div>';
     }
 
     // Update match rate

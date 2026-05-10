@@ -144,44 +144,40 @@
 
                 <section class="timebox-section">
                     <div class="section-header-flex">
-                        <h2 class="section-title">🕒 오늘의 시간표</h2>
+                        <h2 class="section-title">📅 계획 (Google Calendar)</h2>
                         <div id="gcal-controls">
                             <button id="auth-btn" class="text-btn">Google 연결</button>
                             <button id="sync-btn" class="text-btn hidden">일정 가져오기</button>
                         </div>
                     </div>
+                    <p class="section-desc">Google Calendar에서 가져온 오늘의 계획이에요.</p>
+                    <div id="gcal-plan-list" class="gcal-plan-list">
+                        <div class="no-data">Google 연결 후 일정이 여기에 표시됩니다.</div>
+                    </div>
+                </section>
+
+                <section class="timebox-section">
+                    <h2 class="section-title">🕒 시계부 (실제 시간 기록)</h2>
+                    <p class="section-desc">실제로 시간을 어떻게 보냈는지 기록하고 평가하세요.</p>
                     <div class="timebox-wrapper">
                         <div id="timebox-grid" class="timebox-grid">
-                            <!-- 24x4 그리드가 스크립트에서 생성됩니다 -->
                         </div>
                     </div>
                 </section>
 
                 <section class="notion-section">
-                    <h2 class="section-title">⏰ 계획 vs 실제</h2>
+                    <h2 class="section-title">⏰ 오늘의 계획 vs 실제</h2>
                     <div id="dual-timeline" class="dual-timeline-container">
                         <div class="dual-timeline-header">
                             <span class="dt-col">시간</span>
-                            <span class="dt-col">계획</span>
-                            <span class="dt-col">실제</span>
+                            <span class="dt-col">계획 (캘린더)</span>
+                            <span class="dt-col">실제 (시계부)</span>
                         </div>
-                        <div id="dual-timeline-body" class="dual-timeline-body">
-                        </div>
+                        <div id="dual-timeline-body" class="dual-timeline-body"></div>
                         <div id="match-rate-bar" class="match-rate-bar">
                             <span>📊 오늘의 일치율:</span>
                             <strong id="match-rate-value">--%</strong>
                         </div>
-                    </div>
-                </section>
-
-                <section class="notion-section">
-                    <h2 class="section-title">📅 주간 히트맵</h2>
-                    <div id="weekly-heatmap" class="weekly-heatmap-container">
-                        <div class="heatmap-header">
-                            <span></span>
-                            <span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span><span>일</span>
-                        </div>
-                        <div id="heatmap-body" class="heatmap-body"></div>
                     </div>
                 </section>
 
@@ -224,6 +220,17 @@
                             <div class="dash-card-value" id="dash-dot-count">0</div>
                             <div class="dash-card-sub">평가 완료된 일정</div>
                         </div>
+                    </div>
+                </section>
+
+                <section class="notion-section">
+                    <h2 class="section-title">📅 주간 히트맵</h2>
+                    <div id="weekly-heatmap" class="weekly-heatmap-container">
+                        <div class="heatmap-header">
+                            <span></span>
+                            <span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span><span>일</span>
+                        </div>
+                        <div id="heatmap-body" class="heatmap-body"></div>
                     </div>
                 </section>
 
@@ -347,6 +354,6 @@
     </div>
 
     <script src="bibleData.js"></script>
-    <script type="module" src="script.js?v=1.8"></script>
+    <script type="module" src="script.js?v=2.0"></script>
 </body>
 </html>
