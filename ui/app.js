@@ -86,10 +86,43 @@ const TOKEN_KEY = 'gcal_token';
 
 // Bible data: ui/scripture.js 모듈로 이전
 
+/**
+ * 비밀번호 관리자(1Password/LastPass/Bitwarden/브라우저 내장 등)가 결단·인물·조직·
+ * 묵상 노트 같은 일반 텍스트 input을 비밀번호 필드로 잘못 잡는 걸 막음.
+ * 잠금 화면의 진짜 password input(#lock-password-input)은 건드리지 않음.
+ */
+function disablePasswordManagerOnNonPasswordInputs() {
+    const tag = (el) => {
+        if (!el || el.tagName !== 'INPUT') return;
+        const type = (el.type || 'text').toLowerCase();
+        if (type === 'password') return;            // 진짜 비번 input은 통과
+        if (el.id === 'lock-password-input') return; // 안전망
+        if (el.dataset.pmOff === '1') return;
+        el.setAttribute('autocomplete', 'off');
+        el.setAttribute('autocorrect', 'off');
+        el.setAttribute('autocapitalize', 'off');
+        el.setAttribute('spellcheck', 'false');
+        el.setAttribute('data-1p-ignore', '');
+        el.setAttribute('data-lpignore', 'true');
+        el.setAttribute('data-bwignore', 'true');
+        el.dataset.pmOff = '1';
+    };
+
+    document.querySelectorAll('input').forEach(tag);
+    new MutationObserver(muts => {
+        muts.forEach(m => m.addedNodes.forEach(n => {
+            if (!n || n.nodeType !== 1) return;
+            if (n.tagName === 'INPUT') tag(n);
+            n.querySelectorAll && n.querySelectorAll('input').forEach(tag);
+        }));
+    }).observe(document.body, { childList: true, subtree: true });
+}
+
 // ─── 초기화 ───
 async function init() {
     // 0. 글로벌 에러 핸들러 (가장 먼저 — 이후 모든 에러를 안전하게 잡기)
     initGlobalErrorHandler();
+    disablePasswordManagerOnNonPasswordInputs();
 
     setBootStatus('잠깐만요, 준비 중이에요...');
     // 1. 잠금 화면 (일단 숨김 상태로 초기화)
@@ -450,11 +483,14 @@ function gisLoaded() {
         client_id: GOOGLE_CLIENT_ID,
         scope: SCOPES,
         callback: async (resp) => {
-            if (resp.error) return;
+            if (resp.error) { console.warn('GIS callback error:', resp.error); return; }
             const token = gapi.client.getToken();
             token.expires_at = Date.now() + token.expires_in * 1000;
             localStorage.setItem(TOKEN_KEY, JSON.stringify(token));
             await loadUserProfile();
+            reflectGcalAuthUI();
+            // 새 토큰이 들어왔으니 timeline·오늘 뷰의 GCal 일정을 다시 가져오게
+            try { await refreshTodayData(); } catch (e) { console.warn('post-auth refresh failed:', e); }
         },
     });
     gisInited = true;
@@ -545,7 +581,9 @@ async function migrateVaultKeyIfNeeded(email, uid) {
  * @returns {Promise<Array>} GCal events
  */
 export async function listUpcomingEvents() {
-    if (!gapiInited || !gapi.client.getToken()) return [];
+    if (!gapiInited) return [];
+    const tok = gapi.client.getToken();
+    if (!tok) return [];
     try {
         const [y, m, d] = currentDate.split('-').map(Number);
         const start = new Date(y, m - 1, d, 0, 0, 0).toISOString();
@@ -554,9 +592,19 @@ export async function listUpcomingEvents() {
             calendarId: 'primary', timeMin: start, timeMax: end,
             showDeleted: false, singleEvents: true, maxResults: 50, orderBy: 'startTime',
         });
-        return resp.result.items || [];
+        const items = resp.result.items || [];
+        console.log(`[gcal] ${currentDate} 일정 ${items.length}건 가져옴`);
+        return items;
     } catch (e) {
-        console.error('GCal error:', e);
+        const status = e?.result?.error?.code || e?.status;
+        console.error('GCal error:', status, e);
+        // 401(unauthorized) / 403(token revoked) — 토큰을 비우고 재로그인 유도
+        if (status === 401 || status === 403) {
+            try { localStorage.removeItem(TOKEN_KEY); } catch {}
+            try { gapi.client.setToken(''); } catch {}
+            reflectGcalAuthUI();
+            showToast('Google 연결이 만료됐어요. [Google 연결]을 다시 한 번 눌러 주실래요?');
+        }
         return [];
     }
 }

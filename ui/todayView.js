@@ -186,8 +186,8 @@ function renderDecisionCard(d) {
         ? `⏰ ${slotToTime(d.timeSlot)}~${slotToTime(d.timeSlot + (d.durationSlots || 4))}`
         : '미배치';
     return `
-        <div class="decision-card ${placed ? 'placed' : ''}" data-id="${d.id}" draggable="true">
-            <span class="decision-handle" title="시간축으로 드래그">⋮⋮</span>
+        <div class="decision-card ${placed ? 'placed' : ''}" data-id="${d.id}">
+            <span class="decision-handle" draggable="true" title="잡고 시간표로 끌어 옮겨 보세요">⋮⋮</span>
             <input type="text" class="decision-text" value="${escapeHtml(d.text || '')}"
                    placeholder="오늘 어디에 순종할까요?" data-id="${d.id}" />
             <span class="decision-slot">${slotLabel}</span>
@@ -212,7 +212,7 @@ function bindCardEvents() {
     const list = document.getElementById('decisions-list');
     if (!list) return;
 
-    // 텍스트 인라인 편집 (blur 시 저장)
+    // 텍스트 인라인 편집 (blur 시 저장 + Enter 시 다음 결단으로)
     list.querySelectorAll('.decision-text').forEach(input => {
         input.addEventListener('blur', async () => {
             const id = input.dataset.id;
@@ -224,8 +224,25 @@ function bindCardEvents() {
             const dek = getDEK();
             if (dek) await saveDecision(dek, decision);
         });
-        input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') input.blur();
+        input.addEventListener('keydown', async (e) => {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            const id = input.dataset.id;
+            const decision = _decisions.find(d => d.id === id);
+            const value = input.value.trim();
+            // 변경이 있으면 먼저 저장
+            if (decision && value !== decision.text) {
+                decision.text = value;
+                const dek = getDEK();
+                if (dek) await saveDecision(dek, decision);
+            }
+            if (value) {
+                // 빈 카드가 아니면 다음 결단을 새로 만들고 그 카드 input에 포커스
+                await addNewDecision();
+            } else {
+                // 빈 카드에서 엔터는 무한 추가 방지 — 그냥 빠져나오기
+                input.blur();
+            }
         });
     });
 
@@ -240,16 +257,21 @@ function bindCardEvents() {
         });
     });
 
-    // 드래그 시작 — Chunk 3의 통합 타임라인 컴포넌트가 dragover/drop을 처리
-    list.querySelectorAll('.decision-card').forEach(card => {
-        card.addEventListener('dragstart', (e) => {
+    // 드래그 시작 — 핸들(⋮⋮)에서만 시작.
+    // 카드 전체를 draggable로 두면 input 위 마우스다운이 텍스트 선택으로 가버려서
+    // 드래그 자체가 시작되지 않는 문제가 있음.
+    list.querySelectorAll('.decision-handle').forEach(handle => {
+        handle.addEventListener('dragstart', (e) => {
+            const card = handle.closest('.decision-card');
+            if (!card) return;
             const id = card.dataset.id;
-            e.dataTransfer.setData('application/x-sanctum-decision', id);
+            try { e.dataTransfer.setData('application/x-sanctum-decision', id); } catch {}
+            try { e.dataTransfer.setData('text/plain', id); } catch {} // fallback
             e.dataTransfer.effectAllowed = 'move';
             card.classList.add('dragging');
         });
-        card.addEventListener('dragend', () => {
-            card.classList.remove('dragging');
+        handle.addEventListener('dragend', () => {
+            handle.closest('.decision-card')?.classList.remove('dragging');
         });
     });
 }
