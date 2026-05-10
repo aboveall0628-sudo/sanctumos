@@ -1308,6 +1308,11 @@ function setupGoogleAuth() {
     
     const profile = document.getElementById('user-profile');
     if (profile) {
+        // Show login prompt initially
+        const userName = document.getElementById('user-name');
+        if (userName && !userName.textContent) {
+            userName.textContent = '로그인 해주세요';
+        }
         profile.addEventListener('click', () => {
             if (gapiInited && !gapi.client.getToken()) {
                 handleAuthClick();
@@ -1423,6 +1428,10 @@ async function loadUserProfile() {
             const authBtn = document.getElementById('auth-btn');
             if (authBtn) authBtn.classList.add('hidden');
             
+            // Hide login prompt, user is logged in
+            const userProfile = document.getElementById('user-profile');
+            if (userProfile) userProfile.style.cursor = 'default';
+            
             currentUserId = userInfo.email || userInfo.sub;
             await initializeSeedData(db, currentUserId);
             loadPinnedPrinciple();
@@ -1521,11 +1530,11 @@ function openQuickReviewModal(idx, eventId, title, selectedCells = []) {
     document.getElementById('quick-review-modal').classList.remove('hidden');
     
     // Reset or load existing data
-    const statusBtns = document.querySelectorAll('.status-btn');
-    statusBtns.forEach(btn => btn.classList.remove('selected'));
+    const statusChips = document.querySelectorAll('#review-status-chips .chip');
+    statusChips.forEach(c => c.classList.remove('selected'));
     if (dotData?.executed) {
-        const activeBtn = Array.from(statusBtns).find(b => b.dataset.status === dotData.executed);
-        if (activeBtn) activeBtn.classList.add('selected');
+        const activeChip = Array.from(statusChips).find(c => c.dataset.status === dotData.executed);
+        if (activeChip) activeChip.classList.add('selected');
     }
 
     document.getElementById('slider-execution').value = dotData?.executionSatisfaction || 3;
@@ -1563,11 +1572,11 @@ function setupQuickReviewModal() {
     const cancelBtn = document.getElementById('review-cancel-btn');
     const saveBtn = document.getElementById('review-save-btn');
     
-    // Status buttons
-    document.querySelectorAll('.status-btn').forEach(btn => {
-        btn.onclick = () => {
-            document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('selected'));
-            btn.classList.add('selected');
+    // Status chips
+    document.querySelectorAll('#review-status-chips .chip').forEach(chip => {
+        chip.onclick = () => {
+            document.querySelectorAll('#review-status-chips .chip').forEach(c => c.classList.remove('selected'));
+            chip.classList.add('selected');
         };
     });
 
@@ -1610,12 +1619,12 @@ async function saveQuickReview() {
     if (currentReviewIdx === -1) return;
     
     const dateStr = document.getElementById('calendar-input').value;
-    const executed = document.querySelector('.status-btn.selected')?.dataset.status || 'done';
+    const executed = document.querySelector('#review-status-chips .chip.selected')?.dataset.status || 'done';
     const executionSatisfaction = parseInt(document.getElementById('slider-execution').value);
     const outcomeSatisfaction = parseInt(document.getElementById('slider-outcome').value);
     const actualTask = document.getElementById('review-actual-task').value.trim() || '이름 없는 활동';
     const reason = document.getElementById('review-reason').value.trim();
-    const labels = Array.from(document.querySelectorAll('.chip.selected')).map(c => c.innerText);
+    const labels = Array.from(document.querySelectorAll('#review-labels .chip.selected')).map(c => c.innerText);
     
     const dotId = `${currentUserId}_${dateStr}_${currentReviewIdx}`;
     

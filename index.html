@@ -95,7 +95,7 @@
             <div id="user-profile" class="user-profile" style="cursor: pointer; margin-top: auto; margin-bottom: 12px; padding: 12px;">
                 <img id="user-avatar" src="" alt="" style="display:none; width: 32px; height: 32px; border-radius: 50%; margin-right: 10px;">
                 <div class="user-info">
-                    <span id="user-name" style="font-size: 14px; font-weight: 500;">로그인 해주세요</span>
+                    <span id="user-name" style="font-size: 14px; font-weight: 500;"></span>
                 </div>
             </div>
             <div class="sidebar-footer">
@@ -255,21 +255,23 @@
                 <input type="text" id="review-actual-task" placeholder="실제로 수행한 일을 적어주세요" autocomplete="off" />
             </div>
 
-            <div class="review-status-buttons">
-                <button class="status-btn" data-status="done">✅ 완료</button>
-                <button class="status-btn" data-status="partial">🟡 부분</button>
-                <button class="status-btn" data-status="replaced">🔄 대체</button>
-                <button class="status-btn" data-status="skipped">❌ 못함</button>
+            <label class="modal-label" style="margin-top: 16px; margin-bottom: 8px; display: block;">실행 상태</label>
+            <div id="review-status-chips" class="label-chips">
+                <span class="chip" data-status="done">완료</span>
+                <span class="chip" data-status="partial">부분</span>
+                <span class="chip" data-status="replaced">대체</span>
+                <span class="chip" data-status="skipped">못함</span>
             </div>
 
             <div class="review-sliders">
                 <label>실행 만족도 <span id="val-execution">3</span></label>
-                <input type="range" id="slider-execution" min="1" max="5" value="3">
+                <input type="range" id="slider-execution" class="neon-slider neon-slider-light" min="1" max="5" value="3" step="1">
                 
                 <label>결과 만족도 <span id="val-outcome">3</span></label>
-                <input type="range" id="slider-outcome" min="1" max="5" value="3">
+                <input type="range" id="slider-outcome" class="neon-slider neon-slider-dark" min="1" max="5" value="3" step="1">
             </div>
 
+            <label class="modal-label" style="margin-top: 16px; margin-bottom: 8px; display: block;">상태 라벨</label>
             <div id="review-labels" class="label-chips"></div>
             
             <input type="text" id="review-reason" placeholder="한 줄 이유 (선택)" autocomplete="off" />
@@ -294,6 +296,6 @@
     </div>
 
     <script src="bibleData.js"></script>
-    <script type="module" src="script.js?v=1.5"></script>
+    <script type="module" src="script.js?v=1.6"></script>
 </body>
 </html>

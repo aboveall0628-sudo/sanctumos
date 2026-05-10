@@ -779,13 +779,18 @@ body.dark-mode #calendar-input {
 }
 
 .chip {
-    padding: 4px 10px;
+    padding: 6px 14px;
     border-radius: 20px;
     background: var(--notion-hover);
     border: 1px solid var(--notion-border);
-    font-size: 12px;
+    font-size: 13px;
     cursor: pointer;
     transition: all 0.2s;
+    user-select: none;
+}
+
+.chip:hover {
+    background: rgba(55, 53, 47, 0.08);
 }
 
 .chip.selected {
@@ -793,6 +798,82 @@ body.dark-mode #calendar-input {
     color: white;
     border-color: var(--notion-blue);
 }
+
+/* Neon Sliders */
+.neon-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    outline: none;
+    margin: 8px 0 16px;
+}
+
+.neon-slider-light {
+    background: linear-gradient(to right, #e0e0e0, #4dd0e1);
+}
+
+.neon-slider-light::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #00bcd4;
+    box-shadow: 0 0 8px rgba(0, 188, 212, 0.5);
+    cursor: pointer;
+    border: 2px solid white;
+}
+
+.neon-slider-light::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #00bcd4;
+    box-shadow: 0 0 8px rgba(0, 188, 212, 0.5);
+    cursor: pointer;
+    border: 2px solid white;
+}
+
+.neon-slider-dark {
+    background: linear-gradient(to right, #e0e0e0, #5c6bc0);
+}
+
+.neon-slider-dark::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #3949ab;
+    box-shadow: 0 0 8px rgba(57, 73, 171, 0.5);
+    cursor: pointer;
+    border: 2px solid white;
+}
+
+.neon-slider-dark::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #3949ab;
+    box-shadow: 0 0 8px rgba(57, 73, 171, 0.5);
+    cursor: pointer;
+    border: 2px solid white;
+}
+
+.review-sliders {
+    margin-top: 16px;
+}
+
+.review-sliders label {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--notion-text);
+    display: block;
+    margin-bottom: 4px;
+}
+
 
 .ai-briefing-panel {
     background: rgba(155, 126, 217, 0.05);
