@@ -53,7 +53,6 @@
                 <button class="sidebar-item" id="nav-goals"><span class="icon">🎯</span> 나의 목표</button>
                 <button class="sidebar-item active" id="nav-today"><span class="icon">📅</span> 오늘</button>
                 <button class="sidebar-item" id="nav-evening"><span class="icon">🌙</span> 저녁 통합 루프</button>
-                <button class="sidebar-item" id="nav-saturday"><span class="icon">📅</span> 토요일 회고</button>
                 <hr class="nav-divider">
                 <button class="sidebar-item" id="nav-dashboard"><span class="icon">📊</span> 대시보드</button>
                 <button class="sidebar-item" id="nav-past"><span class="icon">📜</span> 지난 묵상</button>
@@ -79,15 +78,17 @@
 
             <!-- ── 오늘 뷰 ── -->
             <div id="view-today" class="view">
-                <!-- 핀 원칙 띠 -->
+                <!-- 핀 원칙 띠 (항상 노출) -->
                 <div id="pinned-principle-banner" class="pinned-banner hidden">
-                    <span>📌</span>
+                    <span class="pin-icon">📌</span>
                     <span id="pinned-principle-text"></span>
                 </div>
 
-                <!-- 모드 인디케이터 -->
-                <div id="mode-gradient-bar" class="mode-bar"></div>
-                <div id="mode-indicator" class="mode-indicator"></div>
+                <!-- 저녁 안내 바 (18시 이후 자동 노출) -->
+                <div id="evening-hint-bar" class="evening-hint-bar hidden">
+                    <span class="hint-msg">🌙 저녁이 되었어요. 오늘을 정리해볼까요?</span>
+                    <button id="evening-hint-start">시작하기</button>
+                </div>
 
                 <!-- 날짜 -->
                 <header class="page-header">
@@ -97,60 +98,48 @@
 
                 <!-- 말씀 -->
                 <section id="section-scripture" class="card-section">
-                    <h2 class="section-title">📖 오늘의 말씀</h2>
+                    <div class="section-header-flex">
+                        <h2 class="section-title">📖 오늘의 말씀</h2>
+                        <button class="collapsible-toggle" data-target="meditation-content">접기</button>
+                    </div>
                     <div id="meditation-content" class="meditation-box"></div>
                 </section>
 
                 <!-- 묵상 노트 -->
                 <section id="section-meditation" class="card-section">
-                    <h2 class="section-title">✏️ 묵상 노트</h2>
+                    <div class="section-header-flex">
+                        <h2 class="section-title">✏️ 묵상 노트</h2>
+                        <span id="meditation-save-status" style="font-size:11px;color:var(--text-secondary)"></span>
+                    </div>
                     <div id="meditation-note" class="note-editor" contenteditable="true" data-placeholder="말씀을 묵상하며 떠오른 것을 적어보세요..."></div>
                 </section>
 
-                <!-- 오늘의 결단 -->
+                <!-- 오늘의 결단 (동적) -->
                 <section id="section-decisions" class="card-section">
                     <h2 class="section-title">🙏 오늘의 결단</h2>
-                    <p class="section-desc">오늘 무엇에 순종할 것인가?</p>
-                    <div id="decisions-list" class="decisions-list">
-                        <input type="text" class="decision-input" placeholder="결단 1" data-idx="0">
-                        <input type="text" class="decision-input" placeholder="결단 2 (선택)" data-idx="1">
-                        <input type="text" class="decision-input" placeholder="결단 3 (선택)" data-idx="2">
-                    </div>
+                    <p class="section-desc">오늘 무엇에 순종할 것인가? ⋮⋮ 핸들을 시간축으로 끌어 박을 수 있어요.</p>
+                    <div id="decisions-list" class="decisions-list"></div>
+                    <button id="decision-add-btn" class="decision-add-btn">+ 새 결단 추가</button>
                 </section>
 
-                <!-- 계획 (Google Calendar) -->
-                <section id="section-timebox" class="card-section">
+                <!-- 통합 타임라인 -->
+                <section id="section-timeline" class="card-section">
                     <div class="section-header-flex">
-                        <h2 class="section-title">📅 계획 (Google Calendar)</h2>
-                        <div id="gcal-controls">
+                        <h2 class="section-title">⏰ 통합 타임라인</h2>
+                        <div class="timeline-toolbar">
                             <button id="auth-btn" class="text-btn">Google 연결</button>
-                            <button id="sync-btn" class="text-btn hidden">일정 가져오기</button>
+                            <button id="sync-btn" class="text-btn hidden">📅 외부 일정 새로고침</button>
+                            <button id="gcal-push-btn" class="text-btn hidden" title="결단/슬롯을 Google Calendar로 일괄 동기화">📤 일괄 동기화</button>
                         </div>
                     </div>
-                    <div id="gcal-plan-list" class="gcal-plan-list">
-                        <div class="no-data">Google 연결 후 일정이 여기에 표시돼요.</div>
-                    </div>
-                </section>
-
-                <!-- 시계부 (실제 시간 기록) -->
-                <section id="section-timeledger" class="card-section">
-                    <h2 class="section-title">🕒 시계부</h2>
-                    <p class="section-desc">실제로 시간을 어떻게 보냈는지 기록하고 평가하세요.</p>
-                    <div class="timebox-wrapper">
-                        <div id="timebox-grid" class="timebox-grid"></div>
-                    </div>
-                </section>
-
-                <!-- 계획 vs 실제 -->
-                <section id="section-planvsactual" class="card-section">
-                    <h2 class="section-title">⏰ 계획 vs 실제</h2>
-                    <div class="dual-timeline-container">
-                        <div class="dual-timeline-header">
-                            <span class="dt-col">시간</span>
-                            <span class="dt-col">계획 (캘린더)</span>
-                            <span class="dt-col">실제 (시계부)</span>
+                    <div id="unified-timeline" class="unified-timeline">
+                        <div class="utl-header">
+                            <span>시간</span>
+                            <span>계획 (드래그 박기 + 캘린더)</span>
+                            <span>실제 (시계부)</span>
                         </div>
-                        <div id="dual-timeline-body" class="dual-timeline-body"></div>
+                        <div id="utl-body" class="utl-body"></div>
+                        <div id="utl-mobile-list" class="utl-mobile-list"></div>
                     </div>
                 </section>
             </div>

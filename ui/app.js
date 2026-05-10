@@ -12,9 +12,9 @@ import { initLockScreen, setUnlocked, lock, getDEK, isLocked, showLockError, sho
 import { initAuth, showSetupScreen, hideSetupScreen, showGoogleLoginScreen, hideGoogleLoginScreen } from './auth.js';
 import { initAutoLock, registerFailedAttempt, isLockoutActive, getLockoutRemainingSec, resetFailedAttempts } from '../security/autoLock.js';
 import { logAuditAction } from '../security/auditLog.js';
-import { initQuickReview, openQuickReview, showToast } from './quickReview.js';
-import { initTimeOfDayMode } from './timeOfDayMode.js';
+import { initQuickReview, showToast } from './quickReview.js';
 import { initSensitiveMode } from './sensitiveMode.js';
+import { initThemeManager } from './themeManager.js';
 import { getDotsByDate } from '../data/dotsRepo.js';
 import { runReportChecks } from '../data/reportPipeline.js';
 import { initializeSeedData } from '../seeds.js';
@@ -138,9 +138,10 @@ async function init() {
     // 구글 로그인 요청 이벤트
     document.addEventListener('sanctum:request-google-login', handleAuthClick);
 
-    // 4. 평가 모달 & 유틸
+    // 4. 평가 모달 & 유틸 + 테마
     initQuickReview({ onSaved: refreshTodayData });
     initSensitiveMode();
+    initThemeManager();
     setupNavigation();
     
     // 5. 부팅 시퀀스 시작
@@ -204,11 +205,11 @@ async function onVaultUnlocked(dek) {
     try { await initializeSeedData(dek, currentUserId); }
     catch (e) { console.warn('seed init failed:', e); }
 
-    // 시간대 모드 시작
-    initTimeOfDayMode();
-
     // 오늘 데이터 로드
     await refreshTodayData();
+
+    // 저녁(18시 이후) 안내 바 트리거
+    maybeShowEveningHint();
 
     // 리포트 자동 생성 체크
     runReportChecks(dek, currentUserId).then(ids => {
@@ -232,8 +233,41 @@ async function refreshTodayData() {
     const dek = getDEK();
     if (!dek) return;
     todayDots = await getDotsByDate(dek, currentUserId, currentDate);
-    renderTimeboxGrid();
-    renderDualTimeline();
+    // 통합 타임라인 컴포넌트는 Chunk 3에서 todayView.js로 이전 — 임시 placeholder
+    renderTimelinePlaceholder();
+}
+
+function renderTimelinePlaceholder() {
+    const body = document.getElementById('utl-body');
+    if (!body) return;
+    body.innerHTML = `
+        <div class="utl-empty-card">
+            <h4>처음이신가요? 이렇게 시작해보세요</h4>
+            <ol>
+                <li>묵상 노트에 떠오른 것을 적어보세요</li>
+                <li>오늘의 결단 한 줄을 입력하세요</li>
+                <li>결단 카드의 ⋮⋮를 시간축으로 드래그해서 박으세요</li>
+                <li>빈 시간을 클릭하면 시계부를 빠르게 기록할 수 있어요</li>
+            </ol>
+            <p style="margin-top:12px;font-size:11px;color:var(--text-secondary)">
+                (통합 타임라인 컴포넌트는 다음 단계에서 활성화됩니다.)
+            </p>
+        </div>
+    `;
+}
+
+// ─── 저녁 안내 바 (18시 이후 자동 노출) ───
+function maybeShowEveningHint() {
+    const bar = document.getElementById('evening-hint-bar');
+    if (!bar) return;
+    const h = new Date().getHours();
+    if (h >= 18 || h < 4) {
+        bar.classList.remove('hidden');
+        document.getElementById('nav-evening')?.classList.add('evening-pulse');
+    }
+    document.getElementById('evening-hint-start')?.addEventListener('click', () => {
+        switchView('evening');
+    });
 }
 
 // ─── 네비게이션 ───
@@ -242,7 +276,6 @@ function setupNavigation() {
         'nav-goals': 'goals',
         'nav-today': 'today',
         'nav-evening': 'evening',
-        'nav-saturday': 'saturday',
         'nav-dashboard': 'dashboard',
         'nav-past': 'past',
         'nav-principles': 'principles',
@@ -278,8 +311,6 @@ function switchView(viewId) {
     // 뷰별 초기화
     if (viewId === 'evening') {
         import('./eveningLoop.js').then(m => m.openEveningLoop(currentUserId, currentDate));
-    } else if (viewId === 'saturday') {
-        import('./saturdayReview.js').then(m => m.openSaturdayReview(currentUserId));
     } else if (viewId === 'principles') {
         renderPrinciplesView(currentUserId);
     } else if (viewId === 'goals') {
@@ -315,121 +346,7 @@ async function loadPinnedPrinciple(dek) {
     }
 }
 
-// ─── 타임박스 그리드 (시계부) ───
-function renderTimeboxGrid() {
-    const grid = document.getElementById('timebox-grid');
-    if (!grid) return;
-    grid.innerHTML = '';
-
-    for (let h = 0; h < 24; h++) {
-        for (let m = 0; m < 4; m++) {
-            const idx = h * 4 + m;
-            const cell = document.createElement('div');
-            cell.className = 'time-cell';
-            cell.dataset.index = idx;
-            cell.dataset.hour = h;
-            cell.dataset.min = m;
-
-            if (m === 0) {
-                cell.innerHTML = `<span class="hour-label">${String(h).padStart(2, '0')}</span>`;
-            }
-
-            // 도트 상태 표시
-            const dot = todayDots.find(d => d.timeSlot === idx);
-            if (dot) {
-                const sat = dot.executionSatisfaction || 0;
-                let dotClass = 'dot-gray';
-                if (sat >= 4) dotClass = 'dot-success';
-                else if (sat >= 2) dotClass = 'dot-partial';
-                else if (sat >= 1) dotClass = 'dot-fail';
-                cell.classList.add('has-dot', dotClass);
-                if (dot.actualTask) cell.dataset.eventTitle = dot.actualTask;
-            }
-
-            grid.appendChild(cell);
-        }
-    }
-
-    // 드래그 선택
-    setupGridDrag(grid);
-}
-
-let isDragging = false;
-let selectedCells = [];
-
-function setupGridDrag(grid) {
-    grid.addEventListener('mousedown', (e) => {
-        const cell = e.target.closest('.time-cell');
-        if (!cell) return;
-        isDragging = true;
-        selectedCells = [parseInt(cell.dataset.index)];
-        cell.classList.add('selected');
-        e.preventDefault();
-    });
-
-    grid.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
-        const cell = e.target.closest('.time-cell');
-        if (!cell) return;
-        const idx = parseInt(cell.dataset.index);
-        if (!selectedCells.includes(idx)) {
-            selectedCells.push(idx);
-            cell.classList.add('selected');
-        }
-    });
-
-    document.addEventListener('mouseup', () => {
-        if (!isDragging) return;
-        isDragging = false;
-        if (selectedCells.length > 0) {
-            const minIdx = Math.min(...selectedCells);
-            const cell = document.querySelector(`.time-cell[data-index="${minIdx}"]`);
-            openQuickReview({
-                timeSlot: minIdx,
-                cells: selectedCells,
-                userId: currentUserId,
-                date: currentDate,
-                plannedTask: cell?.dataset.eventTitle || '',
-            });
-        }
-        document.querySelectorAll('.time-cell.selected').forEach(c => c.classList.remove('selected'));
-        selectedCells = [];
-    });
-}
-
-// ─── 듀얼 타임라인 ───
-function renderDualTimeline() {
-    const body = document.getElementById('dual-timeline-body');
-    if (!body) return;
-    body.innerHTML = '';
-
-    const now = new Date();
-    const currentIdx = now.getHours() * 4 + Math.floor(now.getMinutes() / 15);
-
-    const actualMap = {};
-    todayDots.forEach(d => { actualMap[d.timeSlot] = d.actualTask || d.plannedTask || ''; });
-
-    const slots = Object.keys(actualMap).map(Number).sort((a, b) => a - b).filter(s => s < currentIdx);
-    if (slots.length === 0) {
-        body.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-secondary)">시계부에 기록을 추가하면 여기에 표시돼요.</div>';
-        return;
-    }
-
-    slots.forEach(slot => {
-        const h = Math.floor(slot / 4);
-        const m = (slot % 4) * 15;
-        const row = document.createElement('div');
-        row.className = 'dt-row actual-only';
-        row.innerHTML = `
-            <span class="dt-time">${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}</span>
-            <span class="dt-plan">—</span>
-            <span class="dt-actual">${actualMap[slot]}</span>
-        `;
-        body.appendChild(row);
-    });
-}
-
-// ─── 성경 데이터 (레거시 보존) ───
+// ─── 성경 데이터 (레거시 보존, Chunk 2에서 ui/scripture.js로 분리 예정) ───
 async function loadBibleData() {
     try {
         const cached = await loadFromIndexedDB();
@@ -630,33 +547,26 @@ async function migrateVaultKeyIfNeeded(email, uid) {
     }
 }
 
-async function listUpcomingEvents() {
-    if (!gapiInited || !gapi.client.getToken()) return;
+/**
+ * 특정 날짜의 Google Calendar 이벤트 가져오기.
+ * Chunk 3에서 통합 타임라인 컴포넌트가 이 함수를 호출해 events 배열을 받음.
+ * @returns {Promise<Array>} GCal events
+ */
+export async function listUpcomingEvents() {
+    if (!gapiInited || !gapi.client.getToken()) return [];
     try {
         const [y, m, d] = currentDate.split('-').map(Number);
         const start = new Date(y, m - 1, d, 0, 0, 0).toISOString();
         const end = new Date(y, m - 1, d, 23, 59, 59).toISOString();
         const resp = await gapi.client.calendar.events.list({
             calendarId: 'primary', timeMin: start, timeMax: end,
-            showDeleted: false, singleEvents: true, maxResults: 20, orderBy: 'startTime',
+            showDeleted: false, singleEvents: true, maxResults: 50, orderBy: 'startTime',
         });
-        renderGcalPlanList(resp.result.items || []);
-    } catch (e) { console.error('GCal error:', e); }
-}
-
-function renderGcalPlanList(events) {
-    const container = document.getElementById('gcal-plan-list');
-    if (!container) return;
-    if (events.length === 0) {
-        container.innerHTML = '<div class="no-data">오늘 일정이 없어요.</div>';
-        return;
+        return resp.result.items || [];
+    } catch (e) {
+        console.error('GCal error:', e);
+        return [];
     }
-    container.innerHTML = events.map(ev => {
-        const s = new Date(ev.start.dateTime || ev.start.date);
-        const e = new Date(ev.end.dateTime || ev.end.date);
-        const fmt = d => `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-        return `<div class="gcal-plan-item"><span class="plan-time">${fmt(s)}~${fmt(e)}</span><span class="plan-title">${ev.summary || ''}</span></div>`;
-    }).join('');
 }
 
 // ─── 로딩 ───
