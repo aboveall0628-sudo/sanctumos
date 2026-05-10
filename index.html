@@ -88,9 +88,6 @@
                 <button class="sidebar-item" id="nav-past">
                     <span class="icon">📜</span> 지난 묵상
                 </button>
-                <button class="sidebar-item" id="nav-reflection">
-                    <span class="icon">🌙</span> 하루 마감
-                </button>
                 <button class="sidebar-item" id="nav-principles">
                     <span class="icon">📖 나의 원칙</span>
                 </button>
@@ -190,31 +187,6 @@
                 </div>
             </div>
 
-            <div id="view-reflection" class="view hidden">
-                <header class="notion-header">
-                    <h1>🌙 하루 마감</h1>
-                    <p class="subtitle">오늘의 나를 돌아보고 원칙을 발견해요</p>
-                </header>
-                <section class="notion-section">
-                    <h2 class="section-title">오늘의 도트 미니맵</h2>
-                    <div id="reflection-minimap" class="dot-minimap-large"></div>
-                    <div id="reflection-ai-summary" class="ai-briefing-panel" style="margin-top: 20px;">
-                        <p>데이터를 분석하고 있어요...</p>
-                    </div>
-                </section>
-                <section class="notion-section">
-                    <h2 class="section-title">묵상-실행 정렬도</h2>
-                    <div class="rating-input">
-                        <input type="range" id="alignment-rating" min="1" max="5" step="1">
-                        <div class="rating-labels"><span>미흡</span><span>일치</span></div>
-                    </div>
-                </section>
-                <section class="notion-section">
-                    <h2 class="section-title">오늘의 발견</h2>
-                    <div id="reflection-discoveries" class="discoveries-list"></div>
-                </section>
-            </div>
-
             <div id="view-principles" class="view hidden">
                 <header class="notion-header">
                     <h1>📖 나의 원칙</h1>
@@ -276,6 +248,11 @@
             <h3>어떻게 하셨나요?</h3>
             <p id="review-modal-task" class="modal-time-desc"></p>
             
+            <div class="input-group">
+                <label class="modal-label">실제로 어떤 일을 하셨나요?</label>
+                <input type="text" id="review-actual-task" placeholder="실제로 수행한 일을 적어주세요" autocomplete="off" />
+            </div>
+
             <div class="review-status-buttons">
                 <button class="status-btn" data-status="done">✅ 완료</button>
                 <button class="status-btn" data-status="partial">🟡 부분</button>

@@ -937,7 +937,20 @@ function endSelect() {
     isDragging = false;
     
     if (selectedCells.length > 0) {
-        openTimeboxModal(selectedCells);
+        const minIdx = Math.min(...selectedCells);
+        const now = new Date();
+        const currentIdx = now.getHours() * 4 + Math.floor(now.getMinutes() / 15);
+        
+        if (minIdx < currentIdx) {
+            // Past: Review / Record Actual
+            const cell = document.querySelector(`.time-cell[data-index="${minIdx}"]`);
+            const eventId = cell.dataset.eventId;
+            const title = cell.getAttribute('data-event-title') || '';
+            openQuickReviewModal(minIdx, eventId, title, selectedCells);
+        } else {
+            // Future: Plan
+            openTimeboxModal(selectedCells);
+        }
     }
 }
 
@@ -1491,14 +1504,17 @@ function renderEventsOnTimebox(events) {
  */
 let currentReviewIdx = -1;
 let currentReviewEventId = null;
+let currentReviewSelectedCells = [];
 
-function openQuickReviewModal(idx, eventId, title) {
+function openQuickReviewModal(idx, eventId, title, selectedCells = []) {
     currentReviewIdx = idx;
     currentReviewEventId = eventId;
+    currentReviewSelectedCells = selectedCells.length > 0 ? selectedCells : [idx];
     
     const dotData = todayDots.find(d => d.timeSlot === idx);
     
-    document.getElementById('review-modal-task').innerText = title;
+    document.getElementById('review-modal-task').innerText = title ? `계획: ${title}` : '계획된 일정이 없었습니다.';
+    document.getElementById('review-actual-task').value = dotData?.actualTask || title || '';
     document.getElementById('quick-review-modal').classList.remove('hidden');
     
     // Reset or load existing data
@@ -1594,6 +1610,7 @@ async function saveQuickReview() {
     const executed = document.querySelector('.status-btn.selected')?.dataset.status || 'done';
     const executionSatisfaction = parseInt(document.getElementById('slider-execution').value);
     const outcomeSatisfaction = parseInt(document.getElementById('slider-outcome').value);
+    const actualTask = document.getElementById('review-actual-task').value.trim() || '이름 없는 활동';
     const reason = document.getElementById('review-reason').value.trim();
     const labels = Array.from(document.querySelectorAll('.chip.selected')).map(c => c.innerText);
     
@@ -1603,7 +1620,8 @@ async function saveQuickReview() {
         userId: currentUserId,
         date: dateStr,
         timeSlot: currentReviewIdx,
-        plannedTask: document.getElementById('review-modal-task').innerText,
+        plannedTask: document.getElementById('review-modal-task').innerText.replace('계획: ', ''),
+        actualTask,
         executed,
         executionSatisfaction,
         outcomeSatisfaction,
@@ -1614,7 +1632,16 @@ async function saveQuickReview() {
 
     try {
         await setDoc(doc(db, "dots", dotId), dotData, { merge: true });
+        
+        // 만약 기존 일정이 없던 자리에 실제 기록을 남긴 거라면, 타임박스 이벤트로도 등록해줌
+        if (!currentReviewEventId) {
+            const newEventId = Date.now().toString();
+            await saveTimeboxToFirebase(currentReviewSelectedCells, actualTask, newEventId, 'event-color-8');
+        }
+        
         document.getElementById('quick-review-modal').classList.add('hidden');
+        document.querySelectorAll('.time-cell.selected').forEach(cell => cell.classList.remove('selected'));
+        selectedCells = [];
         
         // Refresh UI
         await fetchTodayDots(dateStr);
