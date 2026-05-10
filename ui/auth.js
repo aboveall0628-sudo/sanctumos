@@ -101,6 +101,8 @@ function renderSetupScreen() {
             </div>
         </div>
     `;
+    document.body.appendChild(setupOverlay);
+
     // 3. 복구 화면 오버레이
     const recoveryOverlay = document.createElement('div');
     recoveryOverlay.id = 'recovery-screen-overlay';
