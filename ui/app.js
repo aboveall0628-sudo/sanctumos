@@ -29,6 +29,7 @@ import { renderDashboardView } from './dashboard.js';
 import { renderReportsView } from './reports.js';
 import { renderSettingsView } from './settings.js';
 import { renderPastMeditationsView } from './pastMeditations.js';
+import { renderPersonsView } from './personCard.js';
 
 // ─── 전역 상태 ───
 window.appStarted = true;
@@ -327,12 +328,17 @@ function switchView(viewId) {
         renderPastMeditationsView(currentUserId);
     } else if (viewId === 'settings') {
         renderSettingsView(currentUserId, currentUserEmail);
+    } else if (viewId === 'persons') {
+        renderPersonsView(currentUserId);
     }
 
     // 모바일 사이드바 닫기
     document.getElementById('sidebar')?.classList.remove('open');
     document.body.classList.remove('sidebar-open');
 }
+
+// v3-①-D 정식 메뉴 도착 전까지 외부(설정 뷰의 임시 진입 버튼 등)에서 호출하기 위한 노출
+window.__sanctumSwitchView = switchView;
 
 // 핀 원칙 띠는 ui/todayView.js로 이전
 

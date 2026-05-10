@@ -1231,3 +1231,362 @@ a { color: var(--accent); }
 @media (min-width: 769px) {
     .utl-mobile-list { display: none; }
 }
+
+/* ═══════════════════════════════════════
+   v3-①-B — 인물 카드 (목록 + 상세 모달 + Big Five 레이더)
+   ═══════════════════════════════════════ */
+
+/* ── 툴바 ── */
+.persons-toolbar {
+    display: grid; gap: var(--sp-3); margin-bottom: var(--sp-4);
+    grid-template-columns: 1fr auto auto; align-items: center;
+}
+.persons-search input {
+    width: 100%; padding: 10px 12px;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--bg); color: var(--text-primary);
+    font-size: 14px;
+}
+.persons-search input:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+.persons-filter-chips { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+.persons-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: 999px;
+    background: var(--bg-elev); border: 1px solid var(--border);
+    color: var(--text-secondary); font-size: 13px; cursor: pointer;
+    transition: all var(--ease);
+}
+.persons-chip:hover { border-color: var(--accent); color: var(--text-primary); }
+.persons-chip.active {
+    background: var(--accent); color: white; border-color: var(--accent);
+}
+.persons-chip-count {
+    background: rgba(255,255,255,0.2);
+    padding: 1px 7px; border-radius: 999px; font-size: 11px;
+    font-variant-numeric: tabular-nums;
+}
+.persons-chip:not(.active) .persons-chip-count {
+    background: var(--bg-card); color: var(--text-secondary);
+}
+.persons-add-btn { white-space: nowrap; }
+
+/* ── 카드 그리드 ── */
+.persons-grid {
+    display: grid; gap: var(--sp-3);
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+.person-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: var(--sp-4);
+    cursor: pointer; transition: all var(--ease);
+    display: flex; flex-direction: column; gap: var(--sp-3);
+    position: relative;
+}
+.person-card:hover {
+    border-color: var(--accent); transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+.person-card.is-fallback { opacity: 0.75; }
+.person-card-head {
+    display: grid; grid-template-columns: 40px 1fr auto;
+    gap: var(--sp-3); align-items: center;
+}
+.person-avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 600; color: #2C2C2E; font-size: 16px;
+}
+.person-card-meta { min-width: 0; }
+.person-card-name {
+    font-weight: 600; font-size: 15px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.person-card-sub {
+    display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+    font-size: 11px; color: var(--text-secondary); margin-top: 2px;
+}
+.person-inner {
+    background: var(--accent-soft); color: var(--accent);
+    padding: 1px 7px; border-radius: 999px; font-weight: 500;
+}
+.person-relation {
+    background: var(--bg-elev);
+    padding: 1px 7px; border-radius: 999px;
+}
+.person-stance-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 10px; border-radius: 999px;
+    font-size: 12px; font-weight: 500;
+}
+.person-stance-pill.big { padding: 6px 14px; font-size: 14px; }
+
+.person-card-mini { display: flex; flex-direction: column; gap: 4px; }
+.mini-bar-row {
+    display: grid; grid-template-columns: 16px 1fr; gap: 8px; align-items: center;
+}
+.mini-bar-label {
+    font-size: 10px; color: var(--text-secondary);
+    font-weight: 600; text-align: center;
+}
+.mini-bar-track {
+    height: 6px; background: var(--bg-elev); border-radius: 3px; overflow: hidden;
+}
+.mini-bar-fill {
+    display: block; height: 100%; background: var(--accent);
+    transition: width var(--ease);
+}
+.mini-bar-fill.mini-bar-dim {
+    background: var(--border);
+}
+.person-fallback-tag {
+    position: absolute; top: 8px; right: 8px;
+    background: var(--bg-elev); color: var(--text-secondary);
+    padding: 2px 8px; border-radius: 999px; font-size: 10px;
+}
+
+/* ── 모달 ── */
+.person-modal-overlay { z-index: 900; }
+.person-modal {
+    max-width: 880px; width: 92%; max-height: 90vh;
+    padding: 0; overflow: hidden;
+    display: flex; flex-direction: column;
+}
+.person-modal-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: var(--sp-4) var(--sp-5);
+    border-bottom: 1px solid var(--border);
+}
+.person-modal-header h3 { font-size: 18px; font-weight: 600; }
+.person-modal-close {
+    background: transparent; border: none; cursor: pointer;
+    width: 32px; height: 32px; border-radius: 50%;
+    color: var(--text-secondary); font-size: 16px;
+}
+.person-modal-close:hover { background: var(--hover); color: var(--text-primary); }
+.person-fallback-banner {
+    background: rgba(245, 200, 75, 0.12);
+    color: #8B6F1B;
+    padding: 10px var(--sp-5); font-size: 13px;
+    border-bottom: 1px solid var(--border);
+}
+[data-theme="dark"] .person-fallback-banner { color: #E8C765; }
+.person-modal-body {
+    display: grid; grid-template-columns: 240px 1fr;
+    gap: var(--sp-5); padding: var(--sp-5);
+    overflow-y: auto; flex: 1;
+}
+.person-detail-left {
+    display: flex; flex-direction: column; align-items: center;
+    gap: var(--sp-3); position: sticky; top: 0; align-self: start;
+}
+.person-radar-wrap {
+    background: var(--bg-elev); border-radius: var(--radius);
+    padding: var(--sp-2);
+}
+svg.person-radar { display: block; }
+.person-radar-caption {
+    font-size: 12px; color: var(--text-secondary);
+}
+.person-stance-display {
+    display: flex; flex-direction: column; align-items: center;
+    gap: var(--sp-2); margin-top: var(--sp-3);
+}
+.person-stance-change-btn {
+    background: transparent; border: 1px dashed var(--border);
+    color: var(--text-secondary);
+    padding: 6px 12px; border-radius: var(--radius);
+    font-size: 11px; cursor: not-allowed;
+}
+.person-detail-right {
+    display: flex; flex-direction: column; gap: var(--sp-4);
+    min-width: 0;
+}
+.person-layer {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: var(--sp-4);
+    display: flex; flex-direction: column; gap: var(--sp-3);
+}
+.person-layer-title {
+    font-size: 13px; font-weight: 600;
+    color: var(--accent); letter-spacing: 0.02em;
+}
+.person-layer-hint {
+    font-size: 12px; color: var(--text-secondary);
+    background: var(--bg-elev); padding: 8px 10px; border-radius: 8px;
+}
+
+/* form rows */
+.person-row {
+    display: grid; grid-template-columns: 100px 1fr; gap: var(--sp-3);
+    align-items: center;
+}
+.person-row > label {
+    font-size: 13px; color: var(--text-secondary);
+}
+.person-row input[type="text"],
+.person-row input[type="search"],
+.person-row select,
+.person-row textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border); border-radius: 8px;
+    background: var(--bg); color: var(--text-primary);
+    font-size: 14px; font-family: var(--font);
+}
+.person-row textarea { resize: vertical; }
+.person-row input:disabled {
+    background: var(--bg-elev); color: var(--text-secondary); cursor: not-allowed;
+}
+.person-toggle {
+    display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+    font-size: 13px; color: var(--text-primary);
+}
+.person-toggle input { width: 16px; height: 16px; cursor: pointer; }
+
+/* Big Five row */
+.bf-row { display: flex; flex-direction: column; gap: 6px; }
+.bf-row-head {
+    display: flex; align-items: baseline; gap: var(--sp-3); flex-wrap: wrap;
+}
+.bf-row-label { font-size: 13px; font-weight: 500; }
+.bf-row-hint { font-size: 11px; color: var(--text-secondary); flex: 1; }
+.bf-row-unknown {
+    font-size: 11px; color: var(--text-secondary);
+    display: inline-flex; align-items: center; gap: 4px; cursor: pointer;
+}
+.bf-row-unknown input { width: 13px; height: 13px; cursor: pointer; }
+.bf-row-steps {
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    gap: 4px;
+}
+.bf-step {
+    background: var(--bg-elev); border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 6px 0; border-radius: 6px;
+    cursor: pointer; font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    transition: all var(--ease);
+}
+.bf-step:hover { border-color: var(--accent); color: var(--text-primary); }
+.bf-step.active {
+    background: var(--accent); color: white; border-color: var(--accent);
+    font-weight: 600;
+}
+.bf-row-steps.disabled { opacity: 0.4; pointer-events: none; }
+
+/* 능력 스탯 */
+.comp-list { display: flex; flex-direction: column; gap: 8px; }
+.comp-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 36px 24px auto;
+    gap: 8px; align-items: center;
+}
+.comp-label { font-size: 13px; }
+.comp-slider {
+    width: 100%; height: 4px;
+    -webkit-appearance: none; appearance: none;
+    background: var(--bg-elev); border-radius: 2px;
+    outline: none;
+}
+.comp-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--accent); cursor: pointer;
+    border: 2px solid var(--bg-card);
+    box-shadow: 0 0 0 1px var(--accent);
+}
+.comp-slider::-moz-range-thumb {
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--accent); cursor: pointer;
+    border: 2px solid var(--bg-card);
+    box-shadow: 0 0 0 1px var(--accent);
+}
+.comp-row.is-null .comp-slider {
+    opacity: 0.35;
+}
+.comp-row.is-null .comp-slider::-webkit-slider-thumb {
+    background: var(--border); box-shadow: 0 0 0 1px var(--border);
+}
+.comp-value {
+    font-size: 12px; color: var(--text-secondary);
+    text-align: right; font-variant-numeric: tabular-nums;
+}
+.comp-clear, .comp-remove {
+    background: transparent; border: none; cursor: pointer;
+    color: var(--text-secondary); font-size: 12px;
+    width: 24px; height: 24px; border-radius: 4px;
+}
+.comp-clear:hover, .comp-remove:hover {
+    background: var(--hover); color: var(--text-primary);
+}
+.comp-add-row {
+    display: flex; gap: 8px; margin-top: var(--sp-2);
+    padding-top: var(--sp-2); border-top: 1px dashed var(--border);
+}
+.comp-add-row input {
+    flex: 1; padding: 6px 10px;
+    border: 1px solid var(--border); border-radius: 6px;
+    background: var(--bg); color: var(--text-primary); font-size: 13px;
+}
+
+/* 관계 별점 */
+.rel-row {
+    display: grid; grid-template-columns: 80px 1fr;
+    gap: var(--sp-3); align-items: center;
+}
+.rel-label { font-size: 13px; }
+.rel-stars { display: flex; gap: 2px; align-items: center; }
+.rel-star {
+    background: transparent; border: none; cursor: pointer;
+    color: var(--border); font-size: 20px; padding: 2px 4px;
+    transition: color var(--ease);
+}
+.rel-star:hover { color: var(--dot-yellow); }
+.rel-star.active { color: var(--dot-yellow); }
+.rel-clear {
+    background: transparent; border: none; cursor: pointer;
+    color: var(--text-secondary); font-size: 11px;
+    margin-left: 8px; padding: 2px 6px; border-radius: 4px;
+}
+.rel-clear:hover { background: var(--hover); }
+
+/* 모달 푸터 */
+.person-modal-footer {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: var(--sp-4) var(--sp-5);
+    border-top: 1px solid var(--border);
+    background: var(--bg-elev);
+}
+.person-modal-actions { display: flex; gap: var(--sp-2); }
+.person-delete-btn { color: var(--dot-red); }
+
+/* 모바일 */
+@media (max-width: 768px) {
+    .persons-toolbar {
+        grid-template-columns: 1fr;
+    }
+    .persons-add-btn { justify-self: stretch; }
+    .person-modal {
+        width: 100%; max-width: 100%; max-height: 100vh; height: 100vh;
+        border-radius: 0;
+    }
+    .person-modal-body {
+        grid-template-columns: 1fr;
+        padding: var(--sp-4);
+        gap: var(--sp-4);
+    }
+    .person-detail-left {
+        position: static; flex-direction: row; gap: var(--sp-4);
+        flex-wrap: wrap; justify-content: center;
+    }
+    .person-row {
+        grid-template-columns: 1fr;
+        gap: 4px;
+    }
+    .comp-row {
+        grid-template-columns: 64px 1fr 30px 24px auto;
+    }
+    .rel-row {
+        grid-template-columns: 60px 1fr;
+    }
+}

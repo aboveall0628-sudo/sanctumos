@@ -67,6 +67,22 @@ function injectExtraSections() {
         </div>
     `;
     container.appendChild(pwCard);
+
+    // ── v3 미리보기 진입로 (v3-①-D에서 사이드바로 이전 예정) ──
+    const v3Card = document.createElement('div');
+    v3Card.className = 'card-section';
+    v3Card.style.borderLeft = '3px solid var(--dot-purple)';
+    v3Card.innerHTML = `
+        <h3 class="section-title">🧪 v3 미리보기</h3>
+        <p class="section-desc">
+            아직 사이드바에는 없지만 미리 들어가볼 수 있어요. 다음 STEP에서 정식 메뉴로 이동돼요.
+        </p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button id="btn-v3-persons" class="primary-btn"
+                    style="background:var(--dot-purple);">👥 인물 뷰 열기</button>
+        </div>
+    `;
+    container.appendChild(v3Card);
 }
 
 function bindEvents() {
@@ -75,6 +91,13 @@ function bindEvents() {
     const btnBackup = document.getElementById('btn-backup');
     const btnExport = document.getElementById('btn-export-backup');
     const statusBox = document.getElementById('migration-status-box');
+
+    const btnV3Persons = document.getElementById('btn-v3-persons');
+    if (btnV3Persons) btnV3Persons.onclick = () => {
+        if (typeof window.__sanctumSwitchView === 'function') {
+            window.__sanctumSwitchView('persons');
+        }
+    };
 
     if (btnDiagnose) btnDiagnose.onclick = async () => {
         const v1Id = (document.getElementById('v1-id-input')?.value || '').trim();
