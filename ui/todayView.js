@@ -15,6 +15,8 @@ import { showToast } from './quickReview.js';
 import {
     getDecisionsByDate, saveDecision, deleteDecision
 } from '../data/decisionsRepo.js';
+import { getReport } from '../data/reportPipeline.js';
+import { generateLocalFallback } from '../infra/cloudFunctionProxy.js';
 
 let _userId = null;
 let _date = null;
@@ -28,6 +30,7 @@ export function initTodayView({ userId, date }) {
     _date = date;
     bindMeditationAutosave();
     bindDecisionsPanel();
+    bindNextDayButton();
 }
 
 /**
@@ -41,6 +44,50 @@ export async function refreshTodayView({ userId, date }) {
     await loadPinnedPrinciple(dek);
     await loadMeditationNote(dek);
     await loadDecisions(dek);
+    await loadTodayReport(dek);
+}
+
+// ─── 오늘 리포트 카드 (시간표 하단) ───
+async function loadTodayReport(dek) {
+    const body = document.getElementById('today-report-body');
+    if (!body) return;
+    try {
+        const report = await getReport(dek, 'dayReports', `${_userId}_${_date}`);
+        if (!report) {
+            body.innerHTML = `
+                <p style="color:var(--text-secondary); font-size:13px">
+                    시간표에서 도트 평가를 채워가면, 오늘의 결이 여기에 자동으로 정리돼요.
+                </p>
+            `;
+            return;
+        }
+        const stats = report.stats || {};
+        const fallback = generateLocalFallback(stats);
+        body.innerHTML = `
+            <div class="el-stat-row">
+                <div class="el-stat"><span class="el-stat-num">${stats.doneCount || 0}<small>/${stats.totalSlots || 0}</small></span><span class="el-stat-lbl">완료</span></div>
+                <div class="el-stat"><span class="el-stat-num">${stats.avgSatisfaction || '-'}</span><span class="el-stat-lbl">만족도</span></div>
+                <div class="el-stat"><span class="el-stat-num">${stats.matchRate || 0}<small>%</small></span><span class="el-stat-lbl">계획 일치율</span></div>
+            </div>
+            <div class="ai-summary-card" style="margin-top: 12px">
+                <p>${escapeHtml(report.aiSummary || fallback.aiSummary)}</p>
+            </div>
+        `;
+    } catch (e) {
+        console.warn('today report load failed:', e);
+        body.innerHTML = `<p style="color:var(--text-secondary); font-size:13px">리포트를 불러오는 중에 잠깐 막혔어요.</p>`;
+    }
+}
+
+// ─── 다음 날 묵상 버튼 ───
+function bindNextDayButton() {
+    const btn = document.getElementById('next-day-btn');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+        if (typeof window.__sanctumGoToNextDay === 'function') {
+            window.__sanctumGoToNextDay();
+        }
+    });
 }
 
 // ─── 핀 원칙 띠 ───

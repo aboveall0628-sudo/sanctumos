@@ -52,6 +52,7 @@
             <nav class="sidebar-nav">
                 <button class="sidebar-item" id="nav-goals"><span class="icon">🎯</span> 나의 목표</button>
                 <button class="sidebar-item active" id="nav-today"><span class="icon">📅</span> 오늘</button>
+                <button class="sidebar-item" id="nav-evening"><span class="icon">🌙</span> 저녁 회고</button>
                 <hr class="nav-divider">
                 <button class="sidebar-item" id="nav-dashboard"><span class="icon">📊</span> 대시보드</button>
                 <button class="sidebar-item" id="nav-past"><span class="icon">📜</span> 지난 묵상</button>
@@ -135,6 +136,31 @@
                         <div id="utl-mobile-list" class="utl-mobile-list"></div>
                     </div>
                 </section>
+
+                <!-- 오늘의 리포트 (자동 생성) -->
+                <section id="section-today-report" class="card-section">
+                    <h2 class="section-title">📈 오늘의 리포트</h2>
+                    <div id="today-report-body" class="today-report-body">
+                        <p style="color:var(--text-secondary); font-size:13px">시간표에서 도트 평가를 채워가면, 오늘의 결이 여기에 자동으로 정리돼요.</p>
+                    </div>
+                </section>
+
+                <!-- 다음날 묵상 시작 -->
+                <div class="next-day-cta">
+                    <button id="next-day-btn" class="primary-btn">내일 묵상 시작하기 →</button>
+                </div>
+            </div>
+
+            <!-- ── 저녁 회고 뷰 ── -->
+            <div id="view-evening" class="view hidden">
+                <header class="page-header">
+                    <h1>🌙 저녁 회고</h1>
+                    <p class="subtitle">오늘 하루를 정직하게 마주하고, 내일을 새 마음으로 시작해 봐요.</p>
+                </header>
+                <div id="evening-loop-container">
+                    <div id="evening-step-indicator"></div>
+                    <div id="evening-step-body"></div>
+                </div>
             </div>
 
             <!-- ── 목표 뷰 ── -->

@@ -296,6 +296,7 @@ function setupNavigation() {
     const navMap = {
         'nav-goals': 'goals',
         'nav-today': 'today',
+        'nav-evening': 'evening',
         'nav-dashboard': 'dashboard',
         'nav-past': 'past',
         'nav-principles': 'principles',
@@ -309,6 +310,8 @@ function setupNavigation() {
             btn.addEventListener('click', () => switchView(viewId));
         }
     });
+
+    reflectSaturdayMenuVisibility();
 
     // 모바일 메뉴 토글 (사이드바 + 백드롭)
     const menuToggle = document.getElementById('menu-toggle');
@@ -341,6 +344,17 @@ function setupNavigation() {
     });
 }
 
+/**
+ * [저녁 회고] 사이드바 메뉴는 평일엔 숨기고 토요일에만 보임.
+ * 매주 토요일에 주 회고가 있고, 마지막 토요일이면 월/분기/연/5·10년이 추가됨.
+ */
+function reflectSaturdayMenuVisibility() {
+    const navEvening = document.getElementById('nav-evening');
+    if (!navEvening) return;
+    const isSaturday = new Date().getDay() === 6;
+    navEvening.classList.toggle('hidden', !isSaturday);
+}
+
 function switchView(viewId) {
     document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
     const target = document.getElementById(`view-${viewId}`);
@@ -351,7 +365,9 @@ function switchView(viewId) {
     if (navBtn) navBtn.classList.add('active');
 
     // 뷰별 초기화
-    if (viewId === 'principles') {
+    if (viewId === 'evening') {
+        import('./eveningLoop.js').then(m => m.openEveningLoop(currentUserId, currentDate));
+    } else if (viewId === 'principles') {
         renderPrinciplesView(currentUserId);
     } else if (viewId === 'goals') {
         renderGoalsView(currentUserId);
@@ -377,6 +393,22 @@ function switchView(viewId) {
 // v3-①-D 정식 메뉴 도착 전까지 외부(설정 뷰의 임시 진입 버튼 등)에서 호출하기 위한 노출
 window.__sanctumSwitchView = switchView;
 
+/**
+ * "내일 묵상 시작하기" — 오늘 뷰 하단 버튼이 호출.
+ * currentDate를 다음 날로 옮기고 묵상 노트로 스크롤 + 포커스.
+ */
+window.__sanctumGoToNextDay = async function() {
+    const d = new Date(currentDate + 'T00:00:00');
+    d.setDate(d.getDate() + 1);
+    const next = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    await setCurrentDate(next);
+    setTimeout(() => {
+        document.getElementById('section-scripture')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.getElementById('meditation-note')?.focus();
+    }, 200);
+    showToast('🌅 새 하루를 시작해 봐요');
+};
+
 // 핀 원칙 띠는 ui/todayView.js로 이전
 
 // ─── 날짜 ───
@@ -385,15 +417,27 @@ function setupDatePicker() {
     if (input) {
         input.value = currentDate;
         input.addEventListener('change', async () => {
-            currentDate = input.value;
-            updateDateDisplay();
-            // 날짜 바뀔 때마다 핀/노트/결단/도트/말씀 모두 갱신
-            await refreshTodayView({ userId: currentUserId, date: currentDate });
-            await refreshTimeline({ userId: currentUserId, date: currentDate });
-            renderScriptureForDate(new Date(currentDate + 'T00:00:00')).catch(() => {});
+            await setCurrentDate(input.value);
         });
     }
     updateDateDisplay();
+}
+
+/**
+ * 외부(eveningLoop의 "내일 묵상 시작" 버튼 등)에서 날짜를 바꿀 때 사용.
+ * date picker 값까지 함께 동기화하고 오늘 뷰의 모든 요소를 다시 그림.
+ */
+export async function setCurrentDate(dateStr) {
+    if (!dateStr) return;
+    currentDate = dateStr;
+    const input = document.getElementById('calendar-input');
+    if (input) input.value = dateStr;
+    updateDateDisplay();
+    if (currentUserId && currentUserId !== 'anonymous') {
+        await refreshTodayView({ userId: currentUserId, date: currentDate });
+        await refreshTimeline({ userId: currentUserId, date: currentDate });
+    }
+    renderScriptureForDate(new Date(currentDate + 'T00:00:00')).catch(() => {});
 }
 
 function updateDateDisplay() {
@@ -402,6 +446,23 @@ function updateDateDisplay() {
     const d = new Date(currentDate + 'T00:00:00');
     const days = ['일', '월', '화', '수', '목', '금', '토'];
     display.textContent = `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 ${days[d.getDay()]}요일`;
+}
+
+/**
+ * 외부(eveningLoop의 "다음 날 묵상" 버튼 등)에서 현재 날짜를 바꿀 때 사용.
+ * datePicker · 표시 · 모든 데이터(핀/노트/결단/도트/말씀)를 한 번에 갱신.
+ */
+export async function setCurrentDate(newDate) {
+    if (!newDate || newDate === currentDate) return;
+    currentDate = newDate;
+    const input = document.getElementById('calendar-input');
+    if (input) input.value = newDate;
+    updateDateDisplay();
+    if (currentUserId !== 'anonymous') {
+        await refreshTodayView({ userId: currentUserId, date: currentDate });
+        await refreshTimeline({ userId: currentUserId, date: currentDate });
+    }
+    renderScriptureForDate(new Date(currentDate + 'T00:00:00')).catch(() => {});
 }
 
 // ─── Google Auth (레거시 보존) ───
