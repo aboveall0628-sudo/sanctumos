@@ -52,7 +52,6 @@
             <nav class="sidebar-nav">
                 <button class="sidebar-item" id="nav-goals"><span class="icon">🎯</span> 나의 목표</button>
                 <button class="sidebar-item active" id="nav-today"><span class="icon">📅</span> 오늘</button>
-                <button class="sidebar-item" id="nav-evening"><span class="icon">🌙</span> 저녁 통합 루프</button>
                 <hr class="nav-divider">
                 <button class="sidebar-item" id="nav-dashboard"><span class="icon">📊</span> 대시보드</button>
                 <button class="sidebar-item" id="nav-past"><span class="icon">📜</span> 지난 묵상</button>
@@ -82,12 +81,6 @@
                 <div id="pinned-principle-banner" class="pinned-banner hidden">
                     <span class="pin-icon">📌</span>
                     <span id="pinned-principle-text"></span>
-                </div>
-
-                <!-- 저녁 안내 바 (18시 이후 자동 노출) -->
-                <div id="evening-hint-bar" class="evening-hint-bar hidden">
-                    <span class="hint-msg">🌙 어느덧 저녁이에요. 오늘 하루 잠깐 돌아볼까요?</span>
-                    <button id="evening-hint-start">돌아보기</button>
                 </div>
 
                 <!-- 날짜 -->
@@ -142,14 +135,6 @@
                         <div id="utl-mobile-list" class="utl-mobile-list"></div>
                     </div>
                 </section>
-            </div>
-
-            <!-- ── 저녁 루프 뷰 ── -->
-            <div id="view-evening" class="view hidden">
-                <div id="evening-loop-container">
-                    <div id="evening-step-indicator" class="step-indicator"></div>
-                    <div id="evening-step-body" class="step-body"></div>
-                </div>
             </div>
 
             <!-- ── 목표 뷰 ── -->

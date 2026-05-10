@@ -271,9 +271,6 @@ async function onVaultUnlocked(dek) {
         console.warn('scripture render failed:', e)
     );
 
-    // 저녁(18시 이후) 안내 바 트리거
-    maybeShowEveningHint();
-
     // 리포트 자동 생성 체크
     runReportChecks(dek, currentUserId).then(ids => {
         if (ids.length > 0) console.log('Auto-generated reports:', ids);
@@ -294,26 +291,11 @@ async function refreshTodayData() {
     await refreshTodayView({ userId: currentUserId, date: currentDate });
 }
 
-// ─── 저녁 안내 바 (18시 이후 자동 노출) ───
-function maybeShowEveningHint() {
-    const bar = document.getElementById('evening-hint-bar');
-    if (!bar) return;
-    const h = new Date().getHours();
-    if (h >= 18 || h < 4) {
-        bar.classList.remove('hidden');
-        document.getElementById('nav-evening')?.classList.add('evening-pulse');
-    }
-    document.getElementById('evening-hint-start')?.addEventListener('click', () => {
-        switchView('evening');
-    });
-}
-
 // ─── 네비게이션 ───
 function setupNavigation() {
     const navMap = {
         'nav-goals': 'goals',
         'nav-today': 'today',
-        'nav-evening': 'evening',
         'nav-dashboard': 'dashboard',
         'nav-past': 'past',
         'nav-principles': 'principles',
@@ -369,9 +351,7 @@ function switchView(viewId) {
     if (navBtn) navBtn.classList.add('active');
 
     // 뷰별 초기화
-    if (viewId === 'evening') {
-        import('./eveningLoop.js').then(m => m.openEveningLoop(currentUserId, currentDate));
-    } else if (viewId === 'principles') {
+    if (viewId === 'principles') {
         renderPrinciplesView(currentUserId);
     } else if (viewId === 'goals') {
         renderGoalsView(currentUserId);
