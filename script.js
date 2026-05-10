@@ -1309,8 +1309,10 @@ function setupGoogleAuth() {
     const profile = document.getElementById('user-profile');
     if (profile) {
         profile.addEventListener('click', () => {
-            if (!gapi.client.getToken()) {
+            if (gapiInited && !gapi.client.getToken()) {
                 handleAuthClick();
+            } else if (!gapiInited) {
+                alert("로그인 시스템을 불러오는 중입니다. 잠시만 기다려 주세요.");
             }
         });
     }
