@@ -125,7 +125,7 @@ function renderSetupScreen() {
                 <div class="lock-icon">🕊️</div>
                 <h2>준비됐어요</h2>
                 <p class="lock-subtitle" style="text-align:left; font-size:13px;">
-                    Sanctum OS는 비교의 도구가 아니라 <strong>거울</strong>이에요.<br>
+                    Sanctum OS는 매일의 일상을 매일의 성소로 잇는 <strong>하나의 시스템</strong>이에요.<br>
                     오늘 하루를 정직하게 마주하고, 한 걸음씩 자라나는 곳이에요.
                 </p>
                 <ul style="text-align:left; font-size:13px; color:var(--text-secondary); margin: var(--sp-4) 0; line-height: 1.9; padding-left: var(--sp-5)">
