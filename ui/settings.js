@@ -18,14 +18,15 @@ import { getAllDecisions, deleteDecision } from '../data/decisionsRepo.js';
 import { deleteCalendarEventById } from './app.js';
 // 자동 잠금 분 단위 영속화
 import { getSavedTimeoutMinutes, saveTimeoutMinutes } from '../security/autoLock.js';
-// Phase E-8/A·B-1·B-2·B-3·C: 말씀 본문 표시 설정 (폰트, 계획 프리셋, 시작점, 내 계획, 매일성경 링크)
+// Phase E-8/A·B-1·B-2·B-3·C·E: 말씀 본문 표시 설정
 import {
     getScriptureSettings, getActivePlan, setFontSize, setActivePlanId,
     getPartOverride, setPartOverride, clearPartOverride,
     getUserPlans, addUserPlan, deleteUserPlan, setShowDailyBibleLink,
+    setProgressMode,
     FONT_SIZES, PRESETS, applyFontSizeToCSS,
 } from './scriptureSettings.js';
-import { BIBLE_METADATA, resolvePlanParts } from './scripture.js';
+import { BIBLE_METADATA, resolvePlanParts, seedManualPositionsFromCalendar } from './scripture.js';
 
 let _userId = null;
 let _userEmail = null;
@@ -602,6 +603,20 @@ function renderScriptureSettingsHTML() {
 
         <div class="settings-row" style="margin-top: var(--sp-4);">
             <div class="settings-row-text">
+                <h4 style="margin:0;font-size:14px;font-weight:600;">묵상 안 한 날 본문 미루기</h4>
+                <p class="section-desc" style="margin-top:4px;">
+                    켜면 달력 자동 진행 대신, 각 파트마다 [이 장 다 읽었어요] 버튼을 누른 만큼만 다음 장으로 넘어가요.
+                    못 읽은 날은 같은 장이 계속 떠 있어요. 켜는 순간의 위치는 "오늘 보일 장"으로 자동 시드돼서 진도가 갑자기 줄지 않아요.
+                </p>
+            </div>
+            <label class="switch" for="progress-mode-toggle">
+                <input type="checkbox" id="progress-mode-toggle" ${cur.progressMode === 'manual' ? 'checked' : ''}>
+                <span class="switch-slider"></span>
+            </label>
+        </div>
+
+        <div class="settings-row" style="margin-top: var(--sp-4);">
+            <div class="settings-row-text">
                 <h4 style="margin:0;font-size:14px;font-weight:600;">매일성경 링크 보이기</h4>
                 <p class="section-desc" style="margin-top:4px;">본문 카드 맨 아래에 "매일성경에서 본문·해설 보기" 한 줄을 띄워요. 누르면 새 창에서 성서유니온 사이트로 이동해요.</p>
             </div>
@@ -796,6 +811,18 @@ function bindScriptureSettingsEvents() {
     if (dbLinkToggle) {
         dbLinkToggle.addEventListener('change', (e) => {
             setShowDailyBibleLink(e.target.checked);
+        });
+    }
+
+    // Phase E-8/E: 묵상 안 한 날 본문 미루기 토글 (calendar ↔ manual)
+    const progressToggle = document.getElementById('progress-mode-toggle');
+    if (progressToggle) {
+        progressToggle.addEventListener('change', (e) => {
+            const turnOnManual = e.target.checked;
+            // manual로 켤 때는 모드 바꾸기 전에 먼저 시드 → 진도가 뚝 떨어지는 걸 막음.
+            // (시드 함수는 mode와 무관하게 calendar 결과로 position을 박음)
+            if (turnOnManual) seedManualPositionsFromCalendar();
+            setProgressMode(turnOnManual ? 'manual' : 'calendar');
         });
     }
 

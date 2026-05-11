@@ -7,7 +7,10 @@
  * 4파트 (시가서/모세오경+대선지서/역사서+소선지서/신약) 동시 진행 + 1년 1독.
  */
 
-import { getActivePlan, getPartOverride } from './scriptureSettings.js';
+import {
+    getActivePlan, getPartOverride,
+    getProgressMode, getPartPosition, setPartPosition, advancePartPosition,
+} from './scriptureSettings.js';
 import { renderDailyBibleLink } from './suDaily.js';
 
 const BIBLE_METADATA = {
@@ -185,13 +188,28 @@ function flattenPartChapters(part) {
  * @param {Date} date
  * @param {{abbr:string, chapter:number, anchorDate:string}|null} override
  */
-function getChapterForPart(part, date, override) {
+function getChapterForPart(part, date, override, planId = null) {
     const partChapters = flattenPartChapters(part);
     const total = partChapters.length;
 
-    let startIndex;
-    let offset;
+    // Phase E-8/E: manual 모드면 저장된 position을 그대로 사용 (없으면 calendar로 시드).
+    if (planId && getProgressMode() === 'manual') {
+        let pos = getPartPosition(planId, part.id);
+        if (pos === null) {
+            pos = computeCalendarIndex(part, date, override, partChapters, total);
+            setPartPosition(planId, part.id, pos);
+        }
+        const idx = ((pos % total) + total) % total;
+        return { info: partChapters[idx], index: idx, total, mode: 'manual' };
+    }
 
+    // calendar 모드 (기본)
+    const idx = computeCalendarIndex(part, date, override, partChapters, total);
+    return { info: partChapters[idx], index: idx, total, mode: 'calendar' };
+}
+
+function computeCalendarIndex(part, date, override, partChapters, total) {
+    let startIndex, offset;
     if (override) {
         const found = partChapters.findIndex(x => x.abbr === override.abbr && x.chapter === override.chapter);
         startIndex = found >= 0 ? found : 0;
@@ -203,9 +221,7 @@ function getChapterForPart(part, date, override) {
         startIndex = ANCHOR_INDICES[part.id] || 0;
         offset = calculateOffset(date);
     }
-
-    const idx = ((startIndex + offset) % total + total) % total;
-    return { info: partChapters[idx], index: idx, total };
+    return ((startIndex + offset) % total + total) % total;
 }
 
 function getVersesForChapter(abbr, chapter) {
@@ -256,15 +272,26 @@ export async function renderScriptureForDate(date) {
         return;
     }
 
+    const mode = getProgressMode();
     visibleParts.forEach(part => {
         const override = getPartOverride(plan.id, part.id);
-        const { info, index, total } = getChapterForPart(part, date, override);
+        const { info, index, total } = getChapterForPart(part, date, override, plan.id);
         const verses = getVersesForChapter(info.abbr, info.chapter);
         const partEl = document.createElement('div');
         partEl.className = 'reading-part';
 
         const passageContainer = document.createElement('div');
         passageContainer.className = 'passage-container';
+
+        const manualBtnHtml = mode === 'manual'
+            ? `<div class="passage-footer">
+                   <button class="passage-read-btn" type="button" data-part="${part.id}">
+                       <i data-lucide="check" class="passage-read-btn-icon"></i>
+                       <span>이 장 다 읽었어요</span>
+                   </button>
+                   <span class="passage-read-hint">다음에 들어오면 다음 장이 떠요</span>
+               </div>`
+            : '';
 
         passageContainer.innerHTML = `
             <div class="passage-header">
@@ -281,6 +308,7 @@ export async function renderScriptureForDate(date) {
                     </div>
                 `).join('') || '<div style="color:var(--text-secondary);font-size:12px">잠깐만요, 본문을 가져오는 중이에요...</div>'}
             </div>
+            ${manualBtnHtml}
         `;
 
         // 헤더 클릭으로 접기/펴기
@@ -296,6 +324,16 @@ export async function renderScriptureForDate(date) {
                 updateCopyButton();
             });
         });
+
+        // Phase E-8/E: manual 모드 — "다 읽었어요" → 그 파트만 다음 장으로
+        const readBtn = passageContainer.querySelector('.passage-read-btn');
+        if (readBtn) {
+            readBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                advancePartPosition(plan.id, part.id, total);
+                renderScriptureForDate(date).catch(() => {});
+            });
+        }
 
         partEl.appendChild(passageContainer);
         container.appendChild(partEl);
@@ -339,41 +377,76 @@ function progressForPart(plan, part) {
     const total = partChapters.length;
     const override = getPartOverride(plan.id, part.id);
 
+    // Phase E-8/E: manual 모드 — 저장된 position이 곧 진도. 없으면 calendar 시뮬레이션 fallback.
+    if (getProgressMode() === 'manual') {
+        const pos = getPartPosition(plan.id, part.id);
+        if (pos !== null) {
+            // position은 "지금 보고 있는 인덱스" — 본 누적은 그 위치까지(시작점 기준).
+            const startIdx = resolveStartIndex(part, override, partChapters);
+            const done = Math.max(0, Math.min(total, pos - startIdx + 1));
+            const percent = total === 0 ? 0 : Math.round((done / total) * 100);
+            return { id: part.id, label: part.name || '내 계획', done, total, percent };
+        }
+        // position 없음 — calendar로 떨어짐 (시드 전)
+    }
+
+    // calendar 모드 (또는 manual인데 아직 시드 전)
     let anchor, startIndex;
     if (override) {
         anchor = new Date(override.anchorDate + 'T00:00:00');
         const found = partChapters.findIndex(x => x.abbr === override.abbr && x.chapter === override.chapter);
         startIndex = found >= 0 ? found : 0;
     } else if (typeof part.id === 'number' && ANCHOR_INDICES[part.id] !== undefined) {
-        // PRESET 기본 — 한국 매일성경 일정
         anchor = ANCHOR_DATE;
         startIndex = ANCHOR_INDICES[part.id];
     } else {
-        // user plan인데 override가 없는 비정상 — 안전망: 오늘 시작
         anchor = startOfToday();
         startIndex = 0;
     }
-
     const today = startOfToday();
     const anchorMid = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
-    const daysElapsed = Math.floor((today - anchorMid) / (1000 * 60 * 60 * 24)); // 0-based
-    // 첫날 포함 → +1. anchor 이후로만 진행 (anchor가 미래면 0).
+    const daysElapsed = Math.floor((today - anchorMid) / (1000 * 60 * 60 * 24));
     const cumulative = Math.max(0, startIndex + daysElapsed + 1);
     const done = Math.min(total, cumulative);
     const percent = total === 0 ? 0 : Math.round((done / total) * 100);
 
-    return {
-        id: part.id,
-        label: part.name || '내 계획',
-        done,
-        total,
-        percent,
-    };
+    return { id: part.id, label: part.name || '내 계획', done, total, percent };
+}
+
+function resolveStartIndex(part, override, partChapters) {
+    if (override) {
+        const found = partChapters.findIndex(x => x.abbr === override.abbr && x.chapter === override.chapter);
+        return found >= 0 ? found : 0;
+    }
+    if (typeof part.id === 'number' && ANCHOR_INDICES[part.id] !== undefined) {
+        return ANCHOR_INDICES[part.id];
+    }
+    return 0;
 }
 
 function startOfToday() {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+/**
+ * Phase E-8/E: 활성 plan의 각 파트 partPosition을 오늘 calendar 결과로 시드.
+ * manual 모드를 처음 켜는 순간 호출 → 갑자기 진도가 줄어들지 않도록 함.
+ * 이미 position이 박혀 있는 파트는 건드리지 않음.
+ */
+export function seedManualPositionsFromCalendar() {
+    const plan = getActivePlan();
+    if (!plan) return;
+    const parts = resolvePlanParts(plan);
+    const today = startOfToday();
+    parts.forEach(part => {
+        const existing = getPartPosition(plan.id, part.id);
+        if (existing !== null) return; // 사용자가 이미 움직여둔 건 건드리지 않음
+        const override = getPartOverride(plan.id, part.id);
+        const partChapters = flattenPartChapters(part);
+        const idx = computeCalendarIndex(part, today, override, partChapters, partChapters.length);
+        setPartPosition(plan.id, part.id, idx);
+    });
 }
 
 /**

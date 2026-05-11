@@ -431,6 +431,28 @@ button .btn-icon { vertical-align: text-bottom; }
 .verse-text { flex: 1; }
 .verse-item.selected { color: var(--accent); background: var(--accent-soft); border-radius: 4px; padding: 2px 4px; }
 
+/* Phase E-8/E: 수동 진행 모드 — passage 카드 아래 "이 장 다 읽었어요" 버튼 */
+.passage-footer {
+    display: flex; align-items: center; gap: var(--sp-3);
+    padding: var(--sp-3) var(--sp-4);
+    border-top: 1px dashed var(--border);
+    background: var(--bg-card);
+}
+.passage-container.collapsed .passage-footer { display: none; }
+.passage-read-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px;
+    border: 1px solid var(--border); border-radius: 999px;
+    background: var(--bg-elev); color: var(--text-primary);
+    font-size: 12px; font-weight: 500; cursor: pointer;
+    transition: all var(--ease);
+}
+.passage-read-btn:hover {
+    border-color: var(--accent); color: var(--accent); background: var(--accent-soft);
+}
+.passage-read-btn-icon { width: 14px; height: 14px; }
+.passage-read-hint { font-size: 11px; color: var(--text-secondary); }
+
 /* ── Meditation note ── */
 .note-editor {
     min-height: 100px; padding: var(--sp-4);

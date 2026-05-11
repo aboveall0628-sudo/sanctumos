@@ -73,6 +73,13 @@ const DEFAULTS = {
     partOverrides: {},
     // Phase E-8/C: 본문 카드 맨 아래 "매일성경 사이트 바로가기" 링크 행을 보일지.
     showDailyBibleLink: true,
+    // Phase E-8/E: 본문 진행 방식
+    //  - 'calendar' (기본): 매일 자동으로 한 장씩 진행 (달력 방식)
+    //  - 'manual': 사용자가 "다 읽었어요" 누른 만큼만 진행 (책갈피 방식)
+    progressMode: 'calendar',
+    // manual 모드에서 각 파트의 "지금 보여줄 시퀀스 인덱스"
+    // 모양: { [planId]: { [partId]: number } }   (partId는 number 또는 string)
+    partPositions: {},
 };
 
 const PRESET_IDS = new Set(PRESETS.map(p => p.id));
@@ -105,7 +112,10 @@ function read() {
             ? parsed.partOverrides : {};
         const showDailyBibleLink = typeof parsed.showDailyBibleLink === 'boolean'
             ? parsed.showDailyBibleLink : DEFAULTS.showDailyBibleLink;
-        _cache = { fontSize, activePlanId, partOverrides, showDailyBibleLink };
+        const progressMode = parsed.progressMode === 'manual' ? 'manual' : DEFAULTS.progressMode;
+        const partPositions = (parsed.partPositions && typeof parsed.partPositions === 'object')
+            ? parsed.partPositions : {};
+        _cache = { fontSize, activePlanId, partOverrides, showDailyBibleLink, progressMode, partPositions };
         return _cache;
     } catch {
         _cache = { ...DEFAULTS };
@@ -222,6 +232,49 @@ export function setFontSize(size) {
 
 export function setShowDailyBibleLink(show) {
     write({ ...read(), showDailyBibleLink: !!show });
+}
+
+/** Phase E-8/E: 본문 진행 방식 */
+export function getProgressMode() {
+    return read().progressMode;
+}
+
+export function setProgressMode(mode) {
+    const next = mode === 'manual' ? 'manual' : 'calendar';
+    write({ ...read(), progressMode: next });
+}
+
+/** manual 모드에서 특정 (plan, part)의 현재 인덱스. 없으면 null. */
+export function getPartPosition(planId, partId) {
+    const { partPositions } = read();
+    const v = partPositions?.[planId]?.[partId];
+    return typeof v === 'number' ? v : null;
+}
+
+/** position을 절댓값으로 박는다 (시드용). */
+export function setPartPosition(planId, partId, index) {
+    if (!planId || partId === undefined || typeof index !== 'number') return;
+    const cur = read();
+    const next = {
+        ...cur,
+        partPositions: {
+            ...cur.partPositions,
+            [planId]: {
+                ...(cur.partPositions?.[planId] || {}),
+                [partId]: index,
+            },
+        },
+    };
+    write(next);
+}
+
+/** position을 1 늘림. 상한이 주어지면 그 직전까지만(한 바퀴 돌아도 멈춤). */
+export function advancePartPosition(planId, partId, maxExclusive = Infinity) {
+    const cur = read();
+    const at = cur.partPositions?.[planId]?.[partId];
+    const baseline = typeof at === 'number' ? at : 0;
+    const nextIdx = Math.min(baseline + 1, Math.max(0, maxExclusive - 1));
+    setPartPosition(planId, partId, nextIdx);
 }
 
 /**
