@@ -632,6 +632,8 @@ function openInlineActualInput(col, slot, duration = 1) {
         const dek = getDEK();
         if (!dek) { showToast('잠시 잠겨 있어요. 비밀번호로 열어 주실래요?'); _saved = false; return; }
         try {
+            // Phase E-1: 같은 시간대에 daily 목표가 박혀 있으면 자동 연결 + plannedTask 도 그 목표 텍스트로.
+            const linkedGoal = findGoalCoveringSlot(slot);
             const dot = {
                 userId: _userId,
                 date: _date,
@@ -641,7 +643,8 @@ function openInlineActualInput(col, slot, duration = 1) {
                 executionSatisfaction: sat,
                 outcomeSatisfaction: sat,
                 actualTask: text,
-                plannedTask: '',
+                plannedTask: (linkedGoal?.title || linkedGoal?.text || ''),
+                linkedGoalId: linkedGoal?.id || null,
                 reason: '',
                 labelIds: [],
             };
@@ -783,6 +786,18 @@ function bindGlobalEvents() {
 
 // (B-4 정리) 외부 dead export unplaceDecisionFromTimeline 제거.
 // 시간표 plan 슬롯의 X 버튼이 unplaceGoal 을 직접 호출.
+
+// ─── Phase E-1: 도트 ↔ daily 목표 자동 연결 ───
+// actual 슬롯이 어떤 daily 목표 범위 안에 들어있다면 그 목표를 반환.
+// 같은 시간대를 여러 목표가 덮으면 가장 먼저 매치된 것 사용 (실무상 거의 안 겹침).
+function findGoalCoveringSlot(slot) {
+    return _decisions.find(g => {
+        if (g.timeSlot == null) return false;
+        const start = g.timeSlot;
+        const end = start + (g.durationSlots || 4);
+        return slot >= start && slot < end;
+    }) || null;
+}
 
 // ─── 유틸 ───
 function slotToTime(slot) {

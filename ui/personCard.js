@@ -411,6 +411,8 @@ function renderModal() {
         </div>
     `;
     bindModalEvents();
+    // footprint 의 trending-down/up 등 새 아이콘이 들어왔으니 한 번 더 렌더
+    if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
 }
 
 function bindModalEvents() {
@@ -579,12 +581,18 @@ function footprintHtml(p) {
         `;
     }).join('');
 
+    // Phase E-3: 만족도 추세가 명확히 변했을 때만 stance 재검토 안내.
+    // 자동 변경 금지(영적 안전장치 30초 기도 게이트가 stance 변경 경로). 안내만.
+    // 임계값: recent vs prev 차이 |delta| >= 1.0 + 표본 충분 (각 면 2회 이상)
+    const stanceHint = buildStanceHint(p, stats);
+
     return `
         <section class="person-layer footprint-section">
             <h4 class="person-layer-title">함께한 흔적</h4>
             <p class="person-layer-hint">
                 도트가 만들어낸 누적이에요. 내가 본 점수와 함께한 흔적이 다르다면, 그 차이가 묵상의 재료예요.
             </p>
+            ${stanceHint}
             <div class="footprint-grid">
                 <div class="footprint-cell">
                     <div class="footprint-cell-label">만남</div>
@@ -613,6 +621,55 @@ function footprintHtml(p) {
                 </div>
             ` : ''}
         </section>
+    `;
+}
+
+/**
+ * Phase E-3: 만족도 추세가 명확히 변할 때 stance 재검토 안내.
+ *
+ * 정책:
+ *   - stance 자동 변경 절대 X. 안내만.
+ *   - "주의" 톤 X. "관찰" 톤만 ("결이 바뀌는 흐름이 보입니다").
+ *   - 임계값: |recent4w - prev4w| >= 1.0 + 각 4주에 표본 2회 이상.
+ *   - 방향: down 이면 "ally→neutral/caution" 재검토, up 이면 "caution/adversary→ally" 재검토.
+ */
+function buildStanceHint(p, stats) {
+    if (stats.recent4wAvg == null || stats.prev4wAvg == null) return '';
+    // cardStats 의 trend 는 차이 >=0.5 에서 방향만 보지만, stance 알림은 더 엄격한 1.0 임계.
+    const delta = stats.recent4wAvg - stats.prev4wAvg;
+    if (Math.abs(delta) < 1.0) return '';
+
+    // 표본 부족이면 알림 생략
+    const r = stats.recentDots || [];
+    const recentSamples = r.filter(d => d.rating > 0).length;
+    if (recentSamples < 2) return '';
+
+    const direction = delta < 0 ? 'down' : 'up';
+    const current = p.stance || 'neutral';
+    let suggestion = '';
+    if (direction === 'down') {
+        if (current === 'ally') suggestion = 'stance 를 다시 살펴볼 시점일지도 모릅니다.';
+        else if (current === 'neutral') suggestion = 'caution 으로 옮길지 묵상 안에서 살펴봐 주세요.';
+        else suggestion = '이미 caution/adversary 인 사람과의 결이 더 어두워지고 있어요.';
+    } else {
+        if (current === 'caution' || current === 'adversary') {
+            suggestion = '회복의 결이 관찰됩니다. stance 를 다시 살펴봐 주세요.';
+        } else {
+            suggestion = '결이 밝아지는 흐름이에요.';
+        }
+    }
+
+    const directionLabel = direction === 'down' ? '낮아지는' : '높아지는';
+    return `
+        <div class="footprint-stance-hint ${direction === 'down' ? 'hint-down' : 'hint-up'}">
+            <i class="footprint-stance-icon" data-lucide="${direction === 'down' ? 'trending-down' : 'trending-up'}"></i>
+            <div class="footprint-stance-body">
+                <div class="footprint-stance-line">
+                    최근 4주 만족도가 이전 4주 대비 ${Math.abs(delta).toFixed(1)}점 ${directionLabel} 흐름이 관찰됩니다.
+                </div>
+                <div class="footprint-stance-quiet">${escapeHtml(suggestion)}</div>
+            </div>
+        </div>
     `;
 }
 

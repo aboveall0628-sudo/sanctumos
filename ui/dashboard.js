@@ -340,14 +340,39 @@ function renderCallSection(dots) {
 }
 
 function bindCallActions(root) {
+    bindDeepLinks(root);
+}
+
+/**
+ * Phase E-4: data-go 속성 기반 deep link 핸들러.
+ * - "today" → 오늘 뷰로 이동
+ * - "today-scripture" → 오늘 뷰 + 말씀 섹션으로 스크롤
+ * - 그 외 viewId → 단순 switchView
+ */
+function bindDeepLinks(root) {
     root.querySelectorAll('[data-go]').forEach(btn => {
         btn.addEventListener('click', () => {
             const target = btn.dataset.go;
-            if (typeof window.__sanctumSwitchView === 'function') {
-                window.__sanctumSwitchView(target);
-            }
+            handleDeepLink(target);
         });
     });
+}
+
+function handleDeepLink(target) {
+    if (typeof window.__sanctumSwitchView !== 'function') return;
+
+    if (target === 'today-scripture') {
+        window.__sanctumSwitchView('today');
+        // view-today 가 렌더되고 보일 때까지 한 프레임 기다린 뒤 스크롤
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                document.getElementById('section-scripture')
+                    ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        });
+        return;
+    }
+    window.__sanctumSwitchView(target);
 }
 
 // 아바타 배경색 — 인물 카드와 동일 알고리즘
@@ -386,6 +411,9 @@ function renderNumberCards(dots, bibleProgress, meditationCount, startDate, endD
             <h3><i class="dash-icon" data-lucide="book-open"></i> 통독 진도</h3>
             <div class="dash-value highlight">${bible.percent}%</div>
             <p class="dash-desc">${bible.detail}</p>
+            <button class="dash-card-action" data-go="today-scripture">
+                <i data-lucide="arrow-right" class="btn-icon"></i> 오늘의 말씀으로
+            </button>
         </div>
 
         <div class="dash-card">
@@ -412,6 +440,8 @@ function renderNumberCards(dots, bibleProgress, meditationCount, startDate, endD
             </p>
         </div>
     `;
+    // 카드 안의 data-go 진입점 (통독 카드의 [오늘의 말씀으로] 등)
+    bindDeepLinks(container);
 }
 
 function bindNumbersToggle() {

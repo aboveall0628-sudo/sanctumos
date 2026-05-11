@@ -1335,6 +1335,28 @@ button .btn-icon { vertical-align: text-bottom; }
 .dash-value.highlight { color: var(--accent); }
 .dash-desc { font-size: 12px; color: var(--text-secondary); margin-top: auto; }
 
+/* Phase E-4: dash-card 안의 deep link 버튼 (예: 통독 카드의 [오늘의 말씀으로]) */
+.dash-card-action {
+    align-self: flex-start;
+    display: inline-flex; align-items: center; gap: 4px;
+    margin-top: var(--sp-2);
+    padding: 4px 10px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--text-secondary);
+    font-size: 11px; font-weight: 500;
+    cursor: pointer;
+    transition: border-color var(--ease), color var(--ease), background var(--ease);
+    font-family: inherit;
+}
+.dash-card-action:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--bg-elev);
+}
+.dash-card-action .btn-icon { width: 12px; height: 12px; }
+
 /* ═══ Principles ═══ */
 .principles-toolbar { display: flex; justify-content: flex-end; margin-bottom: var(--sp-4); }
 .principles-list { display: flex; flex-direction: column; gap: var(--sp-3); }
@@ -1905,6 +1927,42 @@ button .btn-icon { vertical-align: text-bottom; }
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .footprint-recent-rating { flex-shrink: 0; }
+
+/* Phase E-3: 만족도 추세 변화가 명확할 때 stance 재검토 관찰 안내.
+   "주의" 톤 X — 차분한 관찰 톤. 자동 변경은 없고 안내만. */
+.footprint-stance-hint {
+    display: flex; align-items: flex-start; gap: var(--sp-2);
+    padding: var(--sp-3);
+    border-radius: 10px;
+    margin-bottom: var(--sp-3);
+    font-size: 12px; line-height: 1.5;
+    border: 1px solid var(--border);
+    background: var(--bg-elev);
+}
+.footprint-stance-hint.hint-down {
+    border-left: 3px solid var(--dot-orange);
+}
+.footprint-stance-hint.hint-up {
+    border-left: 3px solid var(--dot-green);
+}
+.footprint-stance-icon {
+    flex-shrink: 0;
+    width: 18px; height: 18px;
+    margin-top: 1px;
+    color: var(--text-secondary);
+}
+.hint-down .footprint-stance-icon { color: var(--dot-orange); }
+.hint-up .footprint-stance-icon { color: var(--dot-green); }
+.footprint-stance-body { flex: 1; min-width: 0; }
+.footprint-stance-line {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+.footprint-stance-quiet {
+    color: var(--text-secondary);
+    font-style: italic;
+    margin-top: 3px;
+}
 
 /* 모바일 — 최근 만남 한 칸에 세로로 */
 @media (max-width: 640px) {
