@@ -15,11 +15,14 @@
 
 import { getDEK } from './lockScreen.js';
 import { getDotsByDate } from '../data/dotsRepo.js';
-import { checkAndGenerateDayReport, getReport, getReports } from '../data/reportPipeline.js';
+import { getReports } from '../data/reportPipeline.js';
 import { generateLocalFallback } from '../infra/cloudFunctionProxy.js';
 import { showToast } from './quickReview.js';
-import { callLLM } from './aiClient.js';
+import { callDailyReport } from './aiClient.js';
 import { setCurrentDate } from './app.js';
+// Reports 모듈 v3 — STEP 1.3 흐름
+import { aggregateDailyStats } from '../reports/dailyAggregator.js';
+import { getDayReport, saveDayReport } from '../reports/dayReportRepo.js';
 
 // icon 필드는 Lucide name (디자인 시스템: 본문·헤더 아이콘은 Lucide stroke으로 통일)
 const DAILY_STEPS = [
@@ -232,60 +235,92 @@ async function loadSectionContent(step) {
 
         case 'report':
             body.innerHTML = '<div class="spinner" style="margin: 0 auto"></div><p style="text-align:center">오늘 리포트를 만드는 중이에요...</p>';
-            if (dek) {
-                try {
-                    const reportId = await checkAndGenerateDayReport(dek, _userId);
-                    body.innerHTML = reportId
-                        ? '<p style="color:var(--dot-green); text-align:center">✅ 오늘 리포트가 만들어졌어요!</p>'
-                        : '<p style="text-align:center">이미 오늘 리포트가 있거나, 아직 평가가 부족해요.</p>';
-                } catch (e) {
-                    body.innerHTML = `<p style="color:var(--dot-red)">생성이 잠깐 막혔어요. 잠시 후 다시 들어와 주실래요?</p>`;
+            if (!dek) break;
+            try {
+                // 이미 AI 응답까지 차있으면 재생성 X
+                const existing = await getDayReport(dek, _userId, _dateStr);
+                if (existing && existing.aiSummary) {
+                    body.innerHTML = '<p style="text-align:center">이미 오늘 리포트가 있어요. 아래에서 확인해 봐요.</p>';
+                    break;
                 }
+
+                // 도트가 0개면 의미 있는 리포트 못 만듦
+                const dots = await getDotsByDate(dek, _userId, _dateStr);
+                if (dots.length === 0) {
+                    body.innerHTML = '<p style="text-align:center">오늘 기록된 도트가 없어서 아직 리포트가 만들어지지 않았어요.</p>';
+                    break;
+                }
+
+                // 1) 결정론적 집계 (수치는 코드가 계산 — LLM에게 산수 안 시킴)
+                const stats = await aggregateDailyStats(dek, _userId, _dateStr);
+
+                // 2) AI 호출 (## 사실 / ## 관찰 / ## 묵상에 가져갈 질문)
+                //    context 가명화는 STEP 1.5+에서 인물 이름까지 정교화 예정
+                const aiResult = await callDailyReport(stats, {
+                    persons: [], orgs: [], places: [], amounts: [],
+                });
+
+                // 3) 저장 (자동 암호화)
+                await saveDayReport(dek, _userId, _dateStr, stats, {
+                    aiSummary:              aiResult.aiSummary,
+                    observation:            aiResult.observation,
+                    questionsForMeditation: aiResult.questionsForMeditation,
+                });
+
+                const tag = aiResult.fallback ? ' (간단 요약)' : '';
+                body.innerHTML = `<p style="color:var(--dot-green); text-align:center">✅ 오늘 리포트가 만들어졌어요${tag}</p>`;
+            } catch (e) {
+                console.error('[eveningLoop] dailyReport 생성 실패:', e);
+                body.innerHTML = `<p style="color:var(--dot-red)">생성이 잠깐 막혔어요. 잠시 후 다시 들어와 주실래요?</p>`;
             }
             break;
 
         case 'reflect': {
             if (!dek) return;
-            const report = await getReport(dek, 'dayReports', `${_userId}_${_dateStr}`);
+            const report = await getDayReport(dek, _userId, _dateStr);
             if (!report) {
                 body.innerHTML = '<p>아직 리포트가 없어요. 평가를 마저 하시고 위에서 다시 만들어 볼까요?</p>';
                 return;
             }
-            const stats = report.stats || {};
+
+            const stats       = report.stats || {};
+            const ds          = stats.dotStats || {};
+            const sat         = stats.satisfactionDistribution || {};
+            const align       = stats.alignment || {};
+            const observation = (report.observations || [])[0] || null;
+            const questions   = report.questionsForMeditation || [];
+
+            const matchPct = (align.decisionExecutionRate !== null && align.decisionExecutionRate !== undefined)
+                ? Math.round(align.decisionExecutionRate * 100) : '-';
+
+            const observationHtml = observation
+                ? `<div class="ai-summary-card" style="border-left:3px solid var(--accent-primary, #5b8def); margin-top:12px">
+                       <strong style="display:block; margin-bottom:6px">관찰</strong>
+                       <p style="margin:0">${escapeHtml(observation)}</p>
+                   </div>` : '';
+
+            const questionsHtml = questions.length > 0
+                ? `<div class="ai-summary-card" style="background:var(--bg-quiet, rgba(0,0,0,0.03)); margin-top:12px">
+                       <strong style="display:block; margin-bottom:8px">묵상에 가져갈 질문</strong>
+                       <ul style="margin:0; padding-left:1.2em">
+                           ${questions.map(q => `<li>${escapeHtml(q)}</li>`).join('')}
+                       </ul>
+                   </div>` : '';
+
             body.innerHTML = `
                 <div class="el-stat-row">
-                    <div class="el-stat"><span class="el-stat-num">${stats.doneCount || 0}<small>/${stats.totalSlots || 0}</small></span><span class="el-stat-lbl">완료</span></div>
-                    <div class="el-stat"><span class="el-stat-num">${stats.avgSatisfaction || '-'}</span><span class="el-stat-lbl">만족도</span></div>
-                    <div class="el-stat"><span class="el-stat-num">${stats.matchRate || 0}<small>%</small></span><span class="el-stat-lbl">계획 일치율</span></div>
+                    <div class="el-stat"><span class="el-stat-num">${ds.doneCount || 0}<small>/${ds.totalDots || 0}</small></span><span class="el-stat-lbl">완료</span></div>
+                    <div class="el-stat"><span class="el-stat-num">${sat.avg ?? '-'}</span><span class="el-stat-lbl">만족도</span></div>
+                    <div class="el-stat"><span class="el-stat-num">${matchPct}<small>%</small></span><span class="el-stat-lbl">결단 실행률</span></div>
                 </div>
-                <div class="ai-summary-card">
-                    <p id="reflect-ai-text">잠깐만요, 패턴을 살펴보고 있어요...</p>
-                    <p id="reflect-ai-tag" style="font-size:11px;color:var(--text-secondary);margin-top:8px"></p>
+                ${report.aiSummary ? `<div class="ai-summary-card"><p style="margin:0; white-space:pre-wrap">${escapeHtml(report.aiSummary)}</p></div>` : ''}
+                ${observationHtml}
+                ${questionsHtml}
+                <div style="margin-top:20px; padding-top:16px; border-top:1px dashed var(--border, rgba(0,0,0,0.1)); text-align:center; color:var(--text-secondary, #888); font-size:13px">
+                    여기까지가 데이터입니다.<br>
+                    다음은 하나님 앞에서.
                 </div>
-                <p class="el-tip">
-                    숫자는 비교가 아니라 거울이에요. 잘잘못 가리기보다는, 어떤 결이 보이는지만 살펴봐요.
-                </p>
             `;
-
-            (async () => {
-                let text = report.aiSummary;
-                let isFallback = false;
-                if (!text) {
-                    const result = await callLLM('dayReport', {
-                        date: _dateStr,
-                        stats,
-                        context: { persons: [], amounts: [] },
-                    }, { stats });
-                    text = result.text;
-                    isFallback = result.fallback;
-                }
-                const aiEl = document.getElementById('reflect-ai-text');
-                const tagEl = document.getElementById('reflect-ai-tag');
-                if (aiEl) aiEl.textContent = text;
-                if (tagEl) tagEl.textContent = isFallback
-                    ? '※ 지금은 간단 요약만 보여드려요. AI 분석은 곧 활성화될 예정이에요.'
-                    : '🌟 AI가 살펴본 오늘의 결';
-            })();
             break;
         }
     }
@@ -345,4 +380,14 @@ export function closeEveningLoop() {
     const container = document.getElementById('evening-loop-container');
     if (container) container.classList.add('hidden');
     document.getElementById('nav-today')?.click();
+}
+
+// XSS 방어 — AI 응답/사용자 메모를 innerHTML에 넣기 전 escape
+function escapeHtml(str) {
+    return String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
