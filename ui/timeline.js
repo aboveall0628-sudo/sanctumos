@@ -621,8 +621,15 @@ function openInlineActualInput(col, slot, duration = 1) {
             };
             await saveDot(dek, dot);
             panel.remove();
-            await refreshTimeline({ userId: _userId, date: _date });
-            showToast('🔐 안전하게 보관됐어요. 자세히 평가는 도트를 다시 눌러 주세요.');
+            // Optimistic — 같은 id의 기존 도트 교체 후 즉시 렌더.
+            // 백그라운드 refresh는 따로 돌려 정확성 보정 (실패해도 화면은 살아있음).
+            _dots = _dots.filter(d => d.id !== dot.id);
+            _dots.push(dot);
+            render();
+            refreshTimeline({ userId: _userId, date: _date }).catch(e =>
+                console.warn('post-save refresh failed:', e)
+            );
+            showToast('🔐 보관했어요. 자세히 평가하려면 도트를 다시 눌러 주세요.');
         } catch (e) {
             console.error('actual save failed:', e);
             showToast('저장이 잠깐 막혔어요. 한 번만 더 시도해 주실래요?');

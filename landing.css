@@ -185,20 +185,19 @@ html, body {
     opacity: 0.78;
 }
 
-/* ── 6. 스크린샷 — 오늘 화면 미리보기 ─────────────────────── */
+/* ── 6. 스크린샷 — 오늘 화면 미리보기 ───────────────────────
+   사진 비율(1270x911)을 그대로 유지해 전체가 잘리지 않고 보이도록.
+   img의 width/height 속성과 height:auto 가 함께 작동해 CLS도 방지. */
 .landing-screenshot {
     margin-top: var(--sp-7);          /* 안내 → 스크린샷 64px */
     width: 100%;
     max-width: 720px;
-    aspect-ratio: 16 / 10;            /* CLS 방지 + 일관된 카드 비율 */
+    height: auto;                     /* 자연 비율 유지 */
     background: var(--bg-elev);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg);
-    overflow: hidden;
     display: block;
-    object-fit: cover;                /* 16:10 비율로 맞추되 잘림 영역은 위에서부터 노출 */
-    object-position: top center;
 }
 
 /* ── 7. 푸터 ───────────────────────────────────────────────── */

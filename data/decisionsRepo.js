@@ -7,7 +7,7 @@
  *     → 통합 타임라인의 계획 레인에 표시되고 평가 시 dot으로 흡수됨
  */
 
-import { db, doc, deleteDoc, collection, query, where, orderBy } from './firebase.js';
+import { db, doc, deleteDoc, collection, query, where } from './firebase.js';
 import { saveRecord, queryRecords } from './baseRepo.js';
 
 /**
@@ -26,16 +26,17 @@ export async function saveDecision(dek, data) {
 }
 
 /**
- * 특정 날짜의 모든 결단 조회 (미배치 + 박힌 것 모두)
+ * 특정 날짜의 모든 결단 조회 (미배치 + 박힌 것 모두).
+ * orderBy 제거 + client-side sort — composite index 없이도 동작.
  */
 export async function getDecisionsByDate(dek, userId, date) {
     const q = query(
         collection(db, 'decisions'),
         where('userId', '==', userId),
-        where('date', '==', date),
-        orderBy('order', 'asc')
+        where('date', '==', date)
     );
-    return await queryRecords(dek, q);
+    const decisions = await queryRecords(dek, q);
+    return decisions.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 }
 
 /**

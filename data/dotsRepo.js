@@ -20,7 +20,9 @@ export async function saveDot(dek, dotData) {
 }
 
 /**
- * 특정 날짜의 모든 도트 조회
+ * 특정 날짜의 모든 도트 조회.
+ * orderBy를 빼고 client-side sort — composite index 없이도 동작하도록.
+ * (Firestore는 equality 2개만으론 자동 단일필드 인덱스로 처리 가능)
  * @param {CryptoKey} dek
  * @param {string} userId
  * @param {string} date - "2026-05-10"
@@ -30,10 +32,10 @@ export async function getDotsByDate(dek, userId, date) {
     const q = query(
         collection(db, 'dots'),
         where('userId', '==', userId),
-        where('date', '==', date),
-        orderBy('timeSlot', 'asc')
+        where('date', '==', date)
     );
-    return await queryRecords(dek, q);
+    const dots = await queryRecords(dek, q);
+    return dots.sort((a, b) => (a.timeSlot ?? 0) - (b.timeSlot ?? 0));
 }
 
 /**
