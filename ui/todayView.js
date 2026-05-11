@@ -15,8 +15,9 @@ import { showToast } from './quickReview.js';
 import {
     getDecisionsByDate, saveDecision, deleteDecision
 } from '../data/decisionsRepo.js';
-import { getReport } from '../data/reportPipeline.js';
-import { generateLocalFallback } from '../infra/cloudFunctionProxy.js';
+// Reports 모듈 v3 — 새 spec dayReport 표시
+import { getDayReport } from '../reports/dayReportRepo.js';
+import { generateDailyReport } from '../reports/dailyReportFlow.js';
 
 let _userId = null;
 let _date = null;
@@ -48,35 +49,91 @@ export async function refreshTodayView({ userId, date }) {
 }
 
 // ─── 오늘 리포트 카드 (시간표 하단) ───
+// 사용자가 도트 평가 끝났다고 판단하면 "오늘 리포트 만들기" 버튼 → 새 흐름 트리거.
+// 리포트 있으면 새 spec 카드(사실/관찰/묵상 질문) 표시.
 async function loadTodayReport(dek) {
     const body = document.getElementById('today-report-body');
     if (!body) return;
     try {
-        const report = await getReport(dek, 'dayReports', `${_userId}_${_date}`);
-        if (!report) {
-            body.innerHTML = `
-                <p style="color:var(--text-secondary); font-size:13px">
-                    시간표에서 도트 평가를 채워가면, 오늘의 결이 여기에 자동으로 정리돼요.
-                </p>
-            `;
+        const report = await getDayReport(dek, _userId, _date);
+
+        // 아직 AI 응답이 없으면 → 버튼 표시
+        if (!report || !report.aiSummary) {
+            renderTodayReportButton(body, dek);
             return;
         }
-        const stats = report.stats || {};
-        const fallback = generateLocalFallback(stats);
+
+        // 리포트 있음 → 새 spec 8섹션 카드
+        const stats       = report.stats || {};
+        const ds          = stats.dotStats || {};
+        const sat         = stats.satisfactionDistribution || {};
+        const align       = stats.alignment || {};
+        const observation = (report.observations || [])[0] || null;
+        const questions   = report.questionsForMeditation || [];
+
+        const matchPct = (align.decisionExecutionRate !== null && align.decisionExecutionRate !== undefined)
+            ? Math.round(align.decisionExecutionRate * 100) : '-';
+
+        const observationHtml = observation
+            ? `<div class="ai-summary-card" style="border-left:3px solid var(--accent-primary, #5b8def); margin-top:12px">
+                   <strong style="display:block; margin-bottom:6px">관찰</strong>
+                   <p style="margin:0">${escapeHtml(observation)}</p>
+               </div>` : '';
+
+        const questionsHtml = questions.length > 0
+            ? `<div class="ai-summary-card" style="background:var(--bg-quiet, rgba(0,0,0,0.03)); margin-top:12px">
+                   <strong style="display:block; margin-bottom:8px">묵상에 가져갈 질문</strong>
+                   <ul style="margin:0; padding-left:1.2em">
+                       ${questions.map(q => `<li>${escapeHtml(q)}</li>`).join('')}
+                   </ul>
+               </div>` : '';
+
         body.innerHTML = `
             <div class="el-stat-row">
-                <div class="el-stat"><span class="el-stat-num">${stats.doneCount || 0}<small>/${stats.totalSlots || 0}</small></span><span class="el-stat-lbl">완료</span></div>
-                <div class="el-stat"><span class="el-stat-num">${stats.avgSatisfaction || '-'}</span><span class="el-stat-lbl">만족도</span></div>
-                <div class="el-stat"><span class="el-stat-num">${stats.matchRate || 0}<small>%</small></span><span class="el-stat-lbl">계획 일치율</span></div>
+                <div class="el-stat"><span class="el-stat-num">${ds.doneCount || 0}<small>/${ds.totalDots || 0}</small></span><span class="el-stat-lbl">완료</span></div>
+                <div class="el-stat"><span class="el-stat-num">${sat.avg ?? '-'}</span><span class="el-stat-lbl">만족도</span></div>
+                <div class="el-stat"><span class="el-stat-num">${matchPct}<small>%</small></span><span class="el-stat-lbl">결단 실행률</span></div>
             </div>
             <div class="ai-summary-card" style="margin-top: 12px">
-                <p>${escapeHtml(report.aiSummary || fallback.aiSummary)}</p>
+                <p style="margin:0; white-space:pre-wrap">${escapeHtml(report.aiSummary)}</p>
+            </div>
+            ${observationHtml}
+            ${questionsHtml}
+            <div style="margin-top:16px; padding-top:12px; border-top:1px dashed var(--border, rgba(0,0,0,0.1)); text-align:center; color:var(--text-secondary, #888); font-size:12px">
+                여기까지가 데이터입니다. 다음은 하나님 앞에서.
             </div>
         `;
     } catch (e) {
         console.warn('today report load failed:', e);
         body.innerHTML = `<p style="color:var(--text-secondary); font-size:13px">리포트를 불러오는 중에 잠깐 막혔어요.</p>`;
     }
+}
+
+function renderTodayReportButton(body, dek) {
+    body.innerHTML = `
+        <p style="color:var(--text-secondary); font-size:13px; margin-bottom: 12px">
+            도트 평가가 끝났다고 생각되시면, 오늘의 결을 정리해 볼게요.
+        </p>
+        <div style="text-align:center">
+            <button id="today-make-report-btn" class="primary-btn">오늘 리포트 만들기 →</button>
+        </div>
+    `;
+    document.getElementById('today-make-report-btn')?.addEventListener('click', async () => {
+        const btn = document.getElementById('today-make-report-btn');
+        if (btn) { btn.disabled = true; btn.textContent = '만드는 중이에요...'; }
+        try {
+            const result = await generateDailyReport(dek, _userId, _date);
+            if (result.status === 'no-dots') {
+                body.innerHTML = `<p style="color:var(--text-secondary); font-size:13px">오늘 기록된 도트가 아직 없어요. 평가를 채워가 봐요.</p>`;
+                return;
+            }
+            // 생성 성공 → 다시 로드해서 새 spec 카드로 갱신
+            await loadTodayReport(dek);
+        } catch (e) {
+            console.error('today report generate failed:', e);
+            body.innerHTML = `<p style="color:var(--dot-red); font-size:13px">리포트를 만드는 중에 잠깐 막혔어요. 잠시 후 다시 시도해 주실래요?</p>`;
+        }
+    });
 }
 
 // ─── 다음 날 묵상 버튼 ───

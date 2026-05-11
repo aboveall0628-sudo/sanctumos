@@ -409,14 +409,14 @@ function renderLucideIcons() {
 window.__sanctumRenderLucide = renderLucideIcons;
 
 /**
- * [저녁 회고] 사이드바 메뉴는 평일엔 숨기고 토요일에만 보임.
- * 매주 토요일에 주 회고가 있고, 마지막 토요일이면 월/분기/연/5·10년이 추가됨.
+ * [저녁 회고] 사이드바 메뉴는 매일 노출 (사용자 결정 2026-05-11).
+ * 일간 회고는 매일 진입 가능. 토요일에는 주/월/분기/연/5·10년 추가 단계가 붙음
+ * (eveningLoop.determineLayers 처리).
  */
 function reflectSaturdayMenuVisibility() {
     const navEvening = document.getElementById('nav-evening');
     if (!navEvening) return;
-    const isSaturday = new Date().getDay() === 6;
-    navEvening.classList.toggle('hidden', !isSaturday);
+    navEvening.classList.remove('hidden');
 }
 
 function switchView(viewId) {

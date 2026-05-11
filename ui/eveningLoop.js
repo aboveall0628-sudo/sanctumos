@@ -18,11 +18,10 @@ import { getDotsByDate } from '../data/dotsRepo.js';
 import { getReports } from '../data/reportPipeline.js';
 import { generateLocalFallback } from '../infra/cloudFunctionProxy.js';
 import { showToast } from './quickReview.js';
-import { callDailyReport } from './aiClient.js';
 import { setCurrentDate } from './app.js';
 // Reports 모듈 v3 — STEP 1.3 흐름
-import { aggregateDailyStats } from '../reports/dailyAggregator.js';
-import { getDayReport, saveDayReport } from '../reports/dayReportRepo.js';
+import { getDayReport } from '../reports/dayReportRepo.js';
+import { generateDailyReport } from '../reports/dailyReportFlow.js';
 
 // icon 필드는 Lucide name (디자인 시스템: 본문·헤더 아이콘은 Lucide stroke으로 통일)
 const DAILY_STEPS = [
@@ -233,47 +232,54 @@ async function loadSectionContent(step) {
             break;
         }
 
-        case 'report':
-            body.innerHTML = '<div class="spinner" style="margin: 0 auto"></div><p style="text-align:center">오늘 리포트를 만드는 중이에요...</p>';
-            if (!dek) break;
-            try {
-                // 이미 AI 응답까지 차있으면 재생성 X
-                const existing = await getDayReport(dek, _userId, _dateStr);
-                if (existing && existing.aiSummary) {
-                    body.innerHTML = '<p style="text-align:center">이미 오늘 리포트가 있어요. 아래에서 확인해 봐요.</p>';
-                    break;
-                }
+        case 'report': {
+            // 자동 생성 X. 사용자가 도트 평가 끝났다고 판단하면 버튼 눌러서 직접 트리거.
+            if (!dek) { body.innerHTML = '<p>잠시 잠겨 있어요. 비밀번호로 열어 주실래요?</p>'; break; }
 
-                // 도트가 0개면 의미 있는 리포트 못 만듦
-                const dots = await getDotsByDate(dek, _userId, _dateStr);
-                if (dots.length === 0) {
-                    body.innerHTML = '<p style="text-align:center">오늘 기록된 도트가 없어서 아직 리포트가 만들어지지 않았어요.</p>';
-                    break;
-                }
-
-                // 1) 결정론적 집계 (수치는 코드가 계산 — LLM에게 산수 안 시킴)
-                const stats = await aggregateDailyStats(dek, _userId, _dateStr);
-
-                // 2) AI 호출 (## 사실 / ## 관찰 / ## 묵상에 가져갈 질문)
-                //    context 가명화는 STEP 1.5+에서 인물 이름까지 정교화 예정
-                const aiResult = await callDailyReport(stats, {
-                    persons: [], orgs: [], places: [], amounts: [],
-                });
-
-                // 3) 저장 (자동 암호화)
-                await saveDayReport(dek, _userId, _dateStr, stats, {
-                    aiSummary:              aiResult.aiSummary,
-                    observation:            aiResult.observation,
-                    questionsForMeditation: aiResult.questionsForMeditation,
-                });
-
-                const tag = aiResult.fallback ? ' (간단 요약)' : '';
-                body.innerHTML = `<p style="color:var(--dot-green); text-align:center">✅ 오늘 리포트가 만들어졌어요${tag}</p>`;
-            } catch (e) {
-                console.error('[eveningLoop] dailyReport 생성 실패:', e);
-                body.innerHTML = `<p style="color:var(--dot-red)">생성이 잠깐 막혔어요. 잠시 후 다시 들어와 주실래요?</p>`;
+            const existing = await getDayReport(dek, _userId, _dateStr);
+            if (existing && existing.aiSummary) {
+                body.innerHTML = `
+                    <p style="text-align:center; margin-bottom:8px">
+                        ✅ 오늘 리포트가 이미 만들어져 있어요.
+                    </p>
+                    <p class="el-tip" style="text-align:center">아래 "회고 읽기" 단계에서 확인해 봐요.</p>
+                `;
+                break;
             }
+
+            body.innerHTML = `
+                <p class="el-tip" style="margin-bottom:16px">
+                    도트 평가가 끝나셨다면, 아래 버튼을 눌러 오늘 리포트를 만들어 보세요.<br>
+                    AI가 오늘의 결을 살펴보는 데 잠깐 시간이 걸려요.
+                </p>
+                <div style="text-align:center">
+                    <button id="el-make-report-btn" class="primary-btn">오늘 리포트 만들기 →</button>
+                </div>
+            `;
+
+            document.getElementById('el-make-report-btn')?.addEventListener('click', async () => {
+                const btn = document.getElementById('el-make-report-btn');
+                if (btn) { btn.disabled = true; btn.textContent = '만드는 중이에요...'; }
+                try {
+                    const result = await generateDailyReport(dek, _userId, _dateStr);
+                    if (result.status === 'no-dots') {
+                        body.innerHTML = '<p style="text-align:center">오늘 기록된 도트가 없어서 아직 리포트가 만들어지지 않았어요.</p>';
+                        return;
+                    }
+                    const tag = result.fallback ? ' (간단 요약)' : '';
+                    body.innerHTML = `
+                        <p style="color:var(--dot-green); text-align:center; margin-bottom:8px">
+                            ✅ 오늘 리포트가 만들어졌어요${tag}
+                        </p>
+                        <p class="el-tip" style="text-align:center">아래 "회고 읽기" 단계에서 확인해 봐요.</p>
+                    `;
+                } catch (e) {
+                    console.error('[eveningLoop] dailyReport 생성 실패:', e);
+                    body.innerHTML = `<p style="color:var(--dot-red)">생성이 잠깐 막혔어요. 잠시 후 다시 시도해 주실래요?</p>`;
+                }
+            });
             break;
+        }
 
         case 'reflect': {
             if (!dek) return;
