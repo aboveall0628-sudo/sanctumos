@@ -283,7 +283,8 @@ async function onVaultUnlocked(dek) {
         date: currentDate,
         onChange: () => refreshTodayView({ userId: currentUserId, date: currentDate }),
     });
-    await refreshTimeline({ userId: currentUserId, date: currentDate });
+    // 첫 마운트엔 현재 시간이 상단에 오게 자동 스크롤
+    await refreshTimeline({ userId: currentUserId, date: currentDate, scrollToNow: true });
 
     // 성경 본문 렌더
     renderScriptureForDate(new Date(currentDate + 'T00:00:00')).catch(e =>
@@ -477,7 +478,8 @@ export async function setCurrentDate(dateStr) {
     updateDateDisplay();
     if (currentUserId && currentUserId !== 'anonymous') {
         await refreshTodayView({ userId: currentUserId, date: currentDate });
-        await refreshTimeline({ userId: currentUserId, date: currentDate });
+        // 날짜 변경도 스크롤 리셋 — 새 날짜의 현재 시간(또는 09:00)으로
+        await refreshTimeline({ userId: currentUserId, date: currentDate, scrollToNow: true });
     }
     renderScriptureForDate(new Date(currentDate + 'T00:00:00')).catch(() => {});
 }

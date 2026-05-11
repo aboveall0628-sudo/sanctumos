@@ -56,7 +56,7 @@ export function initTimeline({ userId, date, onChange }) {
 /**
  * 데이터 다시 로드 + 렌더 (잠금 해제, 날짜 변경, 평가 저장 후 호출)
  */
-export async function refreshTimeline({ userId, date }) {
+export async function refreshTimeline({ userId, date, scrollToNow = false }) {
     _userId = userId;
     _date = date;
     const dek = getDEK();
@@ -76,6 +76,28 @@ export async function refreshTimeline({ userId, date }) {
     if (gcalR.status === 'fulfilled') _gcalEvents = gcalR.value;
     else console.error('gcal load failed:', gcalR.reason);
     render();
+    // 마운트/날짜 변경/사용자 명시 액션에서만 현재 시간으로 이동.
+    // 인라인 저장 후 refresh 같은 자동 refresh는 사용자 스크롤 위치를 보존.
+    if (scrollToNow) scrollTimelineToNow();
+}
+
+/**
+ * 시간표 컨테이너의 현재 시간 라인을 상단 근처로 스크롤.
+ * isToday일 때만 동작. 그 외 날짜는 09:00 근처로 스크롤(아침에 시작).
+ */
+function scrollTimelineToNow() {
+    const body = document.getElementById('utl-body');
+    if (!body) return;
+    let targetSlot;
+    if (isToday(_date)) {
+        const now = new Date();
+        targetSlot = now.getHours() * 4 + Math.floor(now.getMinutes() / 15);
+    } else {
+        targetSlot = 9 * 4; // 09:00
+    }
+    // 현재 시간이 상단 안쪽으로 약간 들어오게 -2 슬롯 여유.
+    const top = Math.max(0, (targetSlot - 2) * ROW_HEIGHT);
+    body.scrollTop = top;
 }
 
 // ─── 렌더 ───
