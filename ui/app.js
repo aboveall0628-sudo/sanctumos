@@ -448,23 +448,6 @@ function updateDateDisplay() {
     display.textContent = `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 ${days[d.getDay()]}요일`;
 }
 
-/**
- * 외부(eveningLoop의 "다음 날 묵상" 버튼 등)에서 현재 날짜를 바꿀 때 사용.
- * datePicker · 표시 · 모든 데이터(핀/노트/결단/도트/말씀)를 한 번에 갱신.
- */
-export async function setCurrentDate(newDate) {
-    if (!newDate || newDate === currentDate) return;
-    currentDate = newDate;
-    const input = document.getElementById('calendar-input');
-    if (input) input.value = newDate;
-    updateDateDisplay();
-    if (currentUserId !== 'anonymous') {
-        await refreshTodayView({ userId: currentUserId, date: currentDate });
-        await refreshTimeline({ userId: currentUserId, date: currentDate });
-    }
-    renderScriptureForDate(new Date(currentDate + 'T00:00:00')).catch(() => {});
-}
-
 // ─── Google Auth (레거시 보존) ───
 function setupGoogleAuth() {
     const profile = document.getElementById('user-profile-btn');
