@@ -1,43 +1,185 @@
 /**
- * dashboard.js — 대시보드 뷰 UI
+ * dashboard.js — 대시보드 뷰 (Phase D: "묵상의 자리")
  *
- * 카드 구성:
- * - 🌟 오늘의 발견 (성장 지표 — 영적 톤)
- * - 📖 통독 진도 (4파트, bibleProgress 컬렉션 + scripture.js의 진도 계산)
- * - 🙏 묵상 충실도 (최근 7일 묵상 노트 작성률)
- * - 💚 감사 도트 (최근 7일 spiritual_high)
- * - (고급 — 디폴트 숨김) 일치율 / 평균 만족도 / 실행 분포
+ * 영역 (세로 순서):
+ *   1) 오늘의 시작 (#today-start-content)
+ *      - 시간대별 인사
+ *      - 핀 원칙 한 줄
+ *      - 어제 묵상에 가져갔던 질문 (어제 dayReport.questionsForMeditation[0])
+ *
+ *   2) 나의 목표 (goals-container — goals.js 가 채움)
+ *
+ *   3) 이번 주의 결 (#dashboard-prose)
+ *      - 산문 한 줄: "이번 주 도트 N개 중 M개 완료, 평균 X점. 패턴 한 마디."
+ *
+ *   4) 숫자로 보기 토글 (#dashboard-cards)
+ *      - 토글 펼치면 기존 카드 (히트맵 / 도트 / 통독 / 묵상 / 일치율 등)
+ *
+ * 정책 (memory/project_reports_module.md + reports-spec §1.6):
+ *   - 처방 톤 금지. 산문은 "관찰" 톤.
+ *   - 비교의 함정 회피 — "더 / 덜" 같은 표현은 데이터가 있을 때만 신중히.
  */
 
 import { db, collection, query, where, getDocs, limit } from '../data/firebase.js';
 import { getDotsByDateRange, computeDotStats } from '../data/dotsRepo.js';
+import { readDocument } from '../crypto/cryptoService.js';
+import { getDayReport } from '../reports/dayReportRepo.js';
 import { getDEK } from './lockScreen.js';
 
 export async function renderDashboardView(userId) {
-    const container = document.getElementById('dashboard-cards');
-    if (!container) return;
-
     const dek = getDEK();
     if (!dek) {
-        container.innerHTML = '<div class="empty-state" style="grid-column: 1/-1"><i class="empty-state-icon" data-lucide="lock"></i><h3>잠시 잠겨있어요</h3><p class="empty-state-desc">비밀번호로 열어주세요.</p></div>';
-        if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
+        renderLocked();
         return;
     }
 
-    container.innerHTML = '<div class="spinner" style="grid-column: 1/-1; margin: 40px auto"></div>';
-
+    // 데이터 fetching — 4개 영역 모두에 필요한 입력을 한 번에 모음
     const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     const today = new Date();
     const endDate = fmt(today);
     const past7 = new Date();
     past7.setDate(today.getDate() - 6);
     const startDate = fmt(past7);
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+    const yesterdayStr = fmt(yesterday);
 
-    const [dots, bibleProgress, meditationCount] = await Promise.all([
+    const [pinned, yesterdayReport, dots, bibleProgress, meditationCount] = await Promise.all([
+        getPinnedPrinciple(dek, userId).catch(() => null),
+        getDayReport(dek, userId, yesterdayStr).catch(() => null),
         getDotsByDateRange(dek, userId, startDate, endDate).catch(() => []),
         getBibleProgress(userId).catch(() => []),
         countMeditations(userId, startDate, endDate).catch(() => 0),
     ]);
+
+    renderTodayStart(pinned, yesterdayReport);
+    renderProseLine(dots);
+    renderNumberCards(dots, bibleProgress, meditationCount, startDate, endDate);
+    bindNumbersToggle();
+
+    if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
+}
+
+function renderLocked() {
+    const root = document.getElementById('today-start-content');
+    if (root) {
+        root.innerHTML = `
+            <div class="empty-state">
+                <i class="empty-state-icon" data-lucide="lock"></i>
+                <h3>잠시 잠겨있어요</h3>
+                <p class="empty-state-desc">비밀번호로 열어주세요.</p>
+            </div>`;
+    }
+    if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
+}
+
+// ─── 1) 오늘의 시작 ───────────────────────────────────────
+function renderTodayStart(pinned, yesterdayReport) {
+    const root = document.getElementById('today-start-content');
+    if (!root) return;
+
+    const greeting = greetingByHour();
+    const userName = (document.getElementById('user-name')?.textContent || '').trim();
+    const namePart = userName && userName !== '로그인' ? `, ${userName}` : '';
+
+    const pinnedBlock = pinned
+        ? `
+            <div class="today-start-line">
+                <i class="today-start-icon" data-lucide="pin"></i>
+                <span class="today-start-label">오늘의 핀 원칙</span>
+                <span class="today-start-text">${escapeHtml(pinned)}</span>
+            </div>
+        ` : '';
+
+    const yesterdayQ = (yesterdayReport?.questionsForMeditation || [])[0] || null;
+    const yesterdayBlock = yesterdayQ
+        ? `
+            <div class="today-start-line today-start-line-quiet">
+                <i class="today-start-icon" data-lucide="sparkles"></i>
+                <span class="today-start-label">어제 묵상에 가져간 질문</span>
+                <span class="today-start-text">${escapeHtml(yesterdayQ)}</span>
+            </div>
+        ` : '';
+
+    root.innerHTML = `
+        <div class="today-start-card">
+            <div class="today-start-greeting">${escapeHtml(greeting)}${escapeHtml(namePart)}</div>
+            ${pinnedBlock}
+            ${yesterdayBlock}
+            ${(!pinned && !yesterdayQ) ? `
+                <div class="today-start-empty">
+                    오늘의 핀 원칙을 정하면 여기에 나타나요.<br>
+                    어제 묵상에 가져간 질문도 자동으로 이어집니다.
+                </div>
+            ` : ''}
+        </div>
+    `;
+}
+
+function greetingByHour() {
+    const h = new Date().getHours();
+    if (h >= 4 && h < 6)   return '조용한 새벽이에요';
+    if (h >= 6 && h < 12)  return '좋은 아침이에요';
+    if (h >= 12 && h < 17) return '낮 시간에 잠깐 들렀네요';
+    if (h >= 17 && h < 20) return '저녁 시간이에요';
+    return '오늘 하루 수고하셨어요';
+}
+
+// ─── 3) 이번 주의 결 — 산문 한 줄 ──────────────────────────
+function renderProseLine(dots) {
+    const root = document.getElementById('dashboard-prose');
+    if (!root) return;
+
+    if (!dots || dots.length === 0) {
+        root.innerHTML = `
+            <p class="dash-prose">이번 주 도트가 아직 없어요. 시간표에 한 칸 채우는 것부터 시작해도 좋아요.</p>
+        `;
+        return;
+    }
+
+    const stats = computeDotStats(dots);
+    const done = stats.doneCount;
+    const total = stats.totalSlots;
+    const avg = stats.avgSatisfaction;
+
+    // 어느 시간대가 두드러진지 — 처방 없이 관찰만
+    const hourBuckets = { '아침(06-12)': [], '낮(12-17)': [], '저녁(17-22)': [], '밤(22-06)': [] };
+    dots.forEach(d => {
+        if (d.timeSlot == null) return;
+        const h = Math.floor(d.timeSlot / 4);
+        const sat = d.executionSatisfaction || 0;
+        if (h >= 6 && h < 12) hourBuckets['아침(06-12)'].push(sat);
+        else if (h >= 12 && h < 17) hourBuckets['낮(12-17)'].push(sat);
+        else if (h >= 17 && h < 22) hourBuckets['저녁(17-22)'].push(sat);
+        else hourBuckets['밤(22-06)'].push(sat);
+    });
+    const bucketAvgs = Object.entries(hourBuckets)
+        .map(([name, arr]) => ({ name, avg: arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null, count: arr.length }))
+        .filter(b => b.count >= 2);
+
+    let patternNote = '';
+    if (bucketAvgs.length >= 2) {
+        const sorted = bucketAvgs.slice().sort((a, b) => b.avg - a.avg);
+        const top = sorted[0];
+        const bottom = sorted[sorted.length - 1];
+        if ((top.avg - bottom.avg) >= 0.7) {
+            patternNote = ` ${top.name} 시간대가 ${bottom.name} 시간대보다 살짝 높게 관찰됐어요.`;
+        }
+    }
+
+    root.innerHTML = `
+        <p class="dash-prose">
+            이번 주 도트 <strong>${total}개</strong> 중 <strong>${done}개</strong> 완료,
+            평균 <strong>${avg}점</strong>${patternNote ? '.' + patternNote : '.'}
+        </p>
+        <p class="dash-prose-quiet">여기까지가 데이터예요. 다음은 묵상 안에서.</p>
+    `;
+}
+
+// ─── 4) 숫자로 보기 — 디폴트 접힘 ─────────────────────────
+function renderNumberCards(dots, bibleProgress, meditationCount, startDate, endDate) {
+    const container = document.getElementById('dashboard-cards');
+    if (!container) return;
 
     const stats = computeDotStats(dots);
     const bible = computeBibleProgress(bibleProgress);
@@ -69,57 +211,42 @@ export async function renderDashboardView(userId) {
         </div>
 
         <div class="dash-card">
-            <h3><i class="dash-icon" data-lucide="heart"></i> 감사한 순간</h3>
-            <div class="dash-value">${stats.doneCount}</div>
-            <p class="dash-desc">계획한 대로 살아낸 시간</p>
+            <h3>계획 일치율</h3>
+            <div class="dash-value">${stats.matchRate}%</div>
+            <p class="dash-desc">계획대로 살아낸 비율</p>
         </div>
-
-        <div class="dash-card" style="grid-column: 1/-1; cursor: pointer; opacity: 0.85" id="dash-advanced-toggle">
-            <h3><i class="dash-icon" data-lucide="bar-chart-3"></i> 자세히 보기 <i data-lucide="chevron-down" class="btn-icon"></i></h3>
-            <p class="dash-desc">숫자 지표는 평소엔 숨겨둬요. 비교에 휘말리지 않도록.</p>
+        <div class="dash-card">
+            <h3>평균 만족도</h3>
+            <div class="dash-value">${stats.avgSatisfaction} <span style="font-size:14px;color:var(--text-secondary)">/ 5</span></div>
+            <p class="dash-desc">${stats.totalSlots}개 시간</p>
         </div>
-
-        <div id="dash-advanced" class="hidden" style="grid-column: 1/-1; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--sp-4)">
-            <div class="dash-card">
-                <h3>계획 일치율</h3>
-                <div class="dash-value">${stats.matchRate}%</div>
-                <p class="dash-desc">계획대로 살아낸 비율</p>
-            </div>
-            <div class="dash-card">
-                <h3>평균 만족도</h3>
-                <div class="dash-value">${stats.avgSatisfaction} <span style="font-size:14px;color:var(--text-secondary)">/ 5</span></div>
-                <p class="dash-desc">${stats.totalSlots}개 시간</p>
-            </div>
-            <div class="dash-card">
-                <h3>이번 주 흐름</h3>
-                <p class="dash-desc" style="margin-top:0; font-size: 13px">
-                    완료 ${stats.doneCount} · 조금 ${stats.partialCount}<br>
-                    다른 일 ${stats.replacedCount} · 못함 ${stats.skippedCount}
-                </p>
-            </div>
+        <div class="dash-card">
+            <h3>이번 주 흐름</h3>
+            <p class="dash-desc" style="margin-top:0; font-size: 13px">
+                완료 ${stats.doneCount} · 조금 ${stats.partialCount}<br>
+                다른 일 ${stats.replacedCount} · 못함 ${stats.skippedCount}
+            </p>
         </div>
     `;
-
-    const toggle = document.getElementById('dash-advanced-toggle');
-    const advanced = document.getElementById('dash-advanced');
-    if (toggle && advanced) {
-        toggle.addEventListener('click', () => {
-            const isHidden = advanced.classList.toggle('hidden');
-            const h3 = toggle.querySelector('h3');
-            if (h3) {
-                h3.innerHTML = isHidden
-                    ? '<i class="dash-icon" data-lucide="bar-chart-3"></i> 자세히 보기 <i data-lucide="chevron-down" class="btn-icon"></i>'
-                    : '<i class="dash-icon" data-lucide="bar-chart-3"></i> 다시 닫기 <i data-lucide="chevron-up" class="btn-icon"></i>';
-                if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
-            }
-        });
-    }
-    if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
 }
 
-// ─── 주간 히트맵 (7일 × 24시간) ───
+function bindNumbersToggle() {
+    const toggle = document.getElementById('dash-numbers-toggle');
+    const grid = document.getElementById('dashboard-cards');
+    if (!toggle || !grid) return;
+    toggle.onclick = () => {
+        const willOpen = grid.classList.contains('hidden');
+        grid.classList.toggle('hidden', !willOpen);
+        toggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+        toggle.innerHTML = willOpen
+            ? '<i class="dash-icon" data-lucide="chevron-up"></i> 숫자 접기'
+            : '<i class="dash-icon" data-lucide="chevron-down"></i> 숫자로 보기';
+        if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
+    };
+}
+
+// ─── 주간 히트맵 (7일 × 24시간) ────────────────────────────
 function renderHeatmap(dots, startDate, endDate) {
-    // 날짜별 시간(0~23)별 도트 평균 만족도 매핑
     const grid = {};
     const days = [];
     const start = new Date(startDate + 'T00:00:00');
@@ -140,12 +267,10 @@ function renderHeatmap(dots, startDate, endDate) {
     const dayLabels = ['일', '월', '화', '수', '목', '금', '토'];
 
     let html = '<div class="heatmap-wrap"><div class="heatmap-grid">';
-    // 시간 헤더
     html += '<div class="heatmap-corner"></div>';
     for (let h = 0; h < 24; h++) {
         html += `<div class="heatmap-hour-label">${h % 6 === 0 ? String(h).padStart(2, '0') : ''}</div>`;
     }
-    // 각 날짜 행
     days.forEach(date => {
         const d = new Date(date + 'T00:00:00');
         html += `<div class="heatmap-day-label">${d.getMonth() + 1}/${d.getDate()} ${dayLabels[d.getDay()]}</div>`;
@@ -165,7 +290,7 @@ function renderHeatmap(dots, startDate, endDate) {
     return html;
 }
 
-// ─── 통독 진도 ───
+// ─── 통독 진도 ────────────────────────────────────────────
 async function getBibleProgress(userId) {
     try {
         const q = query(
@@ -185,8 +310,7 @@ function computeBibleProgress(records) {
     if (!records || records.length === 0) {
         return { percent: 0, detail: '아직 기록이 없어요. 오늘부터 한 장씩 시작해 볼까요?' };
     }
-    // 4파트 각각의 완독 비율 평균. completed=true인 것 카운트.
-    const partTotals = { 1: 281, 2: 410, 3: 249, 4: 260 }; // scripture.js의 4파트 챕터 수 합계
+    const partTotals = { 1: 281, 2: 410, 3: 249, 4: 260 };
     const completedByPart = { 1: 0, 2: 0, 3: 0, 4: 0 };
 
     records.forEach(r => {
@@ -203,7 +327,7 @@ function computeBibleProgress(records) {
     };
 }
 
-// ─── 묵상 작성 횟수 ───
+// ─── 묵상 작성 횟수 ───────────────────────────────────────
 async function countMeditations(userId, startDate, endDate) {
     try {
         const q = query(
@@ -218,4 +342,29 @@ async function countMeditations(userId, startDate, endDate) {
         console.warn('meditations count failed:', e);
         return 0;
     }
+}
+
+// ─── 핀 원칙 ──────────────────────────────────────────────
+async function getPinnedPrinciple(dek, userId) {
+    try {
+        const q = query(
+            collection(db, 'principles'),
+            where('userId', '==', userId),
+            where('pinned', '==', true)
+        );
+        const snap = await getDocs(q);
+        if (snap.docs.length === 0) return null;
+        const data = await readDocument(dek, snap.docs[0].data());
+        return data.title || null;
+    } catch (e) {
+        console.warn('pinned principle load failed:', e);
+        return null;
+    }
+}
+
+// ─── utils ────────────────────────────────────────────────
+function escapeHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => (
+        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    ));
 }

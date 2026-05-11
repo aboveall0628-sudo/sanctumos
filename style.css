@@ -1106,6 +1106,99 @@ button .btn-icon { vertical-align: text-bottom; }
     margin-left: var(--sp-3);
 }
 .dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--sp-4); }
+.dash-grid.hidden { display: none; }
+
+/* ── D-2: 오늘의 시작 카드 (대시보드 최상단, 인사 + 핀 원칙 + 어제 묵상 질문) ── */
+.today-start-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--brand-primary, var(--accent));
+    border-radius: var(--radius-lg);
+    padding: var(--sp-5);
+    box-shadow: var(--shadow-sm);
+    display: flex; flex-direction: column; gap: var(--sp-3);
+}
+.today-start-greeting {
+    font-size: 18px; font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+}
+.today-start-line {
+    display: flex; align-items: flex-start; gap: var(--sp-2);
+    font-size: 13px; line-height: 1.55;
+    padding-top: var(--sp-2);
+    border-top: 1px dashed var(--border);
+}
+.today-start-line:first-of-type { border-top: none; padding-top: 0; }
+.today-start-icon {
+    flex-shrink: 0; width: 14px; height: 14px;
+    color: var(--brand-primary, var(--accent));
+    margin-top: 3px;
+}
+.today-start-label {
+    flex-shrink: 0;
+    font-size: 11px; color: var(--text-secondary);
+    font-weight: 600;
+    margin-right: var(--sp-2);
+    padding-top: 1px;
+}
+.today-start-text {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+.today-start-line-quiet .today-start-text {
+    color: var(--text-secondary);
+    font-style: italic;
+    font-weight: 400;
+}
+.today-start-empty {
+    font-size: 12px; color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+/* ── D-1: 이번 주의 결 — 산문 한 줄 + 조용한 닫는 말 ── */
+.dash-prose {
+    font-size: 15px; line-height: 1.7;
+    color: var(--text-primary);
+    margin: 0;
+}
+.dash-prose strong {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.dash-prose-quiet {
+    margin-top: var(--sp-2);
+    font-size: 12px; color: var(--text-secondary);
+    font-style: italic;
+}
+
+/* ── D-1: 숫자로 보기 토글 ── */
+.dash-section-numbers { margin-top: var(--sp-2); }
+.dash-numbers-toggle {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px;
+    background: transparent;
+    border: 1px dashed var(--border);
+    border-radius: 999px;
+    color: var(--text-secondary);
+    font-size: 12px; font-weight: 500;
+    cursor: pointer;
+    margin-bottom: var(--sp-3);
+    transition: background var(--ease), color var(--ease), border-color var(--ease);
+}
+.dash-numbers-toggle:hover {
+    background: var(--bg-elev);
+    color: var(--text-primary);
+    border-color: var(--accent);
+}
+
+/* ── D-1: 7계층 탭 "더 멀리 보기" 토글 ── */
+.goal-tab.goal-tab-far-toggle {
+    border-style: dashed;
+    opacity: 0.85;
+    background: transparent;
+}
+.goal-tab.goal-tab-far-toggle:hover { opacity: 1; }
 .dash-card {
     background: var(--bg-card); border: 1px solid var(--border);
     border-radius: var(--radius-lg); padding: var(--sp-5);

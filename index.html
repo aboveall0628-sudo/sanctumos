@@ -199,25 +199,37 @@
                 </div>
             </div>
 
-            <!-- ── 대시보드 뷰 (= 첫 화면, 나의 목표 통합) ── -->
+            <!-- ── 대시보드 뷰 (= 첫 화면, 묵상의 자리) ── -->
             <div id="view-dashboard" class="view">
                 <header class="page-header"><h1><i class="page-icon" data-lucide="layout-dashboard"></i> 대시보드</h1></header>
 
-                <!-- 나의 목표 — 7계층 탭. 메뉴 통합으로 대시보드 안으로 흡수됨. -->
+                <!-- D-2: 오늘의 시작 — 인사 + 핀 원칙 + 어제 묵상에 가져갔던 질문 -->
+                <section class="dash-section" id="dash-section-today-start">
+                    <div id="today-start-content"></div>
+                </section>
+
+                <!-- 나의 목표 — 7계층, 단 D-1 이후 daily+weekly 디폴트 노출 -->
                 <section class="dash-section" id="dash-section-goals">
                     <header class="section-header-flex">
                         <h2 class="section-title"><i class="section-icon" data-lucide="target"></i> 나의 목표</h2>
-                        <span class="section-desc-inline">오늘 → 이번 주 → 이번 달 → 분기 → 올해 → 5년 → 10년</span>
                     </header>
                     <div id="goals-container"></div>
                 </section>
 
-                <!-- 지표 카드 -->
-                <section class="dash-section" id="dash-section-cards">
+                <!-- D-1: 이번 주 흐름 — 산문 한 줄 + [숫자로 보기] 토글 -->
+                <section class="dash-section" id="dash-section-prose">
                     <header class="section-header-flex">
-                        <h2 class="section-title"><i class="section-icon" data-lucide="bar-chart-3"></i> 이번 주 흐름</h2>
+                        <h2 class="section-title"><i class="section-icon" data-lucide="leaf"></i> 이번 주의 결</h2>
                     </header>
-                    <div id="dashboard-cards" class="dash-grid"></div>
+                    <div id="dashboard-prose"></div>
+                </section>
+
+                <!-- D-1: 숫자로 보기 — 디폴트 접힘. 토글 클릭 시 카드 노출 -->
+                <section class="dash-section dash-section-numbers" id="dash-section-cards">
+                    <button id="dash-numbers-toggle" class="dash-numbers-toggle" type="button" aria-expanded="false">
+                        <i class="dash-icon" data-lucide="chevron-down"></i> 숫자로 보기
+                    </button>
+                    <div id="dashboard-cards" class="dash-grid hidden"></div>
                 </section>
             </div>
 

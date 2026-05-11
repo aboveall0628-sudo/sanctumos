@@ -6,7 +6,7 @@
  * 진행률은 하위 목표/도트로부터 추후 자동 계산 (B-D 단계)
  */
 
-import { getAllGoals, saveGoal, deleteGoal, PERIODS } from '../data/goalsRepo.js';
+import { getAllGoals, saveGoal, deleteGoal } from '../data/goalsRepo.js';
 import { getDEK } from './lockScreen.js';
 import { showToast } from './quickReview.js';
 
@@ -21,8 +21,14 @@ const PERIOD_LABELS = {
     '10year':    { label: '10년 후',       icon: 'sparkles',       desc: '먼 곳에서 부르시는 모습' },
 };
 
+// Phase D-1: 7계층 탭 시각 무게 절반으로. 디폴트는 daily/weekly 만 노출,
+// 나머지는 [더 멀리 보기] 토글 안. _activeTab 디폴트도 daily 로.
+const NEAR_TABS = ['daily', 'weekly'];        // 항상 노출
+const FAR_TABS  = ['monthly', 'quarterly', 'yearly', '5year', '10year'];
+
 let _userId = null;
-let _activeTab = 'yearly'; // 디폴트: 올해
+let _activeTab = 'daily';
+let _farTabsOpen = false;
 let _goals = [];
 
 export async function renderGoalsView(userId) {
@@ -51,30 +57,52 @@ export async function renderGoalsView(userId) {
 }
 
 function renderTabs(container) {
+    // 디폴트는 daily + weekly 만. 나머지는 [더 멀리 보기] 토글 안.
+    // 단 사용자가 멀리 있는 탭(_activeTab)을 활성화한 상태라면 자동으로 펼침.
+    const farActive = FAR_TABS.includes(_activeTab);
+    const showFar = _farTabsOpen || farActive;
+
+    const renderTabBtn = (p) => {
+        const meta = PERIOD_LABELS[p];
+        const count = _goals.filter(g => g.period === p).length;
+        return `
+            <button class="goal-tab ${p === _activeTab ? 'active' : ''}" data-period="${p}">
+                <i class="goal-tab-icon" data-lucide="${meta.icon}"></i>
+                <span class="goal-tab-label">${meta.label}</span>
+                ${count > 0 ? `<span class="goal-tab-count">${count}</span>` : ''}
+            </button>
+        `;
+    };
+
+    const farBtnHtml = `
+        <button class="goal-tab goal-tab-far-toggle" id="goal-far-toggle" type="button">
+            <i class="goal-tab-icon" data-lucide="${showFar ? 'chevron-left' : 'chevrons-right'}"></i>
+            <span class="goal-tab-label">${showFar ? '가까이' : '더 멀리'}</span>
+        </button>
+    `;
+
     const tabsHtml = `
         <div class="goal-tabs">
-            ${PERIODS.slice().reverse().map(p => {
-                const meta = PERIOD_LABELS[p];
-                const count = _goals.filter(g => g.period === p).length;
-                return `
-                    <button class="goal-tab ${p === _activeTab ? 'active' : ''}" data-period="${p}">
-                        <i class="goal-tab-icon" data-lucide="${meta.icon}"></i>
-                        <span class="goal-tab-label">${meta.label}</span>
-                        ${count > 0 ? `<span class="goal-tab-count">${count}</span>` : ''}
-                    </button>
-                `;
-            }).join('')}
+            ${NEAR_TABS.map(renderTabBtn).join('')}
+            ${showFar ? FAR_TABS.map(renderTabBtn).join('') : ''}
+            ${farBtnHtml}
         </div>
         <div id="goal-panel"></div>
     `;
     container.innerHTML = tabsHtml;
 
-    container.querySelectorAll('.goal-tab').forEach(btn => {
+    container.querySelectorAll('.goal-tab[data-period]').forEach(btn => {
         btn.addEventListener('click', () => {
             _activeTab = btn.dataset.period;
             renderTabs(container);
             renderActivePanel(container);
         });
+    });
+    container.querySelector('#goal-far-toggle')?.addEventListener('click', () => {
+        _farTabsOpen = !_farTabsOpen;
+        renderTabs(container);
+        renderActivePanel(container);
+        if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
     });
 }
 
