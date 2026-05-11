@@ -80,6 +80,12 @@ const DEFAULTS = {
     // manual 모드에서 각 파트의 "지금 보여줄 시퀀스 인덱스"
     // 모양: { [planId]: { [partId]: number } }   (partId는 number 또는 string)
     partPositions: {},
+    // Phase E-8/E-2: "이 장 다 읽었어요"를 누른 날짜 도장
+    // 모양: { [planId]: { [partId]: 'YYYY-MM-DD' } }
+    // 다음에 들어왔을 때 lastRead < today면 position++ 자동 롤오버.
+    partReads: {},
+    // Phase E-8/E-2: 일회성 복구 마이그레이션 플래그 (E-8/E 첫 버전의 잘못된 누적 정정)
+    _e8e2ResetDone: false,
 };
 
 const PRESET_IDS = new Set(PRESETS.map(p => p.id));
@@ -113,9 +119,26 @@ function read() {
         const showDailyBibleLink = typeof parsed.showDailyBibleLink === 'boolean'
             ? parsed.showDailyBibleLink : DEFAULTS.showDailyBibleLink;
         const progressMode = parsed.progressMode === 'manual' ? 'manual' : DEFAULTS.progressMode;
-        const partPositions = (parsed.partPositions && typeof parsed.partPositions === 'object')
+        let partPositions = (parsed.partPositions && typeof parsed.partPositions === 'object')
             ? parsed.partPositions : {};
-        _cache = { fontSize, activePlanId, partOverrides, showDailyBibleLink, progressMode, partPositions };
+        let partReads = (parsed.partReads && typeof parsed.partReads === 'object')
+            ? parsed.partReads : {};
+        let _e8e2ResetDone = parsed._e8e2ResetDone === true;
+        // Phase E-8/E-2 일회성 복구: 첫 manual 모드 구현이 즉시 position을 올려버려
+        // 잘못 누적된 진도를 한 번 정정. 다음에 표시될 때 calendar로 재시드됨.
+        if (!_e8e2ResetDone) {
+            partPositions = {};
+            partReads = {};
+            _e8e2ResetDone = true;
+        }
+        _cache = {
+            fontSize, activePlanId, partOverrides, showDailyBibleLink,
+            progressMode, partPositions, partReads, _e8e2ResetDone,
+        };
+        // 복구 후 즉시 영속화 — 다음 부팅엔 안 함
+        if (_e8e2ResetDone && parsed._e8e2ResetDone !== true) {
+            try { localStorage.setItem(KEY, JSON.stringify(_cache)); } catch {}
+        }
         return _cache;
     } catch {
         _cache = { ...DEFAULTS };
@@ -275,6 +298,48 @@ export function advancePartPosition(planId, partId, maxExclusive = Infinity) {
     const baseline = typeof at === 'number' ? at : 0;
     const nextIdx = Math.min(baseline + 1, Math.max(0, maxExclusive - 1));
     setPartPosition(planId, partId, nextIdx);
+}
+
+/** Phase E-8/E-2: "오늘 다 읽었어요" 도장 — 본문은 그대로, 날짜만 박음. */
+export function getPartLastRead(planId, partId) {
+    const { partReads } = read();
+    return partReads?.[planId]?.[partId] || null;
+}
+
+export function setPartLastRead(planId, partId, dateStr) {
+    if (!planId || partId === undefined || !dateStr) return;
+    const cur = read();
+    const next = {
+        ...cur,
+        partReads: {
+            ...cur.partReads,
+            [planId]: {
+                ...(cur.partReads?.[planId] || {}),
+                [partId]: dateStr,
+            },
+        },
+    };
+    write(next);
+}
+
+export function clearPartLastRead(planId, partId) {
+    const cur = read();
+    const planMap = cur.partReads?.[planId];
+    if (!planMap || !planMap[partId]) return;
+    const { [partId]: _drop, ...rest } = planMap;
+    const nextReads = { ...cur.partReads };
+    if (Object.keys(rest).length === 0) delete nextReads[planId];
+    else nextReads[planId] = rest;
+    write({ ...cur, partReads: nextReads });
+}
+
+/**
+ * 사용자 트리거 — 모든 manual 위치를 비우고 calendar로 재시드되도록.
+ * settings 화면 "내 진도 위치 다시 잡기" 버튼이 호출.
+ */
+export function resetManualProgress() {
+    const cur = read();
+    write({ ...cur, partPositions: {}, partReads: {} });
 }
 
 /**

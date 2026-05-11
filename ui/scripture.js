@@ -9,7 +9,8 @@
 
 import {
     getActivePlan, getPartOverride,
-    getProgressMode, getPartPosition, setPartPosition, advancePartPosition,
+    getProgressMode, getPartPosition, setPartPosition,
+    getPartLastRead, setPartLastRead, clearPartLastRead,
 } from './scriptureSettings.js';
 import { renderDailyBibleLink } from './suDaily.js';
 
@@ -273,6 +274,26 @@ export async function renderScriptureForDate(date) {
     }
 
     const mode = getProgressMode();
+    const todayStr = toLocalISO(new Date());
+
+    // Phase E-8/E-2: manual 모드 롤오버 — 어제 "다 읽었어요" 도장이 찍힌 파트는
+    // 오늘 들어오는 순간 자동으로 다음 장으로 한 칸 이동.
+    if (mode === 'manual') {
+        visibleParts.forEach(part => {
+            const lastRead = getPartLastRead(plan.id, part.id);
+            if (!lastRead) return;
+            if (lastRead >= todayStr) return; // 오늘이거나 미래(말도 안되지만) 도장은 유지
+            const partChapters = flattenPartChapters(part);
+            const total = partChapters.length;
+            const curPos = getPartPosition(plan.id, part.id);
+            const baseline = typeof curPos === 'number'
+                ? curPos
+                : computeCalendarIndex(part, date, getPartOverride(plan.id, part.id), partChapters, total);
+            const nextPos = Math.min(baseline + 1, total - 1);
+            setPartPosition(plan.id, part.id, nextPos);
+            clearPartLastRead(plan.id, part.id);
+        });
+    }
     visibleParts.forEach(part => {
         const override = getPartOverride(plan.id, part.id);
         const { info, index, total } = getChapterForPart(part, date, override, plan.id);
@@ -283,13 +304,17 @@ export async function renderScriptureForDate(date) {
         const passageContainer = document.createElement('div');
         passageContainer.className = 'passage-container';
 
+        const readToday = mode === 'manual' && getPartLastRead(plan.id, part.id) === todayStr;
         const manualBtnHtml = mode === 'manual'
             ? `<div class="passage-footer">
-                   <button class="passage-read-btn" type="button" data-part="${part.id}">
+                   <button class="passage-read-btn ${readToday ? 'done' : ''}" type="button"
+                           data-part="${part.id}" ${readToday ? 'disabled' : ''}>
                        <i data-lucide="check" class="passage-read-btn-icon"></i>
-                       <span>이 장 다 읽었어요</span>
+                       <span>${readToday ? '오늘 다 읽었어요 ✓' : '이 장 다 읽었어요'}</span>
                    </button>
-                   <span class="passage-read-hint">다음에 들어오면 다음 장이 떠요</span>
+                   <span class="passage-read-hint">${readToday
+                       ? '내일 들어오면 다음 장이 떠요'
+                       : '오늘 분량 끝. 누르면 다음 장은 내일 자동으로 떠요.'}</span>
                </div>`
             : '';
 
@@ -325,13 +350,21 @@ export async function renderScriptureForDate(date) {
             });
         });
 
-        // Phase E-8/E: manual 모드 — "다 읽었어요" → 그 파트만 다음 장으로
+        // Phase E-8/E-2: manual 모드 — "다 읽었어요" 도장만 찍음.
+        // 본문은 그대로, 버튼은 비활성. 다음 장은 다음 날 들어왔을 때 롤오버로.
         const readBtn = passageContainer.querySelector('.passage-read-btn');
         if (readBtn) {
             readBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                advancePartPosition(plan.id, part.id, total);
-                renderScriptureForDate(date).catch(() => {});
+                if (readBtn.disabled) return;
+                setPartLastRead(plan.id, part.id, todayStr);
+                // 본문 그대로 — 버튼 UI만 즉시 갱신
+                readBtn.classList.add('done');
+                readBtn.disabled = true;
+                const labelSpan = readBtn.querySelector('span');
+                if (labelSpan) labelSpan.textContent = '오늘 다 읽었어요 ✓';
+                const hint = passageContainer.querySelector('.passage-read-hint');
+                if (hint) hint.textContent = '내일 들어오면 다음 장이 떠요';
             });
         }
 
@@ -427,6 +460,13 @@ function resolveStartIndex(part, override, partChapters) {
 function startOfToday() {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function toLocalISO(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
 }
 
 /**

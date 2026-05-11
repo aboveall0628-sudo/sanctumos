@@ -450,6 +450,19 @@ button .btn-icon { vertical-align: text-bottom; }
 .passage-read-btn:hover {
     border-color: var(--accent); color: var(--accent); background: var(--accent-soft);
 }
+.passage-read-btn:disabled,
+.passage-read-btn.done {
+    cursor: default;
+    border-color: var(--dot-green, #6BBF7B);
+    color: var(--dot-green, #6BBF7B);
+    background: rgba(107, 191, 123, 0.10);
+}
+.passage-read-btn:disabled:hover,
+.passage-read-btn.done:hover {
+    border-color: var(--dot-green, #6BBF7B);
+    color: var(--dot-green, #6BBF7B);
+    background: rgba(107, 191, 123, 0.10);
+}
 .passage-read-btn-icon { width: 14px; height: 14px; }
 .passage-read-hint { font-size: 11px; color: var(--text-secondary); }
 

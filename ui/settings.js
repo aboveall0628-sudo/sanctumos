@@ -23,7 +23,7 @@ import {
     getScriptureSettings, getActivePlan, setFontSize, setActivePlanId,
     getPartOverride, setPartOverride, clearPartOverride,
     getUserPlans, addUserPlan, deleteUserPlan, setShowDailyBibleLink,
-    setProgressMode,
+    setProgressMode, resetManualProgress,
     FONT_SIZES, PRESETS, applyFontSizeToCSS,
 } from './scriptureSettings.js';
 import { BIBLE_METADATA, resolvePlanParts, seedManualPositionsFromCalendar } from './scripture.js';
@@ -605,8 +605,14 @@ function renderScriptureSettingsHTML() {
             <div class="settings-row-text">
                 <h4 style="margin:0;font-size:14px;font-weight:600;">묵상 안 한 날 본문 미루기</h4>
                 <p class="section-desc" style="margin-top:4px;">
-                    켜면 달력 자동 진행 대신, 각 파트마다 [이 장 다 읽었어요] 버튼을 누른 만큼만 다음 장으로 넘어가요.
-                    못 읽은 날은 같은 장이 계속 떠 있어요. 켜는 순간의 위치는 "오늘 보일 장"으로 자동 시드돼서 진도가 갑자기 줄지 않아요.
+                    켜면 달력 자동 진행 대신, 각 파트마다 [이 장 다 읽었어요] 버튼을 눌러 "오늘 분량 끝" 도장을 찍어요.
+                    다음 장은 <strong>내일</strong> 들어왔을 때 자동으로 떠요. 안 누른 날은 같은 장이 계속 떠 있어요.
+                    켜는 순간의 위치는 "오늘 보일 장"으로 자동 시드돼서 진도가 갑자기 줄지 않아요.
+                </p>
+                <p style="margin-top:6px;">
+                    <button id="scripture-reset-progress-btn" type="button" class="text-btn" style="font-size:12px;">
+                        ↻ 내 진도 위치 다시 잡기 (오늘 일정 기준)
+                    </button>
                 </p>
             </div>
             <label class="switch" for="progress-mode-toggle">
@@ -823,6 +829,19 @@ function bindScriptureSettingsEvents() {
             // (시드 함수는 mode와 무관하게 calendar 결과로 position을 박음)
             if (turnOnManual) seedManualPositionsFromCalendar();
             setProgressMode(turnOnManual ? 'manual' : 'calendar');
+        });
+    }
+
+    // Phase E-8/E-2: 진도 위치 복구 — 잘못 눌러 앞서간 manual 위치를 오늘 calendar 기준으로 재시드
+    const resetBtn = document.getElementById('scripture-reset-progress-btn');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+            if (!confirm('수동 모드에서 박아둔 모든 파트 위치와 "오늘 다 읽었어요" 도장을 비울게요.\n다음 본문은 오늘 일정 기준으로 다시 정해져요. 계속할까요?')) return;
+            resetManualProgress();
+            // 즉시 본문 다시 그리도록 이벤트 발행 — settings-changed가 scripture.js를 재렌더시킴
+            window.dispatchEvent(new CustomEvent('sanctum:scripture-settings-changed'));
+            resetBtn.textContent = '✅ 위치를 다시 잡았어요';
+            setTimeout(() => { resetBtn.textContent = '↻ 내 진도 위치 다시 잡기 (오늘 일정 기준)'; }, 2500);
         });
     }
 
