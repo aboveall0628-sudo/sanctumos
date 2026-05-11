@@ -62,7 +62,7 @@ function renderSetupScreen() {
         <div class="lock-screen-box">
             <div class="lock-icon">🕊️</div>
             <h2>Sanctum OS</h2>
-            <p class="lock-subtitle">하나님 앞에서 나를 정직하게 마주하는 거울</p>
+            <p class="lock-subtitle">매일의 일상, 매일의 성소, 하나의 시스템</p>
             <button id="auth-main-google-btn" class="primary-btn" style="width:100%; font-size:16px; padding:16px">
                 Google 계정으로 시작하기
             </button>
