@@ -185,25 +185,20 @@ html, body {
     opacity: 0.78;
 }
 
-/* ── 6. 스크린샷 (CSS-only placeholder) ───────────────────── */
+/* ── 6. 스크린샷 — 오늘 화면 미리보기 ─────────────────────── */
 .landing-screenshot {
     margin-top: var(--sp-7);          /* 안내 → 스크린샷 64px */
     width: 100%;
     max-width: 720px;
-    aspect-ratio: 16 / 10;            /* CLS 방지 */
+    aspect-ratio: 16 / 10;            /* CLS 방지 + 일관된 카드 비율 */
     background: var(--bg-elev);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg);
-    display: flex;
-    align-items: center;
-    justify-content: center;
     overflow: hidden;
-}
-.landing-screenshot-caption {
-    font-size: 13px;
-    color: var(--text-secondary);
-    letter-spacing: 0.02em;
+    display: block;
+    object-fit: cover;                /* 16:10 비율로 맞추되 잘림 영역은 위에서부터 노출 */
+    object-position: top center;
 }
 
 /* ── 7. 푸터 ───────────────────────────────────────────────── */
