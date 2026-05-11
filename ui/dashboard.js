@@ -27,6 +27,7 @@ import { getAllOrganizations } from '../data/orgRepo.js';
 import { computeAllPersonStats, computeAllOrgStats, formatMinutes, ratingDotsHtml } from '../data/cardStats.js';
 import { readDocument } from '../crypto/cryptoService.js';
 import { getDayReport } from '../reports/dayReportRepo.js';
+import { getDashboardWeeklyBrief } from './aiClient.js';
 import { getDEK } from './lockScreen.js';
 
 export async function renderDashboardView(userId) {
@@ -57,9 +58,12 @@ export async function renderDashboardView(userId) {
         getAllOrganizations(dek, userId).catch(() => []),
     ]);
 
+    // 페이지 재진입 시 AI 캐시 초기화 — 다음 클릭에서 새 데이터로 다시 호출
+    _aiBriefCache = null;
+
     renderTodayStart(pinned, yesterdayReport);
     renderCallSection(dots);                            // D-4: 토요일 CTA / 빈 상태 가이드
-    renderProseLine(dots);
+    renderProseLine(dots, pinned, persons, orgs);       // E-2: AI 듣기 인자 전달
     renderPeopleSection(dots, persons, orgs);           // D-3: 이번 주 관계의 결
     renderNumberCards(dots, bibleProgress, meditationCount, startDate, endDate);
     bindNumbersToggle();
@@ -132,8 +136,11 @@ function greetingByHour() {
     return '오늘 하루 수고하셨어요';
 }
 
-// ─── 3) 이번 주의 결 — 산문 한 줄 ──────────────────────────
-function renderProseLine(dots) {
+// ─── 3) 이번 주의 결 — 산문 한 줄 + (E-2) AI 듣기 ─────────
+// 모듈 스코프 캐시 — 같은 페이지 진입 동안엔 AI 호출 결과 보존
+let _aiBriefCache = null;
+
+function renderProseLine(dots, pinned, persons, orgs) {
     const root = document.getElementById('dashboard-prose');
     if (!root) return;
 
@@ -180,7 +187,93 @@ function renderProseLine(dots) {
             평균 <strong>${avg}점</strong>${patternNote ? '.' + patternNote : '.'}
         </p>
         <p class="dash-prose-quiet">여기까지가 데이터예요. 다음은 묵상 안에서.</p>
+
+        <div class="dash-ai-row">
+            <button class="dash-ai-toggle" id="dash-ai-toggle" type="button" aria-expanded="false">
+                <i class="dash-icon" data-lucide="sparkles"></i>
+                <span>AI 한 단락 듣기</span>
+            </button>
+        </div>
+        <div id="dash-ai-panel" class="dash-ai-panel hidden" aria-live="polite"></div>
     `;
+    bindAiToggle(stats, pinned, persons, orgs, dots);
+}
+
+// ─── AI 한 단락 — 클릭 시 호출, 결과 캐시. 정책: 묵상의 자리 톤 / 처방 X ───
+function bindAiToggle(stats, pinned, persons, orgs, dots) {
+    const btn = document.getElementById('dash-ai-toggle');
+    const panel = document.getElementById('dash-ai-panel');
+    if (!btn || !panel) return;
+
+    btn.onclick = async () => {
+        const isOpen = !panel.classList.contains('hidden');
+        if (isOpen) {
+            panel.classList.add('hidden');
+            btn.setAttribute('aria-expanded', 'false');
+            return;
+        }
+
+        panel.classList.remove('hidden');
+        btn.setAttribute('aria-expanded', 'true');
+
+        // 캐시 우선 — 같은 페이지 세션 안에선 재호출 안 함
+        if (_aiBriefCache) {
+            renderAiPanel(panel, _aiBriefCache);
+            return;
+        }
+
+        panel.innerHTML = `<p class="dash-ai-loading">잠깐만요, 이번 주의 결을 한 단락으로 모으는 중...</p>`;
+        btn.disabled = true;
+
+        try {
+            // 이번 주 도트에 등장한 사람·조직 이름 (가명화에 사용)
+            const personNames = collectPersonNamesFromDots(dots, persons);
+            const orgNames    = collectOrgNamesFromDots(dots, orgs);
+            const principles  = pinned ? [{ title: pinned, body: '' }] : [];
+
+            const result = await getDashboardWeeklyBrief(stats, principles, {
+                persons: personNames,
+                orgs:    orgNames,
+            });
+            _aiBriefCache = result;
+            renderAiPanel(panel, result);
+        } catch (e) {
+            console.warn('dashboard AI brief failed:', e);
+            panel.innerHTML = `<p class="dash-ai-loading">잠깐 막혔어요. 다시 한 번 눌러 주실래요?</p>`;
+        } finally {
+            btn.disabled = false;
+        }
+    };
+}
+
+function renderAiPanel(panel, result) {
+    const tag = result.fallback
+        ? '<span class="dash-ai-fallback-tag">인터넷이 멀거나 AI 가 잠시 쉬는 중이에요 — 로컬 안내로 대체했어요</span>'
+        : '';
+    panel.innerHTML = `
+        ${tag}
+        <p class="dash-ai-text">${escapeHtml(result.text || '')}</p>
+        <p class="dash-prose-quiet">이 한 단락도 진단일 뿐이에요. 다음은 묵상 안에서.</p>
+    `;
+    if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
+}
+
+function collectPersonNamesFromDots(dots, persons) {
+    const ids = new Set();
+    dots.forEach(d => (d.linkedPersonIds || []).forEach(id => ids.add(id)));
+    return persons
+        .filter(p => !p.isFallback && ids.has(p.id))
+        .map(p => p.name)
+        .filter(Boolean);
+}
+
+function collectOrgNamesFromDots(dots, orgs) {
+    const ids = new Set();
+    dots.forEach(d => (d.linkedOrgIds || []).forEach(id => ids.add(id)));
+    return orgs
+        .filter(o => ids.has(o.id))
+        .map(o => o.name)
+        .filter(Boolean);
 }
 
 // ─── D-3) 이번 주 관계의 결 — 최근 만난 사람·조직 ───────────

@@ -1172,6 +1172,62 @@ button .btn-icon { vertical-align: text-bottom; }
     font-style: italic;
 }
 
+/* ── E-2: 대시보드 AI 한 단락 듣기 ── */
+.dash-ai-row {
+    margin-top: var(--sp-3);
+}
+.dash-ai-toggle {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 14px;
+    background: transparent;
+    border: 1px dashed var(--accent);
+    border-radius: 999px;
+    color: var(--accent);
+    font-size: 12px; font-weight: 600;
+    cursor: pointer;
+    transition: background var(--ease), color var(--ease);
+    font-family: inherit;
+}
+.dash-ai-toggle:hover {
+    background: var(--accent-soft);
+}
+.dash-ai-toggle:disabled {
+    opacity: 0.55; cursor: progress;
+}
+.dash-ai-toggle .dash-icon { width: 14px; height: 14px; }
+
+.dash-ai-panel {
+    margin-top: var(--sp-3);
+    padding: var(--sp-4);
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 10px;
+    animation: aiPanelIn 200ms ease-out;
+}
+@keyframes aiPanelIn {
+    from { opacity: 0; transform: translateY(-2px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.dash-ai-text {
+    margin: 0;
+    font-size: 14px; line-height: 1.7;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+}
+.dash-ai-text + .dash-prose-quiet { margin-top: var(--sp-2); }
+.dash-ai-loading {
+    margin: 0; padding: var(--sp-2) 0;
+    font-size: 13px; color: var(--text-secondary);
+    text-align: center;
+    font-style: italic;
+}
+.dash-ai-fallback-tag {
+    display: inline-block;
+    font-size: 11px; color: var(--dot-orange);
+    margin-bottom: var(--sp-2);
+}
+
 /* ── D-1: 숫자로 보기 토글 ── */
 .dash-section-numbers { margin-top: var(--sp-2); }
 .dash-numbers-toggle {

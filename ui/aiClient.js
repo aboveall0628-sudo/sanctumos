@@ -358,6 +358,79 @@ function parseDailyReportResponse(text) {
  * AI 없을 때도 사용자가 빈 리포트 안 보도록 stats를 산문으로 한 줄씩.
  * 톤 가이드 준수: 처방·영적 정량화·부재 명시 0건.
  */
+/**
+ * Phase E-2: 대시보드용 "이번 주의 결" — 한 단락 산문.
+ *
+ * quickReview 의 4섹션 brief 와 달리, 대시보드는 묵상의 자리 톤.
+ * 한 단락(2~4 문장)으로 이번 주 데이터의 결을 그리되 처방 없이.
+ *
+ * 입력:
+ *   weekStats   — { dotStats, satisfactionDistribution, alignment, ... }
+ *                 (대시보드가 computeDotStats 으로 만든 객체)
+ *   principles  — 핀 원칙 1개 ({ title, body })
+ *   context     — { persons: ['이름', ...], orgs: ['조직', ...] }
+ *                 가명화 후 LLM 에 전달, 역가명화로 복원.
+ *
+ * 출력: { text: string, fallback: boolean }
+ */
+export async function getDashboardWeeklyBrief(weekStats, principles = [], context = {}) {
+    const plain = {
+        weekStats,
+        principles,
+        context: {
+            persons: context.persons || [],
+            orgs:    context.orgs    || [],
+            places:  context.places  || [],
+            amounts: context.amounts || [],
+        },
+    };
+
+    const result = await callLLM('weeklyDashboard', plain, {
+        deep: false,
+        stats: weekStats,
+    });
+
+    if (result.fallback) {
+        return { text: buildWeeklyDashboardFallback(weekStats, principles, context), fallback: true };
+    }
+    return { text: result.text.trim(), fallback: false };
+}
+
+function buildWeeklyDashboardFallback(stats, principles, context) {
+    const ds  = stats?.dotStats || stats || {};
+    const sat = stats?.satisfactionDistribution || {};
+    const totalDots = ds.totalDots ?? ds.totalSlots ?? 0;
+    const done      = ds.doneCount ?? 0;
+    const partial   = ds.partialCount ?? 0;
+    const avg       = sat.avg ?? ds.avgSatisfaction ?? null;
+
+    const peopleCount = (context?.persons || []).length;
+    const orgCount    = (context?.orgs || []).length;
+    const pin         = principles?.[0]?.title || null;
+
+    const parts = [];
+    if (totalDots > 0) {
+        parts.push(
+            `이번 주 도트 ${totalDots}개 중 ${done}개 완료${
+                partial ? `, ${partial}개 부분 완료` : ''
+            }${avg != null ? ', 평균 만족도 ' + avg : ''}.`
+        );
+    } else {
+        parts.push('이번 주는 아직 기록된 도트가 적었습니다.');
+    }
+    if (peopleCount > 0 || orgCount > 0) {
+        const segs = [];
+        if (peopleCount > 0) segs.push(`${peopleCount}명`);
+        if (orgCount > 0)    segs.push(`조직 ${orgCount}곳`);
+        parts.push(`함께한 흔적: ${segs.join(', ')}.`);
+    }
+    if (pin) {
+        parts.push(`핀 원칙 "${pin}"이 곁에 있었습니다.`);
+    }
+    parts.push('이 결을 묵상 안에서 한 번 더 만나 보세요.');
+    return parts.join(' ');
+}
+
 function buildDailyReportFallback(stats) {
     const ds    = stats.dotStats || {};
     const sat   = stats.satisfactionDistribution || {};
