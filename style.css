@@ -1,61 +1,109 @@
-/* ═══════════════════════════════════════
-   Sanctum OS v2.1 — Design Token System
-   STEP 1 단계 A: 라이트·다크 토큰, 도트 팔레트, 통합 타임라인, 모바일
-   ═══════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════
+   Sanctum OS — Design Token System
+   브랜드: 비교의 도구가 아니라 거울.
+   원칙: 절제 · 차분 · 거울 · 약속 · 보관함
+   토큰 명명: surface-* / ink-* / brand-* / line — 기존 별칭(--bg / --text-* / --accent / --border)은
+   하위 호환을 위해 alias로 유지함.
+   ═══════════════════════════════════════════════════════════════ */
 
 :root {
-    /* ── Light theme (default) ── */
-    --bg: #FAFAF7;
-    --bg-card: #FFFFFF;
-    --bg-elev: #F4F4F0;
-    --text-primary: #2C2C2E;
-    --text-secondary: #6B6B70;
-    --accent: #3E5C76;
-    --accent-soft: rgba(62, 92, 118, 0.10);
-    --border: #E8E8E5;
+    /* ── Surface (Light) ──
+       종이 노트북 같은 따뜻한 오프화이트. 한국식 차분함. */
+    --surface-canvas:   #FAFAF7;
+    --surface-card:     #FFFFFF;
+    --surface-elevated: #F4F4F0;
+
+    /* ── Ink (Light) ── */
+    --ink-primary:   #2C2C2E;
+    --ink-secondary: #6B6B70;
+    --ink-tertiary:  #9A9A9F;
+
+    /* ── Brand ──
+       Sanctum Blue — 차분한 슬레이트 청. 트렌디 SaaS 그라데이션 금지. */
+    --brand-primary: #3E5C76;
+    --brand-soft:    rgba(62, 92, 118, 0.10);
+
+    /* ── Line ── */
+    --line:  #E8E8E5;
     --hover: rgba(55, 53, 47, 0.05);
 
-    /* ── Dot palette (theme-invariant) ── */
-    --dot-gray: #C7CDD3;
-    --dot-yellow: #F5C84B;
-    --dot-green: #6BBF7B;
-    --dot-orange: #F0935A;
-    --dot-red: #E5654A;
-    --dot-purple: #9B7ED9;
+    /* ── Legacy alias (기존 클래스 호환) ── */
+    --bg:             var(--surface-canvas);
+    --bg-card:        var(--surface-card);
+    --bg-elev:        var(--surface-elevated);
+    --text-primary:   var(--ink-primary);
+    --text-secondary: var(--ink-secondary);
+    --accent:         var(--brand-primary);
+    --accent-soft:    var(--brand-soft);
+    --border:         var(--line);
 
-    /* ── Typography ── */
-    --font: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-    --fs-body: 15px;
+    /* ── Dot Semantic Palette (theme-invariant) ──
+       6색은 의미. 평가/판단을 위한 시멘틱 컬러 — 사실 진술의 색. */
+    --dot-gray:   #C7CDD3;  /* 미평가 — 아직 보지 않은 시간 */
+    --dot-yellow: #F5C84B;  /* 보통 — 그저 흐른 시간 */
+    --dot-green:  #6BBF7B;  /* 잘됨 — 마음에 머문 시간 */
+    --dot-orange: #F0935A;  /* 아쉬움 — 다른 길이 있었던 시간 */
+    --dot-red:    #E5654A;  /* 흘림 — 손가락 사이로 빠진 시간 */
+    --dot-purple: #9B7ED9;  /* 특별 — 표시해 두고 싶은 시간 */
+
+    /* ── Typography ──
+       Pretendard Variable. 한글·영문·숫자 한 폰트.
+       굵기 4단계만: 400(본문) / 500(라벨) / 600(소제목) / 700(제목). */
+    --font: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
+            system-ui, "Noto Sans KR", sans-serif;
+
+    --fs-hero:    30px;
+    --fs-display: 24px;
     --fs-heading: 22px;
-    --fs-hero: 30px;
-    --fs-modal: 18px;
-    --fs-small: 13px;
-    --lh: 1.65;
+    --fs-modal:   18px;
+    --fs-body:    15px;
+    --fs-small:   13px;
+    --fs-caption: 11px;
 
-    /* ── Spacing scale ── */
-    --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px;
+    --lh-body:    1.65;
+    --lh-heading: 1.25;
+    --ls-heading: -0.01em;
+    --ls-body:    0;
+    /* legacy alias */
+    --lh: var(--lh-body);
+
+    /* ── Spacing scale (7단) ── */
+    --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px; --sp-4: 16px;
     --sp-5: 24px; --sp-6: 40px; --sp-7: 64px;
 
-    /* ── Radius / Shadow / Motion ── */
-    --radius: 12px;
-    --radius-lg: 16px;
-    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
-    --shadow-lg: 0 8px 24px rgba(0,0,0,0.08);
+    /* ── Radius ──
+       sm 8px (작은 칩·인풋 보조), 12px (기본), lg 16px (큰 카드·모달), pill (필터 칩). */
+    --radius-sm:   8px;
+    --radius:      12px;
+    --radius-lg:   16px;
+    --radius-pill: 9999px;
+
+    /* ── Shadow ── 두 단계만. inner shadow / glow / neon 없음. */
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08);
+
+    /* ── Motion — single token ── */
     --ease: 200ms ease-out;
 }
 
 [data-theme="dark"] {
-    --bg: #1A1A1C;
-    --bg-card: #232325;
-    --bg-elev: #2A2A2D;
-    --text-primary: #ECECEE;
-    --text-secondary: #9A9A9F;
-    --accent: #6B8AA8;
-    --accent-soft: rgba(107, 138, 168, 0.18);
-    --border: #2E2E32;
+    /* 라이트와 다크 모두 동등하게 아름다워야 함. 다크가 곁다리 아님. */
+    --surface-canvas:   #1A1A1C;
+    --surface-card:     #232325;
+    --surface-elevated: #2A2A2D;
+
+    --ink-primary:   #ECECEE;
+    --ink-secondary: #9A9A9F;
+    --ink-tertiary:  #6B6B70;
+
+    --brand-primary: #6B8AA8;
+    --brand-soft:    rgba(107, 138, 168, 0.18);
+
+    --line:  #2E2E32;
     --hover: rgba(255, 255, 255, 0.05);
-    --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
-    --shadow-lg: 0 8px 24px rgba(0,0,0,0.5);
+
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
 /* ═══ Reset ═══ */
@@ -63,13 +111,34 @@
 body {
     font-family: var(--font);
     font-size: var(--fs-body);
-    line-height: var(--lh);
-    color: var(--text-primary);
-    background: var(--bg);
+    line-height: var(--lh-body);
+    color: var(--ink-primary);
+    background: var(--surface-canvas);
     -webkit-font-smoothing: antialiased;
+    letter-spacing: var(--ls-body);
 }
 button, input, textarea { font-family: var(--font); color: inherit; }
-a { color: var(--accent); }
+a { color: var(--brand-primary); text-decoration: none; }
+a:hover { opacity: 0.85; }
+
+/* ═══ Typography — element defaults + utility classes ═══
+   디자인 시스템 스펙(README, colors_and_type.css)에 정합.
+   .s-* 유틸리티는 일관된 텍스트 위계가 필요한 곳에서 직접 사용. */
+h1 { font-size: var(--fs-hero);    font-weight: 700; letter-spacing: var(--ls-heading); line-height: var(--lh-heading); }
+h2 { font-size: var(--fs-heading); font-weight: 700; letter-spacing: var(--ls-heading); line-height: var(--lh-heading); }
+h3 { font-size: var(--fs-modal);   font-weight: 600; line-height: 1.4; }
+h4 { font-size: var(--fs-body);    font-weight: 600; line-height: 1.4; }
+p  { font-size: var(--fs-body);    line-height: var(--lh-body); }
+small { font-size: var(--fs-small); color: var(--ink-secondary); }
+
+.s-hero    { font-size: var(--fs-hero);    font-weight: 700; letter-spacing: var(--ls-heading); line-height: var(--lh-heading); }
+.s-display { font-size: var(--fs-display); font-weight: 700; letter-spacing: var(--ls-heading); line-height: var(--lh-heading); }
+.s-heading { font-size: var(--fs-heading); font-weight: 600; letter-spacing: var(--ls-heading); line-height: var(--lh-heading); }
+.s-modal   { font-size: var(--fs-modal);   font-weight: 600; line-height: 1.4; }
+.s-body    { font-size: var(--fs-body);    font-weight: 400; line-height: var(--lh-body); }
+.s-small   { font-size: var(--fs-small);   font-weight: 400; line-height: 1.55; color: var(--ink-secondary); }
+.s-caption { font-size: var(--fs-caption); font-weight: 500; line-height: 1.4;
+             color: var(--ink-tertiary); text-transform: uppercase; letter-spacing: 0.04em; }
 
 /* ═══ Layout ═══ */
 .main-layout { display: flex; min-height: 100vh; }
@@ -86,19 +155,33 @@ a { color: var(--accent); }
     transition: transform var(--ease), background var(--ease);
 }
 .sidebar-header { padding: var(--sp-4) var(--sp-2) var(--sp-5); }
-.logo { font-size: 18px; font-weight: 700; color: var(--accent); letter-spacing: -0.01em; }
+.logo {
+    display: inline-flex; align-items: center; gap: var(--sp-2);
+    font-size: 18px; font-weight: 700; color: var(--brand-primary);
+    letter-spacing: -0.01em; text-decoration: none;
+}
+.logo-mark { width: 22px; height: 23px; flex-shrink: 0; }
+.logo-text { line-height: 1; }
 .sidebar-nav { flex: 1; display: flex; flex-direction: column; gap: 2px; }
 .sidebar-item {
     display: flex; align-items: center; gap: var(--sp-3);
     padding: var(--sp-3) var(--sp-3);
     border: none; background: none; cursor: pointer;
-    font-size: 14px; color: var(--text-secondary);
+    font-size: 14px; color: var(--ink-secondary);
     border-radius: var(--radius); transition: all var(--ease);
     width: 100%; text-align: left; position: relative;
 }
-.sidebar-item:hover { background: var(--hover); color: var(--text-primary); }
-.sidebar-item.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
-.sidebar-item .icon { font-size: 16px; width: 22px; text-align: center; }
+.sidebar-item:hover { background: var(--hover); color: var(--ink-primary); }
+.sidebar-item.active { background: var(--brand-soft); color: var(--brand-primary); font-weight: 600; }
+/* Lucide stroke 1.5 round. 사이드바 메뉴 아이콘은 22×22 슬롯에 18×18 글리프.
+   .icon이 비어있을 때(레거시 이모지 텍스트 한 글자)에도 폭을 유지하기 위해 inline-flex로. */
+.sidebar-item .icon {
+    width: 22px; height: 22px;
+    display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    font-size: 16px; line-height: 1;
+}
+.sidebar-item .icon svg { width: 18px; height: 18px; stroke-width: 1.75; }
 .nav-divider { border: none; border-top: 1px solid var(--border); margin: var(--sp-2) 0; }
 .sidebar-profile {
     display: flex; align-items: center; gap: var(--sp-3);
@@ -114,11 +197,17 @@ a { color: var(--accent); }
 .sidebar-footer button {
     background: none; border: none; cursor: pointer;
     font-size: 16px; padding: var(--sp-2);
-    border-radius: var(--radius); color: var(--text-secondary);
+    border-radius: var(--radius); color: var(--ink-secondary);
     transition: background var(--ease);
+    display: inline-flex; align-items: center; justify-content: center;
 }
-.sidebar-footer button:hover { background: var(--hover); color: var(--text-primary); }
-.lock-timer { font-size: 11px; color: var(--text-secondary); margin-left: auto; }
+.sidebar-footer button:hover { background: var(--hover); color: var(--ink-primary); }
+.sidebar-footer button svg { width: 18px; height: 18px; stroke-width: 1.75; }
+.lock-timer {
+    font-size: 11px; color: var(--ink-secondary); margin-left: auto;
+    display: inline-flex; align-items: center; gap: 4px;
+}
+.lock-timer-icon { width: 12px; height: 12px; stroke-width: 1.75; }
 
 .boot-status {
     font-size: 11px;

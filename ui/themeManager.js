@@ -25,10 +25,13 @@ export function initThemeManager() {
 function applyTheme(theme, btn) {
     if (theme === 'dark') {
         document.documentElement.setAttribute('data-theme', 'dark');
-        btn.innerHTML = '<span>☀️</span>';
+        btn.innerHTML = '<i data-lucide="sun"></i>';
     } else {
         document.documentElement.removeAttribute('data-theme');
-        btn.innerHTML = '<span>🌙</span>';
+        btn.innerHTML = '<i data-lucide="moon"></i>';
     }
     localStorage.setItem('sanctum-theme', theme);
+    if (typeof window.__sanctumRenderLucide === 'function') {
+        window.__sanctumRenderLucide();
+    }
 }

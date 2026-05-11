@@ -188,7 +188,8 @@ async function init() {
     initSensitiveMode();
     initThemeManager();
     setupNavigation();
-    
+    renderLucideIcons();
+
     // 5. 부팅 시퀀스 시작
     hideLoading();
     setBootStatus('Google과 연결하는 중이에요...');
@@ -345,6 +346,27 @@ function setupNavigation() {
         toggle.textContent = willCollapse ? '펼치기' : '접기';
     });
 }
+
+/**
+ * Lucide 아이콘 렌더 — index.html 안의 `<i data-lucide="...">` 자리에 SVG를 그림.
+ * Lucide 스크립트가 defer 로드라 아직 안 붙어 있을 수도 있어 짧게 재시도.
+ */
+function renderLucideIcons() {
+    const tryRender = () => {
+        if (window.lucide && typeof window.lucide.createIcons === 'function') {
+            window.lucide.createIcons();
+            return true;
+        }
+        return false;
+    };
+    if (tryRender()) return;
+    let tries = 0;
+    const t = setInterval(() => {
+        tries++;
+        if (tryRender() || tries > 30) clearInterval(t);
+    }, 100);
+}
+window.__sanctumRenderLucide = renderLucideIcons;
 
 /**
  * [저녁 회고] 사이드바 메뉴는 평일엔 숨기고 토요일에만 보임.

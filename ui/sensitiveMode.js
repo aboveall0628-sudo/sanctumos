@@ -6,21 +6,24 @@ export function initSensitiveMode() {
     const toggleBtn = document.getElementById('sensitive-toggle-btn');
     if (!toggleBtn) return;
 
+    const renderIcon = (masked) => {
+        // masked=true → 가려져 있음(보려면 누름). eye-off 아이콘.
+        // masked=false → 보이는 상태. eye 아이콘.
+        toggleBtn.innerHTML = masked ? '<i data-lucide="eye-off"></i>' : '<i data-lucide="eye"></i>';
+        if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
+    };
+
     // 초기 상태 로드
     const isMasked = localStorage.getItem('sanctum-sensitive-mode') !== 'false';
-    if (isMasked) {
-        document.body.classList.add('sensitive-masked');
-        toggleBtn.classList.add('active');
-        toggleBtn.textContent = '👁️';
-    } else {
-        toggleBtn.textContent = '🙈';
-    }
+    document.body.classList.toggle('sensitive-masked', isMasked);
+    toggleBtn.classList.toggle('active', isMasked);
+    renderIcon(isMasked);
 
     toggleBtn.addEventListener('click', () => {
         const masked = document.body.classList.toggle('sensitive-masked');
         localStorage.setItem('sanctum-sensitive-mode', masked);
         toggleBtn.classList.toggle('active', masked);
-        toggleBtn.textContent = masked ? '👁️' : '🙈';
+        renderIcon(masked);
     });
 
     // 민감 요소 클릭 시 5초 해제

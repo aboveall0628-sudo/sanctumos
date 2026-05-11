@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 380 120" fill="none" aria-hidden="true">
+  <g transform="translate(4 4) scale(0.96)">
+    <path stroke="currentColor" stroke-width="5" stroke-linecap="square" stroke-linejoin="miter" stroke-miterlimit="2"
+          d="M 50 10 L 50 60 L 85 60 L 85 25 L 20 25 L 20 75 L 70 75 L 70 40 L 35 40 L 35 100"/>
+  </g>
+  <text x="124" y="66" fill="currentColor" font-family="Pretendard Variable, Pretendard, -apple-system, system-ui, sans-serif" font-weight="700" font-size="34" letter-spacing="-0.5">Sanctum OS</text>
+  <text x="125" y="90" fill="currentColor" opacity="0.55" font-family="Pretendard Variable, Pretendard, -apple-system, system-ui, sans-serif" font-weight="500" font-size="12" letter-spacing="2.4">A SHELTER FOR THE MIND</text>
+</svg>

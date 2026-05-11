@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sanctum OS</title>
     <meta name="description" content="Sanctum OS">
+    <link rel="icon" type="image/svg+xml" href="assets/sanctum-mark.svg">
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <link rel="stylesheet" href="style.css">
     <script type="module">
@@ -13,6 +14,8 @@
     </script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://apis.google.com/js/api.js" async defer></script>
+    <!-- Lucide icons (stroke 1.5, round) — 디자인 시스템 기본 아이콘 세트 -->
+    <script src="https://unpkg.com/lucide@0.456.0/dist/umd/lucide.min.js" defer></script>
 </head>
 <body>
     <!-- 로딩 -->
@@ -42,27 +45,33 @@
 
     <div class="main-layout">
         <!-- 모바일 메뉴 -->
-        <button id="menu-toggle" class="menu-toggle-btn"><span>☰</span></button>
+        <button id="menu-toggle" class="menu-toggle-btn" aria-label="메뉴 열기"><i data-lucide="menu"></i></button>
 
         <!-- 사이드바 -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <div class="logo">Sanctum OS</div>
+                <div class="logo" aria-label="Sanctum OS">
+                    <svg viewBox="0 0 105 110" class="logo-mark" aria-hidden="true">
+                        <path fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="square" stroke-linejoin="miter" stroke-miterlimit="2"
+                              d="M 50 10 L 50 60 L 85 60 L 85 25 L 20 25 L 20 75 L 70 75 L 70 40 L 35 40 L 35 100"/>
+                    </svg>
+                    <span class="logo-text">Sanctum OS</span>
+                </div>
             </div>
             <nav class="sidebar-nav">
-                <button class="sidebar-item" id="nav-goals"><span class="icon">🎯</span> 나의 목표</button>
-                <button class="sidebar-item active" id="nav-today"><span class="icon">📅</span> 오늘</button>
-                <button class="sidebar-item" id="nav-evening"><span class="icon">🌙</span> 저녁 회고</button>
+                <button class="sidebar-item" id="nav-goals"><i class="icon" data-lucide="target"></i> 나의 목표</button>
+                <button class="sidebar-item active" id="nav-today"><i class="icon" data-lucide="calendar"></i> 오늘</button>
+                <button class="sidebar-item" id="nav-evening"><i class="icon" data-lucide="moon"></i> 저녁 회고</button>
                 <hr class="nav-divider">
-                <button class="sidebar-item" id="nav-dashboard"><span class="icon">📊</span> 대시보드</button>
-                <button class="sidebar-item" id="nav-past"><span class="icon">📜</span> 지난 묵상</button>
-                <button class="sidebar-item" id="nav-principles"><span class="icon">📖</span> 나의 원칙</button>
-                <button class="sidebar-item" id="nav-reports"><span class="icon">📈</span> 리포트</button>
+                <button class="sidebar-item" id="nav-dashboard"><i class="icon" data-lucide="layout-dashboard"></i> 대시보드</button>
+                <button class="sidebar-item" id="nav-past"><i class="icon" data-lucide="scroll-text"></i> 지난 묵상</button>
+                <button class="sidebar-item" id="nav-principles"><i class="icon" data-lucide="book-open"></i> 나의 원칙</button>
+                <button class="sidebar-item" id="nav-reports"><i class="icon" data-lucide="trending-up"></i> 리포트</button>
                 <hr class="nav-divider">
-                <button class="sidebar-item" id="nav-persons"><span class="icon">👥</span> 인물</button>
-                <button class="sidebar-item" id="nav-organizations"><span class="icon">🏢</span> 조직</button>
+                <button class="sidebar-item" id="nav-persons"><i class="icon" data-lucide="users"></i> 인물</button>
+                <button class="sidebar-item" id="nav-organizations"><i class="icon" data-lucide="building-2"></i> 조직</button>
                 <hr class="nav-divider">
-                <button class="sidebar-item" id="nav-settings"><span class="icon">⚙</span> 설정·보안</button>
+                <button class="sidebar-item" id="nav-settings"><i class="icon" data-lucide="settings"></i> 설정·보안</button>
             </nav>
             <div class="sidebar-profile" id="user-profile-btn" style="cursor:pointer">
                 <img id="user-avatar" src="" alt="" style="display:none;width:32px;height:32px;border-radius:50%">
@@ -70,9 +79,9 @@
             </div>
             <div id="boot-status" class="boot-status">초기화 중...</div>
             <div class="sidebar-footer">
-                <button id="sensitive-toggle-btn" title="민감 정보 숨기기">👁</button>
-                <span id="lock-timer-display" class="lock-timer">🔒 15분</span>
-                <button id="theme-toggle-btn"><span>🌙</span></button>
+                <button id="sensitive-toggle-btn" title="민감 정보 숨기기" aria-label="민감 정보 숨기기"><i data-lucide="eye-off"></i></button>
+                <span id="lock-timer-display" class="lock-timer"><i data-lucide="lock" class="lock-timer-icon"></i> 15분</span>
+                <button id="theme-toggle-btn" title="테마 전환" aria-label="테마 전환"><i data-lucide="moon"></i></button>
             </div>
         </aside>
 
