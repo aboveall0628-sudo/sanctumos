@@ -2,9 +2,10 @@
  * auth.js — Google 인증 및 마스터 비밀번호(Vault) 온보딩 흐름 제어
  */
 
-import { setupNewVault, recoverWithWords } from '../crypto/keyManager.js';
+import { setupNewVault, recoverWithWords, changePassword } from '../crypto/keyManager.js';
 import { db, doc, setDoc, getDoc, serverTimestamp } from '../data/firebase.js';
 import { loadUserVaultData } from './app.js'; // to get wrappedDEK_recovery
+import { validatePassword, firstError, bindPolicyHint, POLICY_VERSION } from '../crypto/passwordPolicy.js';
 
 let _onSetupComplete = null;
 let _currentUserId = null;
@@ -24,6 +25,11 @@ export function showSetupScreen(userId) {
         // 1단계 화면으로 리셋
         document.getElementById('setup-step-1').classList.remove('hidden');
         document.getElementById('setup-step-2').classList.add('hidden');
+        // 정책 힌트 실시간 바인딩
+        bindPolicyHint(
+            document.getElementById('setup-pwd-1'),
+            document.getElementById('setup-pwd-hint')
+        );
     }
 }
 
@@ -81,7 +87,8 @@ function renderSetupScreen() {
                 <div class="lock-icon">🗝️</div>
                 <h2>나만의 비밀번호 만들기</h2>
                 <p class="lock-subtitle">내 묵상과 기록을 안전하게 지켜줄 열쇠예요.<br><strong style="color:var(--dot-red)">잃어버리면 다시 만들 수 없으니 꼭 기억해 주세요.</strong></p>
-                <input type="password" id="setup-pwd-1" class="lock-input" placeholder="비밀번호 (4자 이상)" />
+                <input type="password" id="setup-pwd-1" class="lock-input" placeholder="비밀번호" />
+                <div id="setup-pwd-hint" class="pw-policy-hint"></div>
                 <input type="password" id="setup-pwd-2" class="lock-input" placeholder="한 번 더 입력" />
                 <div id="setup-error" class="lock-error hidden"></div>
                 <button id="setup-next-btn" class="primary-btn" style="width:100%">다음으로</button>
@@ -158,6 +165,99 @@ function renderSetupScreen() {
         </div>
     `;
     document.body.appendChild(recoveryOverlay);
+
+    // 4. 비밀번호 정책 마이그레이션 오버레이 (Phase 1)
+    const migrationOverlay = document.createElement('div');
+    migrationOverlay.id = 'pw-migration-overlay';
+    migrationOverlay.className = 'lock-screen-overlay hidden';
+    migrationOverlay.innerHTML = `
+        <div class="lock-screen-box" style="max-width: 420px;">
+            <div class="lock-icon">🔐</div>
+            <h2>보안 강화 안내</h2>
+            <p class="lock-subtitle" style="text-align:left; font-size:13px;">
+                Sanctum OS의 비밀번호 정책이 더 안전하게 강화됐어요.<br>
+                기존 비밀번호로 들어오셨지만, <strong>지금 새 비밀번호로 한 번만 바꿔주시면</strong> 앞으로 더 든든해집니다.
+            </p>
+            <input type="password" id="pw-mig-new" class="lock-input" placeholder="새 비밀번호" autocomplete="new-password" />
+            <div id="pw-mig-hint" class="pw-policy-hint"></div>
+            <input type="password" id="pw-mig-new2" class="lock-input" placeholder="한 번 더 입력해 주세요" autocomplete="new-password" />
+            <div id="pw-mig-error" class="lock-error hidden"></div>
+            <button id="pw-mig-submit-btn" class="primary-btn" style="width:100%">바꾸고 들어가기</button>
+            <p style="font-size:12px; color:var(--text-secondary); margin-top:12px;">
+                💡 데이터는 그대로 유지돼요. 자물쇠만 새 것으로 바꾸는 거예요.
+            </p>
+        </div>
+    `;
+    document.body.appendChild(migrationOverlay);
+}
+
+/**
+ * 비밀번호 정책 마이그레이션 모달 표시 (Phase 1)
+ * 기존 사용자가 v1(4자+) 비밀번호로 unlock 성공했을 때, v2 정책으로 강제 업그레이드.
+ *
+ * @param {Object} args
+ * @param {CryptoKey} args.dek - 이미 unlock된 DEK
+ * @param {string} args.userId
+ * @param {Function} args.onComplete - 완료 콜백 (dek 그대로 전달)
+ */
+export function showPasswordMigrationModal({ dek, userId, onComplete }) {
+    const overlay = document.getElementById('pw-migration-overlay');
+    if (!overlay) {
+        console.error('[auth] pw-migration-overlay not rendered');
+        return;
+    }
+    overlay.classList.remove('hidden');
+    overlay.style.display = 'flex';
+
+    const inputNew = document.getElementById('pw-mig-new');
+    const inputNew2 = document.getElementById('pw-mig-new2');
+    const hintEl = document.getElementById('pw-mig-hint');
+    const errEl = document.getElementById('pw-mig-error');
+    const btn = document.getElementById('pw-mig-submit-btn');
+
+    inputNew.value = '';
+    inputNew2.value = '';
+    errEl.classList.add('hidden');
+    bindPolicyHint(inputNew, hintEl);
+    inputNew.focus();
+
+    // 동일 모달이 재호출될 수 있으므로 핸들러를 onclick으로 교체 (cloneNode 패턴 회피)
+    btn.onclick = async () => {
+        const newPw = inputNew.value;
+        const newPw2 = inputNew2.value;
+
+        if (!validatePassword(newPw).ok) {
+            showErr(errEl, firstError(newPw));
+            return;
+        }
+        if (newPw !== newPw2) {
+            showErr(errEl, '두 번 입력한 게 다른 것 같아요.');
+            return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = '바꾸는 중...';
+
+        try {
+            const re = await changePassword(dek, newPw);
+            await setDoc(doc(db, 'users', userId), {
+                masterKeySalt: re.salt,
+                wrappedDEK_master: re.wrappedDEK_master,
+                wrappedDEK_master_iv: re.wrappedDEK_master_iv,
+                kdfParams: re.kdfParams,
+                passwordPolicyVersion: POLICY_VERSION,
+            }, { merge: true });
+
+            overlay.classList.add('hidden');
+            overlay.style.display = 'none';
+            if (onComplete) onComplete(dek);
+        } catch (error) {
+            console.error('[auth] password migration failed:', error);
+            showErr(errEl, '잠깐 문제가 있었어요. 다시 한 번 해볼까요?');
+            btn.disabled = false;
+            btn.textContent = '바꾸고 들어가기';
+        }
+    };
 }
 
 function bindEvents() {
@@ -175,8 +275,8 @@ function bindEvents() {
             const p2 = document.getElementById('setup-pwd-2').value;
             const err = document.getElementById('setup-error');
 
-            if (p1.length < 4) {
-                showErr(err, '비밀번호는 4자 이상이어야 해요.');
+            if (!validatePassword(p1).ok) {
+                showErr(err, firstError(p1));
                 return;
             }
             if (p1 !== p2) {
@@ -199,6 +299,7 @@ function bindEvents() {
                     wrappedDEK_recovery: vaultData.wrappedDEK_recovery,
                     wrappedDEK_recovery_iv: vaultData.wrappedDEK_recovery_iv,
                     kdfParams: vaultData.kdfParams,
+                    passwordPolicyVersion: POLICY_VERSION,
                     createdAt: serverTimestamp()
                 });
 

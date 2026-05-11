@@ -9,7 +9,8 @@ import {
 } from '../data/firebase.js';
 import { setupNewVault, unlockVault, recoverWithWords, KDF_PARAMS } from '../crypto/keyManager.js';
 import { initLockScreen, setUnlocked, lock, showLockError, showLockScreen, hideLockScreen } from './lockScreen.js';
-import { initAuth, showSetupScreen, hideSetupScreen, showGoogleLoginScreen, hideGoogleLoginScreen } from './auth.js';
+import { initAuth, showSetupScreen, hideSetupScreen, showGoogleLoginScreen, hideGoogleLoginScreen, showPasswordMigrationModal } from './auth.js';
+import { POLICY_VERSION } from '../crypto/passwordPolicy.js';
 import { initAutoLock, registerFailedAttempt, isLockoutActive, getLockoutRemainingSec, resetFailedAttempts } from '../security/autoLock.js';
 import { logAuditAction } from '../security/auditLog.js';
 import { initGlobalErrorHandler } from '../security/errorHandler.js';
@@ -184,9 +185,23 @@ async function init() {
                 userData.wrappedDEK_master_iv,
                 userData.kdfParams || null
             );
-            setUnlocked(dek);
             resetFailedAttempts();
             logAuditAction(currentUserId, 'unlock_success');
+
+            // 비밀번호 정책 마이그레이션 체크 (구 정책으로 unlock 성공한 사용자)
+            const userPolicyVersion = userData.passwordPolicyVersion || 1;
+            if (userPolicyVersion < POLICY_VERSION) {
+                showPasswordMigrationModal({
+                    dek,
+                    userId: currentUserId,
+                    onComplete: (migratedDek) => {
+                        setUnlocked(migratedDek);
+                        logAuditAction(currentUserId, 'password_policy_migrated');
+                    }
+                });
+            } else {
+                setUnlocked(dek);
+            }
         } catch (e) {
             registerFailedAttempt(currentUserId);
             if (e.message === 'WRONG_PASSWORD') {

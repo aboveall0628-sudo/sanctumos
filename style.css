@@ -835,6 +835,25 @@ button .btn-icon { vertical-align: text-bottom; }
 }
 .lock-error { color: var(--dot-red); font-size: 13px; margin-bottom: var(--sp-3); }
 
+/* 비밀번호 정책 힌트 (Phase 1) */
+.pw-policy-hint {
+    display: flex; flex-wrap: wrap; gap: 6px 12px;
+    margin: -8px 0 12px 0;
+    padding: 8px 12px;
+    background: var(--bg-elev);
+    border-radius: var(--radius);
+    text-align: left;
+}
+.pw-policy-hint:empty { display: none; }
+.pw-policy-item {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 12px; line-height: 1.4;
+    transition: color 0.15s ease;
+}
+.pw-policy-item.pw-pending { color: var(--text-secondary); }
+.pw-policy-item.pw-passed { color: var(--dot-green); }
+.pw-policy-icon { font-weight: bold; font-size: 13px; min-width: 12px; text-align: center; }
+
 /* Setup screen */
 .recovery-words-grid {
     display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-2);

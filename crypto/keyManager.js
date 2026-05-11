@@ -236,6 +236,7 @@ export async function setupNewVault(masterPassword) {
         recoveryWords, // 화면에 1회 표시 후 폐기
         dek,           // 메모리에만 보관
         kdfParams: { ...KDF_PARAMS },
+        passwordPolicyVersion: 2,
     };
 }
 
@@ -301,6 +302,7 @@ export async function changePassword(dek, newPassword) {
         wrappedDEK_master: wrap.wrappedDEK,
         wrappedDEK_master_iv: wrap.iv,
         kdfParams: { ...KDF_PARAMS },
+        passwordPolicyVersion: 2,
     };
 }
 

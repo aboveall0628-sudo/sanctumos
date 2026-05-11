@@ -12,6 +12,7 @@ import { getDEK } from './lockScreen.js';
 import { changePassword, unlockVault } from '../crypto/keyManager.js';
 import { db, doc, setDoc, getDoc, serverTimestamp } from '../data/firebase.js';
 import { logAuditAction } from '../security/auditLog.js';
+import { validatePassword, firstError, bindPolicyHint, POLICY_VERSION } from '../crypto/passwordPolicy.js';
 
 let _userId = null;
 let _userEmail = null;
@@ -25,6 +26,11 @@ export function renderSettingsView(userId, userEmail) {
     // v1 식별자 입력란에 이메일 기본값 채우기
     const v1Input = document.getElementById('v1-id-input');
     if (v1Input && _userEmail && !v1Input.value) v1Input.value = _userEmail;
+    // 비밀번호 정책 힌트 실시간 바인딩
+    bindPolicyHint(
+        document.getElementById('pw-new'),
+        document.getElementById('pw-new-hint')
+    );
 }
 
 /**
@@ -58,8 +64,9 @@ function injectExtraSections() {
         <div style="display:flex;flex-direction:column;gap:8px;max-width:360px;">
             <input id="pw-old" type="password" placeholder="지금 쓰는 비밀번호" autocomplete="current-password"
                    style="padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text-primary);" />
-            <input id="pw-new" type="password" placeholder="새 비밀번호 (4자 이상)" autocomplete="new-password"
+            <input id="pw-new" type="password" placeholder="새 비밀번호" autocomplete="new-password"
                    style="padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text-primary);" />
+            <div id="pw-new-hint" class="pw-policy-hint"></div>
             <input id="pw-new2" type="password" placeholder="한 번 더 입력해 주세요" autocomplete="new-password"
                    style="padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text-primary);" />
             <div id="pw-error" style="color:var(--dot-red);font-size:12px;min-height:16px;"></div>
@@ -237,7 +244,7 @@ function bindEvents() {
         const err = document.getElementById('pw-error');
         err.textContent = '';
 
-        if (newPw.length < 4) { err.textContent = '새 비밀번호는 4자 이상으로 적어주세요.'; return; }
+        if (!validatePassword(newPw).ok) { err.textContent = firstError(newPw); return; }
         if (newPw !== newPw2) { err.textContent = '두 번 입력한 새 비밀번호가 다른 것 같아요.'; return; }
 
         const dek = getDEK();
@@ -262,6 +269,7 @@ function bindEvents() {
                 wrappedDEK_master: re.wrappedDEK_master,
                 wrappedDEK_master_iv: re.wrappedDEK_master_iv,
                 kdfParams: re.kdfParams,
+                passwordPolicyVersion: POLICY_VERSION,
                 pwChangedAt: serverTimestamp(),
             }, { merge: true });
 
