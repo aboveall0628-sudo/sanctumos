@@ -16,9 +16,12 @@ import { validatePassword, firstError, bindPolicyHint, POLICY_VERSION } from '..
 // Phase B-3: 예전 결단 정리용
 import { getAllDecisions, deleteDecision } from '../data/decisionsRepo.js';
 import { deleteCalendarEventById } from './app.js';
-// Phase E-8/A·B-1: 말씀 본문 표시 설정 (폰트 크기, 묵상 계획 프리셋)
+// 자동 잠금 분 단위 영속화
+import { getSavedTimeoutMinutes, saveTimeoutMinutes } from '../security/autoLock.js';
+// Phase E-8/A·B-1·B-3: 말씀 본문 표시 설정 (폰트 크기, 묵상 계획 프리셋, 시작점 override)
 import {
-    getScriptureSettings, setFontSize, setActivePlanId,
+    getScriptureSettings, getActivePlan, setFontSize, setActivePlanId,
+    getPartOverride, setPartOverride, clearPartOverride,
     FONT_SIZES, PRESETS, applyFontSizeToCSS,
 } from './scriptureSettings.js';
 import { BIBLE_METADATA } from './scripture.js';
@@ -422,6 +425,29 @@ function bindEvents() {
 
     // ─── Phase E-8/A: 말씀 본문 설정 (폰트/파트) ───
     bindScriptureSettingsEvents();
+
+    // ─── 자동 잠금 시간(분) ───
+    bindAutoLockMinutes();
+}
+
+function bindAutoLockMinutes() {
+    const input = document.getElementById('autolock-minutes-input');
+    const btn = document.getElementById('autolock-save-btn');
+    const status = document.getElementById('autolock-save-status');
+    if (!input || !btn) return;
+
+    input.value = String(getSavedTimeoutMinutes());
+
+    btn.onclick = () => {
+        const applied = saveTimeoutMinutes(input.value);
+        input.value = String(applied);
+        if (status) {
+            status.textContent = `✅ ${applied}분으로 저장했어요`;
+            status.style.color = 'var(--dot-green)';
+            clearTimeout(bindAutoLockMinutes._t);
+            bindAutoLockMinutes._t = setTimeout(() => { status.textContent = ''; }, 2500);
+        }
+    };
 }
 
 /**
@@ -470,7 +496,145 @@ function renderScriptureSettingsHTML() {
             <p class="setting-hint">미리 만들어 둔 계획 중에서 골라요. 다음 단계에서 "내가 직접 만들기"도 열릴 예정이에요.</p>
             <div class="plan-list" id="scripture-plan-list">${planOptions}</div>
         </div>
+
+        <div class="setting-block" style="margin-top: var(--sp-4);">
+            <div class="setting-label">선택한 계획의 시작점</div>
+            <p class="setting-hint">"오늘부터 시편 1편" 같이 시작점을 직접 박을 수 있어요. 다음날부터 한 장씩 자동으로 넘어가요.</p>
+            <div id="scripture-anchor-panel" class="anchor-panel"></div>
+        </div>
     `;
+}
+
+/**
+ * Phase E-8/B-3: 활성 plan의 각 파트별 "시작점" 행 + 인라인 편집 폼.
+ * plan이 바뀌면 다시 호출해서 패널을 새로 그림.
+ */
+function renderAnchorPanel() {
+    const panel = document.getElementById('scripture-anchor-panel');
+    if (!panel) return;
+    const plan = getActivePlan();
+    const today = todayLocalISOForUI();
+
+    const rows = plan.parts.map(partId => {
+        const part = BIBLE_METADATA.parts.find(p => p.id === partId);
+        if (!part) return '';
+        const override = getPartOverride(plan.id, partId);
+        const cur = override
+            ? findBookFull(part, override.abbr) + ' ' + override.chapter + '장'
+              + ` <span class="anchor-since">(${override.anchorDate}부터)</span>`
+            : `<span class="anchor-default">기본값으로 진행 중</span>`;
+        const initialAbbr = override?.abbr || part.books[0][0];
+        const initialChapter = override?.chapter || 1;
+        const bookOptions = part.books.map(([abbr, full]) => `
+            <option value="${abbr}" ${abbr === initialAbbr ? 'selected' : ''}>${full}</option>
+        `).join('');
+        const maxCh = chaptersOf(part, initialAbbr);
+
+        return `
+            <div class="anchor-row" data-part="${partId}">
+                <div class="anchor-head">
+                    <span class="anchor-part-label">${part.name.replace('파트', 'P')}</span>
+                    <span class="anchor-current">${cur}</span>
+                    <div class="anchor-actions">
+                        <button class="text-btn anchor-edit-btn" type="button">변경</button>
+                        ${override ? '<button class="text-btn anchor-reset-btn" type="button">기본값</button>' : ''}
+                    </div>
+                </div>
+                <div class="anchor-form hidden">
+                    <label class="anchor-field">
+                        <span>책</span>
+                        <select class="anchor-book">${bookOptions}</select>
+                    </label>
+                    <label class="anchor-field">
+                        <span>장</span>
+                        <input class="anchor-chapter" type="number" min="1" max="${maxCh}" value="${initialChapter}">
+                    </label>
+                    <label class="anchor-field">
+                        <span>시작일</span>
+                        <input class="anchor-date" type="date" value="${override?.anchorDate || today}">
+                    </label>
+                    <div class="anchor-form-actions">
+                        <button class="primary-btn anchor-apply-btn" type="button">적용</button>
+                        <button class="text-btn anchor-cancel-btn" type="button">취소</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    panel.innerHTML = rows || '<p class="setting-hint">표시할 파트가 없어요.</p>';
+    bindAnchorRowEvents(panel, plan.id);
+    if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
+}
+
+function findBookFull(part, abbr) {
+    const found = part.books.find(b => b[0] === abbr);
+    return found ? found[1] : abbr;
+}
+
+function chaptersOf(part, abbr) {
+    const found = part.books.find(b => b[0] === abbr);
+    return found ? found[2] : 1;
+}
+
+function todayLocalISOForUI() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
+function bindAnchorRowEvents(panel, planId) {
+    panel.querySelectorAll('.anchor-row').forEach(row => {
+        const partId = parseInt(row.dataset.part, 10);
+        const part = BIBLE_METADATA.parts.find(p => p.id === partId);
+        if (!part) return;
+
+        const form = row.querySelector('.anchor-form');
+        const head = row.querySelector('.anchor-head');
+        const editBtn = row.querySelector('.anchor-edit-btn');
+        const resetBtn = row.querySelector('.anchor-reset-btn');
+        const applyBtn = row.querySelector('.anchor-apply-btn');
+        const cancelBtn = row.querySelector('.anchor-cancel-btn');
+        const bookSel = row.querySelector('.anchor-book');
+        const chapterInp = row.querySelector('.anchor-chapter');
+        const dateInp = row.querySelector('.anchor-date');
+
+        editBtn?.addEventListener('click', () => {
+            form.classList.toggle('hidden');
+            head.classList.toggle('open');
+        });
+        cancelBtn?.addEventListener('click', () => {
+            form.classList.add('hidden');
+            head.classList.remove('open');
+        });
+        // 책이 바뀌면 max chapter 갱신 + 현재값 클램프
+        bookSel?.addEventListener('change', () => {
+            const max = chaptersOf(part, bookSel.value);
+            chapterInp.max = String(max);
+            if (parseInt(chapterInp.value, 10) > max) chapterInp.value = String(max);
+        });
+        applyBtn?.addEventListener('click', () => {
+            const abbr = bookSel.value;
+            const chapter = parseInt(chapterInp.value, 10);
+            const max = chaptersOf(part, abbr);
+            if (!chapter || chapter < 1 || chapter > max) {
+                chapterInp.focus();
+                return;
+            }
+            setPartOverride(planId, partId, {
+                abbr,
+                chapter,
+                anchorDate: dateInp.value || todayLocalISOForUI(),
+            });
+            renderAnchorPanel(); // 행을 새로 그려 "현재" 표시 갱신
+        });
+        resetBtn?.addEventListener('click', () => {
+            clearPartOverride(planId, partId);
+            renderAnchorPanel();
+        });
+    });
 }
 
 function bindScriptureSettingsEvents() {
@@ -483,11 +647,15 @@ function bindScriptureSettingsEvents() {
         });
     });
 
-    // 묵상 계획 라디오 — 즉시 저장. scripture.js가 settings-changed 이벤트로 재렌더.
+    // 묵상 계획 라디오 — 즉시 저장 + 시작점 패널 다시 그림.
     document.querySelectorAll('input[name="scripture-plan"]').forEach(r => {
         r.addEventListener('change', (e) => {
             setActivePlanId(e.target.value);
+            renderAnchorPanel();
         });
     });
+
+    // 시작점 패널 초기 렌더
+    renderAnchorPanel();
 }
 

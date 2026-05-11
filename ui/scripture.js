@@ -7,7 +7,7 @@
  * 4파트 (시가서/모세오경+대선지서/역사서+소선지서/신약) 동시 진행 + 1년 1독.
  */
 
-import { getActivePlan } from './scriptureSettings.js';
+import { getActivePlan, getPartOverride } from './scriptureSettings.js';
 
 const BIBLE_METADATA = {
     parts: [
@@ -137,13 +137,46 @@ function calculateOffset(date) {
     return Math.floor((target - anchor) / (1000 * 60 * 60 * 24));
 }
 
-function getChapterForPart(part, offset) {
-    const partChapters = [];
+/**
+ * 파트의 펼쳐진 (책, 장) 시퀀스 반환 — 매 호출마다 계산하지만 4파트라 가벼움.
+ */
+function flattenPartChapters(part) {
+    const out = [];
     part.books.forEach(([abbr, full, chapters]) => {
-        for (let c = 1; c <= chapters; c++) partChapters.push({ abbr, chapter: c, full });
+        for (let c = 1; c <= chapters; c++) out.push({ abbr, chapter: c, full });
     });
-    const startIndex = ANCHOR_INDICES[part.id] || 0;
+    return out;
+}
+
+/**
+ * 특정 날짜에 보일 (책, 장) 인덱스 계산.
+ * - override가 없으면: ANCHOR_DATE / ANCHOR_INDICES 기반 (기본 4파트 통독)
+ * - override가 있으면: override.anchorDate에 override.{abbr,chapter}이 보이고
+ *   그 뒤로 매일 한 장씩 진행
+ *
+ * @param {{id:number, books:Array}} part
+ * @param {Date} date
+ * @param {{abbr:string, chapter:number, anchorDate:string}|null} override
+ */
+function getChapterForPart(part, date, override) {
+    const partChapters = flattenPartChapters(part);
     const total = partChapters.length;
+
+    let startIndex;
+    let offset;
+
+    if (override) {
+        const found = partChapters.findIndex(x => x.abbr === override.abbr && x.chapter === override.chapter);
+        startIndex = found >= 0 ? found : 0;
+        const anchor = new Date(override.anchorDate + 'T00:00:00');
+        const target = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        const anchorMid = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
+        offset = Math.floor((target - anchorMid) / (1000 * 60 * 60 * 24));
+    } else {
+        startIndex = ANCHOR_INDICES[part.id] || 0;
+        offset = calculateOffset(date);
+    }
+
     const idx = ((startIndex + offset) % total + total) % total;
     return { info: partChapters[idx], index: idx, total };
 }
@@ -197,7 +230,8 @@ export async function renderScriptureForDate(date) {
     }
 
     visibleParts.forEach(part => {
-        const { info, index, total } = getChapterForPart(part, calculateOffset(date));
+        const override = getPartOverride(plan.id, part.id);
+        const { info, index, total } = getChapterForPart(part, date, override);
         const verses = getVersesForChapter(info.abbr, info.chapter);
         const partEl = document.createElement('div');
         partEl.className = 'reading-part';

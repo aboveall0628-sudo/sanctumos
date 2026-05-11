@@ -67,6 +67,9 @@ const DEFAULT_PLAN_ID = 'preset-4parts';
 const DEFAULTS = {
     fontSize: 'md',                   // sm | md | lg | xl
     activePlanId: DEFAULT_PLAN_ID,
+    // Phase E-8/B-3: plan별로 파트의 시작점 override.
+    // 모양: { [planId]: { [partId]: { abbr, chapter, anchorDate } } }
+    partOverrides: {},
 };
 
 const KNOWN_PLAN_IDS = new Set(PRESETS.map(p => p.id));
@@ -88,7 +91,9 @@ function read() {
         if (!activePlanId) {
             activePlanId = matchPresetByParts(parsed.enabledParts) || DEFAULT_PLAN_ID;
         }
-        _cache = { fontSize, activePlanId };
+        const partOverrides = (parsed.partOverrides && typeof parsed.partOverrides === 'object')
+            ? parsed.partOverrides : {};
+        _cache = { fontSize, activePlanId, partOverrides };
         return _cache;
     } catch {
         _cache = { ...DEFAULTS };
@@ -141,4 +146,60 @@ export function applyFontSizeToCSS(size = null) {
     const root = document.documentElement;
     root.style.setProperty('--scripture-fs', cfg.verse + 'px');
     root.style.setProperty('--scripture-lh', String(cfg.lineHeight));
+}
+
+/**
+ * Phase E-8/B-3: 활성 plan + 특정 파트의 시작점 override 조회.
+ * 없으면 null (= 코드 기본 anchor 사용).
+ */
+export function getPartOverride(planId, partId) {
+    const { partOverrides } = read();
+    return partOverrides?.[planId]?.[partId] || null;
+}
+
+/**
+ * 시작점 override 저장. anchorDate는 생략 시 오늘로 자동.
+ *   ex) setPartOverride('preset-4parts', 1, { abbr: '시', chapter: 1 })
+ */
+export function setPartOverride(planId, partId, { abbr, chapter, anchorDate } = {}) {
+    if (!planId || !partId || !abbr || !chapter) return;
+    const cur = read();
+    const next = {
+        ...cur,
+        partOverrides: {
+            ...cur.partOverrides,
+            [planId]: {
+                ...(cur.partOverrides?.[planId] || {}),
+                [partId]: {
+                    abbr,
+                    chapter: parseInt(chapter, 10),
+                    anchorDate: anchorDate || todayLocalISO(),
+                },
+            },
+        },
+    };
+    write(next);
+}
+
+/** 해당 plan·part의 override 제거 → 코드 기본 anchor로 복귀 */
+export function clearPartOverride(planId, partId) {
+    const cur = read();
+    const planMap = cur.partOverrides?.[planId];
+    if (!planMap || !planMap[partId]) return;
+    const { [partId]: _drop, ...rest } = planMap;
+    const nextOverrides = { ...cur.partOverrides };
+    if (Object.keys(rest).length === 0) {
+        delete nextOverrides[planId];
+    } else {
+        nextOverrides[planId] = rest;
+    }
+    write({ ...cur, partOverrides: nextOverrides });
+}
+
+function todayLocalISO() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
 }

@@ -1837,6 +1837,53 @@ button .btn-icon { vertical-align: text-bottom; }
     background: var(--bg-card);
 }
 
+/* 시작점 패널 (Phase E-8/B-3) — 활성 plan의 파트별 anchor 편집 */
+.anchor-panel { display: flex; flex-direction: column; gap: var(--sp-2); }
+.anchor-row {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--bg-card); overflow: hidden;
+}
+.anchor-head {
+    display: grid;
+    grid-template-columns: 60px 1fr auto;
+    gap: var(--sp-3);
+    align-items: center;
+    padding: var(--sp-3) var(--sp-4);
+    transition: background var(--ease);
+}
+.anchor-head.open { background: var(--bg-elev); }
+.anchor-part-label {
+    font-size: 12px; font-weight: 600; color: var(--accent);
+    font-variant-numeric: tabular-nums;
+}
+.anchor-current { font-size: 13px; color: var(--text-primary); }
+.anchor-since { font-size: 11px; color: var(--text-secondary); margin-left: 4px; }
+.anchor-default { font-size: 12px; color: var(--text-secondary); font-style: italic; }
+.anchor-actions { display: flex; gap: var(--sp-2); }
+
+.anchor-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: var(--sp-3);
+    padding: var(--sp-3) var(--sp-4) var(--sp-4);
+    border-top: 1px solid var(--border);
+    background: var(--bg-elev);
+}
+.anchor-form.hidden { display: none; }
+.anchor-field { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--text-secondary); }
+.anchor-field select,
+.anchor-field input[type="number"],
+.anchor-field input[type="date"] {
+    padding: 6px 10px; font-size: 13px;
+    border: 1px solid var(--border); border-radius: 6px;
+    background: var(--bg-card); color: var(--text-primary);
+}
+.anchor-form-actions {
+    grid-column: 1 / -1;
+    display: flex; gap: var(--sp-2); justify-content: flex-end;
+    margin-top: var(--sp-1);
+}
+
 /* ═══ Sensitive mode ═══ */
 .sensitive-masked .sensitive { filter: blur(6px); cursor: pointer; transition: filter 0.2s ease; user-select: none; }
 .sensitive-masked .sensitive.revealed { filter: none; }
@@ -3131,4 +3178,67 @@ svg.person-radar { display: block; }
         width: calc(100vw - 24px);
         right: 0;
     }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   설정 카드 — 토글 스위치 · 인라인 입력
+   ═══════════════════════════════════════════════════════════════ */
+
+.settings-row {
+    display: flex; align-items: center; gap: var(--sp-4);
+    justify-content: space-between;
+}
+.settings-row-text { flex: 1; min-width: 0; }
+.settings-row-text .section-title { margin-bottom: 4px; }
+.settings-row-text .section-desc { margin: 0; }
+
+.settings-inline {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.settings-number-input {
+    width: 80px; padding: 8px 10px;
+    border: 1px solid var(--border); border-radius: 8px;
+    background: var(--bg); color: var(--text-primary);
+    font-size: 14px;
+}
+.settings-unit {
+    font-size: 13px; color: var(--text-secondary);
+}
+.settings-status {
+    font-size: 12px; color: var(--text-secondary); margin-left: 4px;
+}
+.lock-timer-inline {
+    font-variant-numeric: tabular-nums;
+    color: var(--text-primary);
+}
+
+/* iOS 스타일 토글 스위치 */
+.switch {
+    position: relative; display: inline-block;
+    width: 44px; height: 26px; flex-shrink: 0;
+}
+.switch input { opacity: 0; width: 0; height: 0; }
+.switch-slider {
+    position: absolute; inset: 0; cursor: pointer;
+    background: var(--ink-tertiary, #9A9A9F);
+    border-radius: 26px;
+    transition: background 200ms ease;
+}
+.switch-slider::before {
+    content: '';
+    position: absolute; left: 3px; top: 3px;
+    width: 20px; height: 20px; background: #fff;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    transition: transform 200ms ease;
+}
+.switch input:checked + .switch-slider {
+    background: var(--brand-primary);
+}
+.switch input:checked + .switch-slider::before {
+    transform: translateX(18px);
+}
+.switch input:focus-visible + .switch-slider {
+    outline: 2px solid var(--brand-primary);
+    outline-offset: 2px;
 }
