@@ -19,7 +19,8 @@ export async function renderDashboardView(userId) {
 
     const dek = getDEK();
     if (!dek) {
-        container.innerHTML = '<div class="empty-state" style="grid-column: 1/-1"><div class="empty-state-icon">🔒</div><h3>잠시 잠겨있어요</h3><p class="empty-state-desc">비밀번호로 열어주세요.</p></div>';
+        container.innerHTML = '<div class="empty-state" style="grid-column: 1/-1"><i class="empty-state-icon" data-lucide="lock"></i><h3>잠시 잠겨있어요</h3><p class="empty-state-desc">비밀번호로 열어주세요.</p></div>';
+        if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
         return;
     }
 
@@ -44,37 +45,37 @@ export async function renderDashboardView(userId) {
 
     container.innerHTML = `
         <div class="dash-card" style="grid-column: 1/-1">
-            <h3>🗓 주간 히트맵</h3>
+            <h3><i class="dash-icon" data-lucide="calendar-days"></i> 주간 히트맵</h3>
             <p class="dash-desc" style="margin-bottom: var(--sp-3)">지난 7일 동안 시간을 어떻게 보냈는지 색으로 보여드릴게요.</p>
             ${renderHeatmap(dots, startDate, endDate)}
         </div>
 
         <div class="dash-card">
-            <h3>🌟 이번 주 발자국</h3>
-            <div class="dash-value">${stats.doneCount + stats.partialCount}<span style="font-size:14px;color:var(--text-secondary)"> / ${stats.totalSlots}</span></div>
+            <h3><i class="dash-icon" data-lucide="footprints"></i> 이번 주 발자국</h3>
+            <div class="dash-value">${stats.doneCount + stats.partialCount}<span style="font-size:14px;color:var(--ink-secondary)"> / ${stats.totalSlots}</span></div>
             <p class="dash-desc">지난 7일 동안 남긴 시간 흔적</p>
         </div>
 
         <div class="dash-card">
-            <h3>📖 통독 진도</h3>
+            <h3><i class="dash-icon" data-lucide="book-open"></i> 통독 진도</h3>
             <div class="dash-value highlight">${bible.percent}%</div>
             <p class="dash-desc">${bible.detail}</p>
         </div>
 
         <div class="dash-card">
-            <h3>🙏 묵상 한 줄</h3>
-            <div class="dash-value">${meditationCount}<span style="font-size:14px;color:var(--text-secondary)"> / 7일</span></div>
+            <h3><i class="dash-icon" data-lucide="hand"></i> 묵상 한 줄</h3>
+            <div class="dash-value">${meditationCount}<span style="font-size:14px;color:var(--ink-secondary)"> / 7일</span></div>
             <p class="dash-desc">${meditationRate}% — 천천히 한 줄씩 이어가요</p>
         </div>
 
         <div class="dash-card">
-            <h3>💚 감사한 순간</h3>
+            <h3><i class="dash-icon" data-lucide="heart"></i> 감사한 순간</h3>
             <div class="dash-value">${stats.doneCount}</div>
             <p class="dash-desc">계획한 대로 살아낸 시간</p>
         </div>
 
         <div class="dash-card" style="grid-column: 1/-1; cursor: pointer; opacity: 0.85" id="dash-advanced-toggle">
-            <h3>📊 자세히 보기 ▾</h3>
+            <h3><i class="dash-icon" data-lucide="bar-chart-3"></i> 자세히 보기 <i data-lucide="chevron-down" class="btn-icon"></i></h3>
             <p class="dash-desc">숫자 지표는 평소엔 숨겨둬요. 비교에 휘말리지 않도록.</p>
         </div>
 
@@ -103,13 +104,17 @@ export async function renderDashboardView(userId) {
     const advanced = document.getElementById('dash-advanced');
     if (toggle && advanced) {
         toggle.addEventListener('click', () => {
-            advanced.classList.toggle('hidden');
+            const isHidden = advanced.classList.toggle('hidden');
             const h3 = toggle.querySelector('h3');
-            if (h3) h3.textContent = advanced.classList.contains('hidden')
-                ? '📊 자세히 보기 ▾'
-                : '📊 다시 닫기 ▴';
+            if (h3) {
+                h3.innerHTML = isHidden
+                    ? '<i class="dash-icon" data-lucide="bar-chart-3"></i> 자세히 보기 <i data-lucide="chevron-down" class="btn-icon"></i>'
+                    : '<i class="dash-icon" data-lucide="bar-chart-3"></i> 다시 닫기 <i data-lucide="chevron-up" class="btn-icon"></i>';
+                if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
+            }
         });
     }
+    if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
 }
 
 // ─── 주간 히트맵 (7일 × 24시간) ───

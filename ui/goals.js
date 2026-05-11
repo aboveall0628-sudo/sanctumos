@@ -10,14 +10,15 @@ import { getAllGoals, saveGoal, deleteGoal, PERIODS } from '../data/goalsRepo.js
 import { getDEK } from './lockScreen.js';
 import { showToast } from './quickReview.js';
 
+// icon 필드는 Lucide name (디자인 시스템 정합)
 const PERIOD_LABELS = {
-    'daily':     { label: '오늘',         icon: '☀️',  desc: '오늘 옮길 한 걸음' },
-    'weekly':    { label: '이번 주',       icon: '📅',  desc: '이번 주 안에 자라야 할 것' },
-    'monthly':   { label: '이번 달',       icon: '🗓',  desc: '이번 달의 흐름' },
-    'quarterly': { label: '이번 분기',      icon: '📊',  desc: '3개월 안에 도달할 곳' },
-    'yearly':    { label: '올해',         icon: '🎯',  desc: '올해 한 해의 방향' },
-    '5year':     { label: '5년 안에',      icon: '🌳',  desc: '5년 후의 모습' },
-    '10year':    { label: '10년 후',       icon: '🌌',  desc: '먼 곳에서 부르시는 모습' },
+    'daily':     { label: '오늘',         icon: 'sun',            desc: '오늘 옮길 한 걸음' },
+    'weekly':    { label: '이번 주',       icon: 'calendar',       desc: '이번 주 안에 자라야 할 것' },
+    'monthly':   { label: '이번 달',       icon: 'calendar-days',  desc: '이번 달의 흐름' },
+    'quarterly': { label: '이번 분기',      icon: 'bar-chart-3',    desc: '3개월 안에 도달할 곳' },
+    'yearly':    { label: '올해',         icon: 'target',         desc: '올해 한 해의 방향' },
+    '5year':     { label: '5년 안에',      icon: 'tree-pine',      desc: '5년 후의 모습' },
+    '10year':    { label: '10년 후',       icon: 'sparkles',       desc: '먼 곳에서 부르시는 모습' },
 };
 
 let _userId = null;
@@ -31,7 +32,8 @@ export async function renderGoalsView(userId) {
 
     const dek = getDEK();
     if (!dek) {
-        container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔒</div><h3>잠시 잠겨있어요</h3><p class="empty-state-desc">비밀번호로 열어주세요.</p></div>';
+        container.innerHTML = '<div class="empty-state"><i class="empty-state-icon" data-lucide="lock"></i><h3>잠시 잠겨있어요</h3><p class="empty-state-desc">비밀번호로 열어주세요.</p></div>';
+        if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
         return;
     }
 
@@ -56,7 +58,7 @@ function renderTabs(container) {
                 const count = _goals.filter(g => g.period === p).length;
                 return `
                     <button class="goal-tab ${p === _activeTab ? 'active' : ''}" data-period="${p}">
-                        <span class="goal-tab-icon">${meta.icon}</span>
+                        <i class="goal-tab-icon" data-lucide="${meta.icon}"></i>
                         <span class="goal-tab-label">${meta.label}</span>
                         ${count > 0 ? `<span class="goal-tab-count">${count}</span>` : ''}
                     </button>
@@ -86,7 +88,7 @@ function renderActivePanel(container) {
     let html = `
         <div class="goal-panel-header">
             <div>
-                <h2 class="goal-panel-title">${meta.icon} ${meta.label}</h2>
+                <h2 class="goal-panel-title"><i class="goal-panel-icon" data-lucide="${meta.icon}"></i> ${meta.label}</h2>
                 <p class="goal-panel-desc">${meta.desc}</p>
             </div>
             <button id="add-goal-btn" class="primary-btn">+ 새 목표 적기</button>
@@ -103,6 +105,7 @@ function renderActivePanel(container) {
 
     panel.innerHTML = html;
     bindPanelEvents(panel);
+    if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
 }
 
 function emptyStateForPeriod(period) {
@@ -117,10 +120,10 @@ function emptyStateForPeriod(period) {
     };
     return `
         <div class="empty-state" style="padding: var(--sp-5)">
-            <div class="empty-state-icon">${PERIOD_LABELS[period].icon}</div>
+            <i class="empty-state-icon" data-lucide="${PERIOD_LABELS[period].icon}"></i>
             <h3>아직 ${PERIOD_LABELS[period].label} 목표가 없어요</h3>
             <p class="empty-state-desc">${tips[period] || ''}</p>
-            <p style="margin-top:16px;font-size:12px;color:var(--text-secondary)">
+            <p style="margin-top:16px;font-size:12px;color:var(--ink-secondary)">
                 위의 [+ 새 목표 적기]를 눌러 시작해 볼까요?
             </p>
         </div>

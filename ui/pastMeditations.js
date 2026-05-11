@@ -15,7 +15,8 @@ export async function renderPastMeditationsView(userId) {
 
     const dek = getDEK();
     if (!dek) {
-        container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔒</div><h3>잠시 잠겨있어요</h3><p class="empty-state-desc">비밀번호로 열어주세요.</p></div>';
+        container.innerHTML = '<div class="empty-state"><i class="empty-state-icon" data-lucide="lock"></i><h3>잠시 잠겨있어요</h3><p class="empty-state-desc">비밀번호로 열어주세요.</p></div>';
+        if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
         return;
     }
 
@@ -39,29 +40,31 @@ export async function renderPastMeditationsView(userId) {
         console.error('past meditations load failed:', e);
         container.innerHTML = `
             <div class="empty-state">
-                <div class="empty-state-icon">😢</div>
+                <i class="empty-state-icon" data-lucide="cloud-off"></i>
                 <h3>묵상 노트를 못 가져왔어요</h3>
                 <p class="empty-state-desc">${e?.message || '잠깐 문제가 있었어요. 다시 한 번 해볼까요?'}</p>
             </div>
         `;
+        if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
         return;
     }
 
     if (docs.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
-                <div class="empty-state-icon">📜</div>
+                <i class="empty-state-icon" data-lucide="scroll-text"></i>
                 <h3>아직 적어둔 묵상이 없어요</h3>
                 <p class="empty-state-desc">
                     오늘 화면에서 말씀을 곱씹고 한 줄 적어 보세요.<br>
                     1초 뒤 자동으로 안전하게 보관돼요.
                 </p>
-                <p style="margin-top:24px;font-size:12px;color:var(--text-secondary)">
+                <p style="margin-top:24px;font-size:12px;color:var(--ink-secondary)">
                     예전에 적은 묵상이 보이지 않는다면,<br>
                     <strong>설정·보안 → 데이터 복구</strong>에서 진단해 볼까요?
                 </p>
             </div>
         `;
+        if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
         return;
     }
 
@@ -84,7 +87,7 @@ export async function renderPastMeditationsView(userId) {
     if (items.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
-                <div class="empty-state-icon">⚠️</div>
+                <i class="empty-state-icon" data-lucide="alert-triangle"></i>
                 <h3>묵상 노트를 못 열었어요</h3>
                 <p class="empty-state-desc">
                     잠금 열쇠가 맞지 않거나 데이터가 살짝 흔들린 것 같아요.<br>
@@ -92,6 +95,7 @@ export async function renderPastMeditationsView(userId) {
                 </p>
             </div>
         `;
+        if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
         return;
     }
 

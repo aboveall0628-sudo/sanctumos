@@ -166,24 +166,24 @@ function buildFallbackSections(principles, pastStats, context) {
         : '';
     return [
         {
-            icon: '📖',
+            icon: 'book-open',
             title: '관련 원칙',
             body: principles.length > 0
                 ? principles.map(p => `· ${p.title}`).join('\n')
-                : '아직 핀 원칙이 없어요. [📖 나의 원칙]에서 한 줄 적어 보세요.',
+                : '아직 핀 원칙이 없어요. [나의 원칙]에서 한 줄 적어 보세요.',
         },
         {
-            icon: '📊',
+            icon: 'bar-chart-3',
             title: '지난 패턴',
             body: `완료 ${pastStats.doneCount || 0} · 만족도 ${pastStats.avgSatisfaction || '-'}`,
         },
         {
-            icon: '⚠️',
+            icon: 'alert-triangle',
             title: '주의할 점',
             body: `비교는 거울이지 채찍이 아니에요. 한 걸음만 더.${peopleHint ? ' ' + peopleHint : ''}${orgHint}`.trim(),
         },
         {
-            icon: '🙏',
+            icon: 'hand',
             title: '묵상 점검',
             body: '이 시간이 오늘 말씀과 어떻게 이어지나요?',
         },
@@ -204,13 +204,14 @@ function buildFallbackSections(principles, pastStats, context) {
  *   ...
  *
  * 위 규약을 못 지킨 응답은 한 섹션으로 표시.
+ * icon은 Lucide name — quickReview의 briefingHtml에서 `<i data-lucide>`로 렌더됨.
  */
 function parseBriefingResponse(text) {
     const sectionMeta = [
-        { key: '관련 원칙',  icon: '📖' },
-        { key: '지난 패턴',  icon: '📊' },
-        { key: '주의할 점',  icon: '⚠️' },
-        { key: '묵상 점검',  icon: '🙏' },
+        { key: '관련 원칙',  icon: 'book-open' },
+        { key: '지난 패턴',  icon: 'bar-chart-3' },
+        { key: '주의할 점',  icon: 'alert-triangle' },
+        { key: '묵상 점검',  icon: 'hand' },
     ];
 
     const lines = String(text).split(/\r?\n/);
@@ -232,5 +233,5 @@ function parseBriefingResponse(text) {
     if (matched.length >= 2) {
         return matched.map(b => ({ icon: b.icon, title: b.key, body: b.body.trim() }));
     }
-    return [{ icon: '🌟', title: 'AI 브리핑', body: text }];
+    return [{ icon: 'sparkles', title: 'AI 브리핑', body: text }];
 }

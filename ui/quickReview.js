@@ -173,7 +173,7 @@ function renderModal() {
 
                 <!-- v3: 인물 칩 -->
                 <div class="qr-link-field">
-                    <label>👥 함께한 사람</label>
+                    <label><i class="label-icon" data-lucide="users"></i> 함께한 사람</label>
                     <div class="qr-link-add-row">
                         <input type="text" id="qr-person-input" class="qr-text-input"
                                list="qr-person-datalist"
@@ -182,12 +182,12 @@ function renderModal() {
                         <button id="qr-person-add" class="text-btn">+ 추가</button>
                     </div>
                     <div id="qr-person-chips" class="qr-chip-row"></div>
-                    <div class="qr-link-hint">아직 등록 안 된 사람이면 [👥 인물] 메뉴에서 카드부터 만들어 주세요.</div>
+                    <div class="qr-link-hint">아직 등록 안 된 사람이면 [인물] 메뉴에서 카드부터 만들어 주세요.</div>
                 </div>
 
                 <!-- v3: 조직 칩 -->
                 <div class="qr-link-field">
-                    <label>🏢 관련된 조직</label>
+                    <label><i class="label-icon" data-lucide="building-2"></i> 관련된 조직</label>
                     <div class="qr-link-add-row">
                         <input type="text" id="qr-org-input" class="qr-text-input"
                                list="qr-org-datalist"
@@ -200,7 +200,7 @@ function renderModal() {
 
                 <!-- v3: AI 브리핑 패널 -->
                 <div class="qr-briefing-field">
-                    <button id="qr-briefing-btn" class="text-btn qr-briefing-btn">🌟 AI 브리핑 보기</button>
+                    <button id="qr-briefing-btn" class="text-btn qr-briefing-btn"><i data-lucide="sparkles" class="btn-icon"></i> AI 브리핑 보기</button>
                     <div id="qr-briefing-panel" class="qr-briefing-panel hidden"></div>
                 </div>
             </div>
@@ -411,23 +411,26 @@ async function toggleBriefing() {
     // 이미 펼쳐져 있으면 접기
     if (!panel.classList.contains('hidden')) {
         panel.classList.add('hidden');
-        btn.textContent = '🌟 AI 브리핑 보기';
+        btn.innerHTML = '<i data-lucide="sparkles" class="btn-icon"></i> AI 브리핑 보기';
+        if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
         return;
     }
 
     // 이미 내용이 있으면 다시 펼치기
     if (panel.dataset.loaded === '1') {
         panel.classList.remove('hidden');
-        btn.textContent = '🌟 AI 브리핑 접기';
+        btn.innerHTML = '<i data-lucide="sparkles" class="btn-icon"></i> AI 브리핑 접기';
+        if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
         return;
     }
 
     if (_briefingLoading) return;
     _briefingLoading = true;
     btn.disabled = true;
-    btn.textContent = '🌟 불러오는 중…';
+    btn.innerHTML = '<i data-lucide="sparkles" class="btn-icon"></i> 불러오는 중…';
     panel.classList.remove('hidden');
     panel.innerHTML = '<div class="qr-briefing-loading">잠깐만요, AI 브리핑을 준비하고 있어요…</div>';
+    if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
 
     try {
         const taskText = (document.getElementById('qr-actual-input')?.value
@@ -450,29 +453,31 @@ async function toggleBriefing() {
         );
         panel.innerHTML = briefingHtml(result.sections, result.fallback);
         panel.dataset.loaded = '1';
-        btn.textContent = '🌟 AI 브리핑 접기';
+        btn.innerHTML = '<i data-lucide="sparkles" class="btn-icon"></i> AI 브리핑 접기';
     } catch (e) {
         console.warn('briefing failed:', e);
         panel.innerHTML = '<div class="qr-briefing-loading">잠깐 막혔어요. 다시 한 번 눌러 주실래요?</div>';
-        btn.textContent = '🌟 AI 브리핑 보기';
+        btn.innerHTML = '<i data-lucide="sparkles" class="btn-icon"></i> AI 브리핑 보기';
     } finally {
         _briefingLoading = false;
         btn.disabled = false;
+        if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
     }
 }
 
 function briefingHtml(sections, fallback) {
+    // s.icon은 Lucide name (aiClient에서 book-open / bar-chart-3 / alert-triangle / hand / sparkles 등)
     const items = (sections || []).map(s => `
         <div class="qr-briefing-card">
             <div class="qr-briefing-card-head">
-                <span class="qr-briefing-icon">${s.icon || '🌟'}</span>
+                <i class="qr-briefing-icon" data-lucide="${escapeAttr(s.icon || 'sparkles')}"></i>
                 <span class="qr-briefing-title">${escapeHtml(s.title || '')}</span>
             </div>
             <div class="qr-briefing-body">${escapeHtml(s.body || '').replace(/\n/g, '<br>')}</div>
         </div>
     `).join('');
     const tag = fallback
-        ? '<div class="qr-briefing-fallback-tag">⚠️ 인터넷이 멀거나 AI가 잠시 쉬는 중이에요 — 로컬 안내로 대체했어요.</div>'
+        ? '<div class="qr-briefing-fallback-tag"><i data-lucide="alert-triangle" class="btn-icon"></i> 인터넷이 멀거나 AI가 잠시 쉬는 중이에요 — 로컬 안내로 대체했어요.</div>'
         : '';
     return `${tag}<div class="qr-briefing-grid">${items}</div>`;
 }

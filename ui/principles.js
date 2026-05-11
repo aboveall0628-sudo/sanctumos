@@ -9,15 +9,16 @@ import { getPrinciples, savePrinciple, deletePrinciple } from '../data/principle
 import { getDEK } from './lockScreen.js';
 import { showToast } from './quickReview.js';
 
+// icon 필드는 Lucide name (디자인 시스템 정합)
 const CATEGORIES = [
-    { id: 'all',       label: '전체',     icon: '✨' },
-    { id: 'spiritual', label: '영적',     icon: '🙏' },
-    { id: 'relation',  label: '관계',     icon: '💞' },
-    { id: 'work',      label: '일·소명',   icon: '🛠' },
-    { id: 'money',     label: '돈',      icon: '💰' },
-    { id: 'health',    label: '건강',     icon: '🌿' },
-    { id: 'decision',  label: '의사결정',  icon: '🎯' },
-    { id: 'general',   label: '기타',     icon: '📌' },
+    { id: 'all',       label: '전체',     icon: 'sparkles' },
+    { id: 'spiritual', label: '영적',     icon: 'hand' },
+    { id: 'relation',  label: '관계',     icon: 'heart' },
+    { id: 'work',      label: '일·소명',   icon: 'briefcase' },
+    { id: 'money',     label: '돈',      icon: 'wallet' },
+    { id: 'health',    label: '건강',     icon: 'leaf' },
+    { id: 'decision',  label: '의사결정',  icon: 'target' },
+    { id: 'general',   label: '기타',     icon: 'pin' },
 ];
 
 let _userId = null;
@@ -31,7 +32,8 @@ export async function renderPrinciplesView(userId) {
 
     const dek = getDEK();
     if (!dek) {
-        container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔒</div><h3>잠시 잠겨있어요</h3><p class="empty-state-desc">비밀번호로 열어주세요.</p></div>';
+        container.innerHTML = '<div class="empty-state"><i class="empty-state-icon" data-lucide="lock"></i><h3>잠시 잠겨있어요</h3><p class="empty-state-desc">비밀번호로 열어주세요.</p></div>';
+        if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
         return;
     }
 
@@ -57,7 +59,7 @@ function renderCategoryTabs(container) {
                     : _principles.filter(p => (p.category || 'general') === c.id).length;
                 return `
                     <button class="principle-tab ${c.id === _activeCategory ? 'active' : ''}" data-cat="${c.id}">
-                        <span>${c.icon} ${c.label}</span>
+                        <span><i class="principle-tab-icon" data-lucide="${c.icon}"></i> ${c.label}</span>
                         ${count > 0 ? `<span class="principle-tab-count">${count}</span>` : ''}
                     </button>
                 `;
@@ -93,7 +95,7 @@ function renderPrinciplePanel(container) {
     if (filtered.length === 0) {
         html += `
             <div class="empty-state" style="padding: var(--sp-5)">
-                <div class="empty-state-icon">📖</div>
+                <i class="empty-state-icon" data-lucide="book-open"></i>
                 <h3>이 카테고리에 아직 원칙이 없어요</h3>
                 <p class="empty-state-desc">
                     원칙은 흔들리지 않는 약속이에요.<br>
@@ -109,6 +111,7 @@ function renderPrinciplePanel(container) {
 
     panel.innerHTML = html;
     bindPanelEvents(panel);
+    if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
 }
 
 function renderPrincipleCard(p) {
@@ -119,8 +122,8 @@ function renderPrincipleCard(p) {
                 <input type="text" class="principle-title-input" value="${escapeHtml(p.title || '')}"
                        placeholder="원칙 한 문장으로 적기" />
                 <div class="principle-actions">
-                    <button class="icon-btn pin-btn ${p.pinned ? 'active' : ''}" title="상단에 띄우기">📌</button>
-                    <button class="icon-btn delete-btn" title="지우기">🗑</button>
+                    <button class="icon-btn pin-btn ${p.pinned ? 'active' : ''}" title="상단에 띄우기" aria-label="핀"><i data-lucide="pin"></i></button>
+                    <button class="icon-btn delete-btn" title="지우기" aria-label="삭제"><i data-lucide="trash-2"></i></button>
                 </div>
             </div>
             <textarea class="principle-body-input" rows="3"
@@ -128,7 +131,7 @@ function renderPrincipleCard(p) {
             <div class="principle-card-footer">
                 <select class="principle-cat-select">
                     ${CATEGORIES.filter(c => c.id !== 'all').map(c =>
-                        `<option value="${c.id}" ${c.id === cat ? 'selected' : ''}>${c.icon} ${c.label}</option>`
+                        `<option value="${c.id}" ${c.id === cat ? 'selected' : ''}>${c.label}</option>`
                     ).join('')}
                 </select>
             </div>

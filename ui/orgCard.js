@@ -125,7 +125,7 @@ function lockedTemplate() {
     return `
         <header class="page-header"><h1><i class="page-icon" data-lucide="building-2"></i> 조직</h1></header>
         <div class="empty-state">
-            <div class="empty-state-icon">🔒</div>
+            <i class="empty-state-icon" data-lucide="lock"></i>
             <h3>잠시 잠겨있어요</h3>
             <p class="empty-state-desc">비밀번호로 열어주세요.</p>
         </div>`;
@@ -199,7 +199,7 @@ function renderGrid() {
     if (!list.length) {
         root.innerHTML = `
             <div class="empty-state">
-                <div class="empty-state-icon">🏢</div>
+                <i class="empty-state-icon" data-lucide="building-2"></i>
                 <h3>${_orgs.length === 0 ? '아직 조직 카드가 없어요' : '맞는 조직이 없어요'}</h3>
                 <p class="empty-state-desc">
                     ${_orgs.length === 0
