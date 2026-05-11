@@ -235,3 +235,146 @@ function parseBriefingResponse(text) {
     }
     return [{ icon: 'sparkles', title: 'AI 브리핑', body: text }];
 }
+
+// ═══════════════════════════════════════════════════════════════════
+//  Reports 모듈 — STEP 1.2 (2026-05-11)
+//  docs/reports-spec.md §3.1 일간 리포트 7·8섹션 (관찰 + 묵상 질문)
+//  + 1~6섹션을 묶은 ## 사실 산문
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * 일간 리포트 AI 호출
+ *
+ * dailyAggregator의 결정론적 stats를 받아 세 섹션을 산문으로 채움:
+ *   ## 사실 → aiSummary
+ *   ## 관찰 → observation (한 개)
+ *   ## 묵상에 가져갈 질문 → questionsForMeditation (1~2개)
+ *
+ * 가명화: stats 안의 인물·금액 등은 context.persons / amounts 등으로 전달.
+ * 응답의 P_001 토큰은 callLLM의 depseudonymize가 자동 역가명화.
+ *
+ * @param {Object} dailyStats - aggregateDailyStats() 출력
+ * @param {Object} context    - { persons, orgs, places, amounts } 배열
+ * @returns {Promise<{aiSummary, observation, questionsForMeditation, fallback}>}
+ */
+export async function callDailyReport(dailyStats, context = {}) {
+    const plain = {
+        stats: dailyStats,
+        context: {
+            persons: context.persons || [],
+            orgs:    context.orgs    || [],
+            places:  context.places  || [],
+            amounts: context.amounts || [],
+        },
+    };
+
+    const result = await callLLM('dailyReport', plain, {
+        deep: false,   // flash 모델 (일간은 가벼움 — spec §3.1)
+        stats: dailyStats,
+    });
+
+    if (result.fallback) {
+        return { ...buildDailyReportFallback(dailyStats), fallback: true };
+    }
+
+    const parsed = parseDailyReportResponse(result.text);
+    return { ...parsed, fallback: false };
+}
+
+/**
+ * dailyReport 응답 파서 — 세 마크다운 헤더를 섹션으로 분리
+ *
+ * 응답 규약(시스템 프롬프트가 강제):
+ *   ## 사실
+ *   ...
+ *   ## 관찰
+ *   ...
+ *   ## 묵상에 가져갈 질문
+ *   - ...
+ *   - ...
+ *
+ * 형식 위반 시 partial fallback — 못 찾은 섹션은 null로 두고,
+ * 헤더가 하나도 없으면 전체 텍스트를 aiSummary로.
+ */
+function parseDailyReportResponse(text) {
+    const result = { aiSummary: null, observation: null, questionsForMeditation: [] };
+    const headers = [
+        { keys: ['사실'],                            target: 'aiSummary' },
+        { keys: ['관찰'],                            target: 'observation' },
+        { keys: ['묵상에 가져갈 질문', '묵상 질문'],   target: 'questionsForMeditation' },
+    ];
+
+    const lines = String(text).split(/\r?\n/);
+    let currentTarget = null;
+    let buffer = [];
+
+    const flush = () => {
+        if (!currentTarget || buffer.length === 0) return;
+        const content = buffer.join('\n').trim();
+        if (currentTarget === 'questionsForMeditation') {
+            const questions = content.split(/\n/)
+                .map(l => l.replace(/^[-*•·]\s*/, '').replace(/^\d+[.)]\s*/, '').trim())
+                .filter(l => l.length > 0);
+            result.questionsForMeditation = questions.slice(0, 3);
+        } else {
+            result[currentTarget] = content;
+        }
+        buffer = [];
+    };
+
+    for (const line of lines) {
+        const m = line.match(/^#{1,3}\s*(.+?)\s*$/);
+        if (m) {
+            const headerText = m[1].trim();
+            const found = headers.find(h => h.keys.some(k => headerText.includes(k)));
+            if (found) {
+                flush();
+                currentTarget = found.target;
+                continue;
+            }
+        }
+        if (currentTarget) buffer.push(line);
+    }
+    flush();
+
+    // 헤더 하나도 못 찾으면 전체를 aiSummary로
+    if (!result.aiSummary && !result.observation && result.questionsForMeditation.length === 0) {
+        result.aiSummary = String(text).trim();
+    }
+
+    return result;
+}
+
+/**
+ * llmProxy 미배포·실패 시 fallback — stats만으로 만들 수 있는 최소 진단
+ *
+ * AI 없을 때도 사용자가 빈 리포트 안 보도록 stats를 산문으로 한 줄씩.
+ * 톤 가이드 준수: 처방·영적 정량화·부재 명시 0건.
+ */
+function buildDailyReportFallback(stats) {
+    const ds    = stats.dotStats || {};
+    const sat   = stats.satisfactionDistribution || {};
+    const align = stats.alignment || {};
+
+    const parts = [];
+    if (ds.totalDots > 0) {
+        parts.push(
+            `오늘 ${ds.totalDots}개의 도트가 있었습니다. ` +
+            `완료 ${ds.doneCount}, 부분 ${ds.partialCount}, ` +
+            `건너뜀 ${ds.skippedCount}, 대체 ${ds.replacedCount}.`
+        );
+    }
+    if (sat.avg !== null && sat.avg !== undefined) {
+        parts.push(`실행 만족도 평균이 ${sat.avg}로 관찰되었습니다.`);
+    }
+    if (align.decisionExecutionRate !== null) {
+        const pct = Math.round(align.decisionExecutionRate * 100);
+        parts.push(`결단 실행률은 ${pct}%로 관찰되었습니다.`);
+    }
+
+    return {
+        aiSummary: parts.join(' ') || '오늘은 기록된 도트가 거의 없었습니다.',
+        observation: null,
+        questionsForMeditation: ['오늘의 시간이 어떻게 느껴지셨습니까?'],
+    };
+}
