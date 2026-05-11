@@ -138,6 +138,32 @@ function calculateOffset(date) {
 }
 
 /**
+ * Phase E-8/B-2: PRESET / user plan을 같은 모양의 partLike[] 로 정규화.
+ * partLike = { id, name, books: [[abbr, full, chapters], ...] }
+ * - PRESET: plan.parts(number[])를 BIBLE_METADATA.parts에서 매핑
+ * - user:   plan.books를 그대로 묶어 단일 파트 (id = plan.id + '/p1')
+ */
+export function resolvePlanParts(plan) {
+    if (!plan) return [];
+    // user plan 식별: parts 없고 books가 있음
+    if (Array.isArray(plan.books) && !Array.isArray(plan.parts)) {
+        return [{
+            id: plan.id + '/p1',
+            name: plan.name,
+            books: plan.books,
+        }];
+    }
+    // PRESET
+    if (!Array.isArray(plan.parts)) return [];
+    return plan.parts
+        .map(pid => {
+            const p = BIBLE_METADATA.parts.find(x => x.id === pid);
+            return p ? { id: p.id, name: p.name, books: p.books } : null;
+        })
+        .filter(Boolean);
+}
+
+/**
  * 파트의 펼쳐진 (책, 장) 시퀀스 반환 — 매 호출마다 계산하지만 4파트라 가벼움.
  */
 function flattenPartChapters(part) {
@@ -218,7 +244,7 @@ export async function renderScriptureForDate(date) {
     container.innerHTML = '';
 
     const plan = getActivePlan();
-    const visibleParts = BIBLE_METADATA.parts.filter(p => plan.parts.includes(p.id));
+    const visibleParts = resolvePlanParts(plan);
 
     if (visibleParts.length === 0) {
         container.innerHTML = `

@@ -18,13 +18,14 @@ import { getAllDecisions, deleteDecision } from '../data/decisionsRepo.js';
 import { deleteCalendarEventById } from './app.js';
 // 자동 잠금 분 단위 영속화
 import { getSavedTimeoutMinutes, saveTimeoutMinutes } from '../security/autoLock.js';
-// Phase E-8/A·B-1·B-3: 말씀 본문 표시 설정 (폰트 크기, 묵상 계획 프리셋, 시작점 override)
+// Phase E-8/A·B-1·B-2·B-3: 말씀 본문 표시 설정 (폰트 크기, 계획 프리셋, 시작점, 내 계획)
 import {
     getScriptureSettings, getActivePlan, setFontSize, setActivePlanId,
     getPartOverride, setPartOverride, clearPartOverride,
+    getUserPlans, addUserPlan, deleteUserPlan,
     FONT_SIZES, PRESETS, applyFontSizeToCSS,
 } from './scriptureSettings.js';
-import { BIBLE_METADATA } from './scripture.js';
+import { BIBLE_METADATA, resolvePlanParts } from './scripture.js';
 
 let _userId = null;
 let _userEmail = null;
@@ -482,6 +483,40 @@ function renderScriptureSettingsHTML() {
         `;
     }).join('');
 
+    // user plan 라디오 (Phase E-8/B-2)
+    const userPlans = getUserPlans();
+    const userPlanOptions = userPlans.map(plan => {
+        const chips = plan.books.slice(0, 4).map(([, full]) =>
+            `<span class="plan-chip">${full}</span>`).join('');
+        const moreChip = plan.books.length > 4
+            ? `<span class="plan-chip">+${plan.books.length - 4}권</span>` : '';
+        return `
+            <label class="plan-option plan-option--user" data-plan="${plan.id}">
+                <input type="radio" name="scripture-plan" value="${plan.id}" ${cur.activePlanId === plan.id ? 'checked' : ''}>
+                <span class="plan-body">
+                    <span class="plan-title">${escapeAttr(plan.name)}</span>
+                    <span class="plan-desc">내가 만든 계획 · ${plan.createdAt || ''}부터</span>
+                    <span class="plan-chips">${chips}${moreChip}</span>
+                </span>
+                <button class="plan-delete-btn" type="button" data-plan="${plan.id}"
+                        aria-label="이 계획 삭제" title="삭제">
+                    <i data-lucide="x"></i>
+                </button>
+            </label>
+        `;
+    }).join('');
+    const userPlanSection = `
+        <div class="plan-user-header">
+            <span class="plan-user-title">내가 만든 계획</span>
+            <button id="scripture-plan-add-btn" class="text-btn" type="button">+ 새로 만들기</button>
+        </div>
+        <div class="plan-list plan-list--user" id="scripture-userplan-list">
+            ${userPlans.length === 0
+                ? '<p class="setting-hint" style="padding: var(--sp-2) 0;">아직 만든 계획이 없어요. "새로 만들기"로 시작해 보세요.</p>'
+                : userPlanOptions}
+        </div>
+    `;
+
     return `
         <h3 class="section-title"><i class="section-icon" data-lucide="book-marked"></i> 말씀 본문</h3>
         <p class="section-desc">오늘 화면에 어떤 본문을, 어떤 크기로 보여줄지 골라요. 바꾸면 바로 반영돼요.</p>
@@ -493,8 +528,9 @@ function renderScriptureSettingsHTML() {
 
         <div class="setting-block" style="margin-top: var(--sp-4);">
             <div class="setting-label">묵상 계획</div>
-            <p class="setting-hint">미리 만들어 둔 계획 중에서 골라요. 다음 단계에서 "내가 직접 만들기"도 열릴 예정이에요.</p>
+            <p class="setting-hint">미리 만들어 둔 6종 중에 고르거나, 아래에서 내 계획을 직접 만들어요.</p>
             <div class="plan-list" id="scripture-plan-list">${planOptions}</div>
+            ${userPlanSection}
         </div>
 
         <div class="setting-block" style="margin-top: var(--sp-4);">
@@ -513,11 +549,12 @@ function renderAnchorPanel() {
     const panel = document.getElementById('scripture-anchor-panel');
     if (!panel) return;
     const plan = getActivePlan();
+    const parts = resolvePlanParts(plan); // PRESET / user plan 정규화
     const today = todayLocalISOForUI();
 
-    const rows = plan.parts.map(partId => {
-        const part = BIBLE_METADATA.parts.find(p => p.id === partId);
-        if (!part) return '';
+    const isUserPlan = typeof plan.id === 'string' && plan.id.startsWith('user-');
+    const rows = parts.map(part => {
+        const partId = part.id;            // number(PRESET) 또는 string(user)
         const override = getPartOverride(plan.id, partId);
         const cur = override
             ? findBookFull(part, override.abbr) + ' ' + override.chapter + '장'
@@ -529,15 +566,18 @@ function renderAnchorPanel() {
             <option value="${abbr}" ${abbr === initialAbbr ? 'selected' : ''}>${full}</option>
         `).join('');
         const maxCh = chaptersOf(part, initialAbbr);
+        const label = part.name && part.name.includes('파트')
+            ? part.name.replace('파트', 'P')
+            : '내 계획';
 
         return `
             <div class="anchor-row" data-part="${partId}">
                 <div class="anchor-head">
-                    <span class="anchor-part-label">${part.name.replace('파트', 'P')}</span>
+                    <span class="anchor-part-label">${label}</span>
                     <span class="anchor-current">${cur}</span>
                     <div class="anchor-actions">
                         <button class="text-btn anchor-edit-btn" type="button">변경</button>
-                        ${override ? '<button class="text-btn anchor-reset-btn" type="button">기본값</button>' : ''}
+                        ${override && !isUserPlan ? '<button class="text-btn anchor-reset-btn" type="button">기본값</button>' : ''}
                     </div>
                 </div>
                 <div class="anchor-form hidden">
@@ -563,7 +603,7 @@ function renderAnchorPanel() {
     }).join('');
 
     panel.innerHTML = rows || '<p class="setting-hint">표시할 파트가 없어요.</p>';
-    bindAnchorRowEvents(panel, plan.id);
+    bindAnchorRowEvents(panel, plan, parts);
     if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
 }
 
@@ -585,11 +625,14 @@ function todayLocalISOForUI() {
     return `${y}-${m}-${day}`;
 }
 
-function bindAnchorRowEvents(panel, planId) {
+function bindAnchorRowEvents(panel, plan, parts) {
+    const planId = plan.id;
     panel.querySelectorAll('.anchor-row').forEach(row => {
-        const partId = parseInt(row.dataset.part, 10);
-        const part = BIBLE_METADATA.parts.find(p => p.id === partId);
+        // data-part는 number 또는 string. 비교는 String으로 통일.
+        const partKey = row.dataset.part;
+        const part = parts.find(p => String(p.id) === partKey);
         if (!part) return;
+        const partId = part.id;
 
         const form = row.querySelector('.anchor-form');
         const head = row.querySelector('.anchor-head');
@@ -655,7 +698,142 @@ function bindScriptureSettingsEvents() {
         });
     });
 
+    // Phase E-8/B-2: 새 계획 만들기 버튼
+    const addBtn = document.getElementById('scripture-plan-add-btn');
+    if (addBtn) {
+        addBtn.addEventListener('click', openNewPlanModal);
+    }
+
+    // user plan 삭제 버튼 — 라벨 클릭과 분리 (stopPropagation)
+    document.querySelectorAll('.plan-delete-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const planId = btn.dataset.plan;
+            const userPlan = getUserPlans().find(p => p.id === planId);
+            if (!userPlan) return;
+            if (!confirm(`"${userPlan.name}" 계획을 지울게요. 본문은 그대로지만 이 계획은 사라져요.\n계속할까요?`)) return;
+            deleteUserPlan(planId);
+            // 전체 말씀 본문 카드를 다시 그려서 라디오/패널 갱신
+            refreshScriptureCard();
+        });
+    });
+
     // 시작점 패널 초기 렌더
     renderAnchorPanel();
+}
+
+function escapeAttr(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+}
+
+/** 말씀 본문 카드를 통째로 다시 그림 (plan 추가/삭제 후 라디오 갱신용). */
+function refreshScriptureCard() {
+    const card = document.getElementById('settings-scripture-card');
+    if (!card) return;
+    card.innerHTML = renderScriptureSettingsHTML();
+    bindScriptureSettingsEvents();
+    if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
+}
+
+/**
+ * Phase E-8/B-2: "새 묵상 계획 만들기" 모달.
+ * 이름 입력 + 책 자유 선택(4파트 그룹). 1권 이상 선택 + 이름 있으면 [만들기] 활성.
+ * 만들면 그 계획으로 자동 활성화되고 카드 다시 그림.
+ */
+function openNewPlanModal() {
+    // 이미 열려있으면 무시
+    if (document.getElementById('new-plan-modal')) return;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'new-plan-modal';
+    overlay.className = 'modal-overlay';
+
+    const bookGroups = BIBLE_METADATA.parts.map(part => {
+        const items = part.books.map(([abbr, full]) => `
+            <label class="newplan-book">
+                <input type="checkbox" name="newplan-book" value="${abbr}" data-full="${escapeAttr(full)}" data-chapters="${part.books.find(b => b[0] === abbr)[2]}">
+                <span>${full}</span>
+            </label>
+        `).join('');
+        return `
+            <div class="newplan-group">
+                <div class="newplan-group-title">${part.name.replace('파트', 'P')} <span class="newplan-group-desc">${part.desc}</span></div>
+                <div class="newplan-group-books">${items}</div>
+            </div>
+        `;
+    }).join('');
+
+    overlay.innerHTML = `
+        <div class="modal-box modal-box--wide" role="dialog" aria-label="새 묵상 계획 만들기">
+            <div class="modal-head">
+                <h3>새 묵상 계획 만들기</h3>
+                <button class="modal-close-btn" type="button" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body">
+                <label class="newplan-field">
+                    <span>이름</span>
+                    <input id="newplan-name" type="text" maxlength="40"
+                           placeholder="예: 시편만 1년, 복음서 묵상, 욥기·전도서…">
+                </label>
+                <div class="newplan-field">
+                    <span>책 (1권 이상)</span>
+                    <p class="setting-hint" style="margin: 4px 0 var(--sp-2);">고른 책을 처음부터 한 장씩, 매일 한 장 진행해요. 시작일은 오늘로 자동 설정돼요. 나중에 "시작점"에서 바꿀 수 있어요.</p>
+                    <div id="newplan-books" class="newplan-books">${bookGroups}</div>
+                </div>
+                <div class="newplan-summary">
+                    <span id="newplan-count">0권 선택</span>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button class="text-btn modal-cancel-btn" type="button">취소</button>
+                <button id="newplan-create-btn" class="primary-btn" type="button" disabled>만들기</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
+
+    const nameInp = overlay.querySelector('#newplan-name');
+    const countEl = overlay.querySelector('#newplan-count');
+    const createBtn = overlay.querySelector('#newplan-create-btn');
+
+    const refreshState = () => {
+        const checked = overlay.querySelectorAll('input[name="newplan-book"]:checked');
+        countEl.textContent = `${checked.length}권 선택`;
+        const ready = checked.length > 0 && nameInp.value.trim().length > 0;
+        createBtn.disabled = !ready;
+    };
+    overlay.addEventListener('change', (e) => {
+        if (e.target?.name === 'newplan-book') refreshState();
+    });
+    nameInp.addEventListener('input', refreshState);
+
+    // 닫기
+    const close = () => overlay.remove();
+    overlay.querySelector('.modal-close-btn').addEventListener('click', close);
+    overlay.querySelector('.modal-cancel-btn').addEventListener('click', close);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+    // 만들기 — 체크된 책들을 [abbr, full, chapters] 튜플로 모아 addUserPlan
+    createBtn.addEventListener('click', () => {
+        const checked = [...overlay.querySelectorAll('input[name="newplan-book"]:checked')];
+        if (checked.length === 0) return;
+        // 원래 4파트 순서를 유지하려면 BIBLE_METADATA 순서대로 모음
+        const checkedSet = new Set(checked.map(c => c.value));
+        const books = [];
+        BIBLE_METADATA.parts.forEach(part => {
+            part.books.forEach(([abbr, full, chapters]) => {
+                if (checkedSet.has(abbr)) books.push([abbr, full, chapters]);
+            });
+        });
+        const plan = addUserPlan({ name: nameInp.value, books });
+        close();
+        if (plan) refreshScriptureCard();
+    });
+
+    setTimeout(() => nameInp.focus(), 50);
 }
 

@@ -9,6 +9,7 @@
  */
 
 const KEY = 'sanctum.scriptureSettings.v1';
+const USER_PLANS_KEY = 'sanctum.userPlans.v1';
 
 /** 폰트 크기 단계 — verse-text 폰트 크기(px)에 그대로 매핑 */
 export const FONT_SIZES = {
@@ -72,7 +73,7 @@ const DEFAULTS = {
     partOverrides: {},
 };
 
-const KNOWN_PLAN_IDS = new Set(PRESETS.map(p => p.id));
+const PRESET_IDS = new Set(PRESETS.map(p => p.id));
 
 let _cache = null;
 
@@ -86,7 +87,14 @@ function read() {
         }
         const parsed = JSON.parse(raw);
         const fontSize = FONT_SIZES[parsed.fontSize] ? parsed.fontSize : DEFAULTS.fontSize;
-        let activePlanId = KNOWN_PLAN_IDS.has(parsed.activePlanId) ? parsed.activePlanId : null;
+        // PRESET id 또는 저장된 user plan id (user-*)면 모두 유효
+        let activePlanId = null;
+        if (PRESET_IDS.has(parsed.activePlanId)) {
+            activePlanId = parsed.activePlanId;
+        } else if (typeof parsed.activePlanId === 'string' && parsed.activePlanId.startsWith('user-')) {
+            const exists = getUserPlans().some(p => p.id === parsed.activePlanId);
+            if (exists) activePlanId = parsed.activePlanId;
+        }
         // v1 호환: enabledParts만 있던 시점 → 매칭되는 프리셋으로 자동 변환
         if (!activePlanId) {
             activePlanId = matchPresetByParts(parsed.enabledParts) || DEFAULT_PLAN_ID;
@@ -119,15 +127,87 @@ export function getScriptureSettings() {
     return { ...read() };
 }
 
-/** 현재 활성 묵상 계획 객체 (프리셋 본체) */
+/**
+ * 현재 활성 묵상 계획 (원본 형태, 정규화 전).
+ * - PRESET 형태: { id, name, desc, parts: number[] }   (parts = BIBLE_METADATA.parts.id 배열)
+ * - user 형태:   { id, name, books: [[abbr,full,chapters], ...], createdAt }
+ *
+ * scripture.js가 둘을 같은 모양으로 정규화해 사용함.
+ */
 export function getActivePlan() {
     const { activePlanId } = read();
-    return PRESETS.find(p => p.id === activePlanId) || PRESETS[0];
+    if (PRESET_IDS.has(activePlanId)) {
+        return PRESETS.find(p => p.id === activePlanId);
+    }
+    const userPlan = getUserPlans().find(p => p.id === activePlanId);
+    return userPlan || PRESETS[0];
 }
 
 export function setActivePlanId(planId) {
-    if (!KNOWN_PLAN_IDS.has(planId)) return;
+    const isPreset = PRESET_IDS.has(planId);
+    const isUser = typeof planId === 'string' && planId.startsWith('user-')
+        && getUserPlans().some(p => p.id === planId);
+    if (!isPreset && !isUser) return;
     write({ ...read(), activePlanId: planId });
+}
+
+/**
+ * Phase E-8/B-2: 사용자가 직접 만든 묵상 계획 목록.
+ * 저장 형식: [{ id: 'user-<ts>', name, books: [[abbr, full, chapters], ...], createdAt }]
+ */
+export function getUserPlans() {
+    try {
+        const raw = localStorage.getItem(USER_PLANS_KEY);
+        if (!raw) return [];
+        const arr = JSON.parse(raw);
+        return Array.isArray(arr) ? arr : [];
+    } catch { return []; }
+}
+
+/** 모든 활성 가능한 plan (preset + user). 정규화 전, 원본 형태. */
+export function listAllPlans() {
+    return [...PRESETS, ...getUserPlans()];
+}
+
+/**
+ * 새 user plan 저장 + 활성화 + 초기 시작점(첫 책 1장 / 오늘) 박기.
+ * books가 비어 있거나 이름이 빈 문자열이면 null 반환.
+ */
+export function addUserPlan({ name, books }) {
+    if (!name || !String(name).trim()) return null;
+    if (!Array.isArray(books) || books.length === 0) return null;
+    const id = 'user-' + Date.now();
+    const plan = {
+        id,
+        name: String(name).trim(),
+        books,
+        createdAt: todayLocalISO(),
+    };
+    const userPlans = getUserPlans();
+    userPlans.push(plan);
+    try { localStorage.setItem(USER_PLANS_KEY, JSON.stringify(userPlans)); } catch {}
+    // 초기 시작점 박기 — 첫 책 1장 / 오늘
+    const cur = read();
+    const today = todayLocalISO();
+    const partId = id + '/p1';
+    const nextOverrides = {
+        ...cur.partOverrides,
+        [id]: { [partId]: { abbr: books[0][0], chapter: 1, anchorDate: today } },
+    };
+    write({ ...cur, activePlanId: id, partOverrides: nextOverrides });
+    return plan;
+}
+
+/** user plan 삭제. 활성이면 기본 plan으로 되돌림. partOverrides도 함께 청소. */
+export function deleteUserPlan(planId) {
+    if (typeof planId !== 'string' || !planId.startsWith('user-')) return;
+    const userPlans = getUserPlans().filter(p => p.id !== planId);
+    try { localStorage.setItem(USER_PLANS_KEY, JSON.stringify(userPlans)); } catch {}
+    const cur = read();
+    const nextOverrides = { ...cur.partOverrides };
+    delete nextOverrides[planId];
+    const nextActive = cur.activePlanId === planId ? DEFAULT_PLAN_ID : cur.activePlanId;
+    write({ ...cur, activePlanId: nextActive, partOverrides: nextOverrides });
 }
 
 export function setFontSize(size) {

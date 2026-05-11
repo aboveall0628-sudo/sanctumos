@@ -1869,6 +1869,129 @@ button .btn-icon { vertical-align: text-bottom; }
     background: var(--bg-card);
 }
 
+/* user plan 카드 (Phase E-8/B-2) */
+.plan-user-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin: var(--sp-3) 0 var(--sp-2);
+    padding-top: var(--sp-3);
+    border-top: 1px dashed var(--border);
+}
+.plan-user-title {
+    font-size: 12px; font-weight: 600; color: var(--text-secondary);
+    text-transform: uppercase; letter-spacing: 0.04em;
+}
+.plan-list--user { gap: var(--sp-2); }
+.plan-option--user { position: relative; padding-right: 44px; }
+.plan-delete-btn {
+    position: absolute; top: 8px; right: 8px;
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid transparent; border-radius: 6px;
+    background: transparent; cursor: pointer;
+    color: var(--text-secondary);
+    transition: all var(--ease);
+}
+.plan-delete-btn:hover {
+    color: var(--dot-red);
+    border-color: var(--dot-red);
+    background: var(--bg-card);
+}
+.plan-delete-btn i { width: 14px; height: 14px; }
+
+/* 새 계획 만들기 모달 (head/body/foot 패턴, 재사용 가능) */
+.modal-box {
+    background: var(--bg-card); border-radius: var(--radius-lg);
+    width: 90%; max-width: 520px; max-height: 90vh;
+    display: flex; flex-direction: column;
+    box-shadow: var(--shadow-lg);
+    color: var(--text-primary);
+    overflow: hidden;
+}
+.modal-box--wide { max-width: 720px; }
+.modal-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: var(--sp-4) var(--sp-5);
+    border-bottom: 1px solid var(--border);
+}
+.modal-head h3 { font-size: var(--fs-modal); font-weight: 600; margin: 0; }
+.modal-close-btn {
+    width: 32px; height: 32px;
+    font-size: 22px; line-height: 1;
+    background: transparent; border: none; cursor: pointer;
+    color: var(--text-secondary);
+    border-radius: 6px;
+}
+.modal-close-btn:hover { background: var(--bg-elev); color: var(--text-primary); }
+.modal-body {
+    padding: var(--sp-4) var(--sp-5);
+    overflow-y: auto;
+    flex: 1 1 auto;
+}
+.modal-foot {
+    display: flex; gap: var(--sp-2); justify-content: flex-end;
+    padding: var(--sp-3) var(--sp-5);
+    border-top: 1px solid var(--border);
+    background: var(--bg-elev);
+}
+
+/* 새 계획 모달 안의 입력 */
+.newplan-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: var(--sp-4); }
+.newplan-field > span {
+    font-size: 12px; font-weight: 600; color: var(--text-primary);
+}
+.newplan-field input[type="text"] {
+    padding: 10px 12px; font-size: 14px;
+    border: 1px solid var(--border); border-radius: 8px;
+    background: var(--bg); color: var(--text-primary);
+}
+.newplan-field input[type="text"]:focus { outline: none; border-color: var(--accent); }
+
+.newplan-books {
+    border: 1px solid var(--border); border-radius: 8px;
+    background: var(--bg);
+    max-height: 360px; overflow-y: auto;
+    padding: var(--sp-2);
+}
+.newplan-group { margin-bottom: var(--sp-3); }
+.newplan-group:last-child { margin-bottom: 0; }
+.newplan-group-title {
+    font-size: 11px; font-weight: 600; color: var(--accent);
+    text-transform: uppercase; letter-spacing: 0.04em;
+    padding: 4px 8px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 6px;
+}
+.newplan-group-desc {
+    font-size: 11px; font-weight: 400; color: var(--text-secondary);
+    text-transform: none; letter-spacing: 0;
+    margin-left: 6px;
+}
+.newplan-group-books {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 4px;
+    padding: 4px;
+}
+.newplan-book {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: 12.5px;
+    cursor: pointer;
+    transition: background var(--ease);
+}
+.newplan-book:hover { background: var(--bg-elev); }
+.newplan-book input { accent-color: var(--accent); cursor: pointer; }
+.newplan-book:has(input:checked) {
+    background: var(--accent-soft); color: var(--accent); font-weight: 600;
+}
+
+.newplan-summary {
+    margin-top: var(--sp-2);
+    font-size: 12px; color: var(--text-secondary);
+    text-align: right;
+}
+
 /* 시작점 패널 (Phase E-8/B-3) — 활성 plan의 파트별 anchor 편집 */
 .anchor-panel { display: flex; flex-direction: column; gap: var(--sp-2); }
 .anchor-row {
@@ -2181,6 +2304,46 @@ button .btn-icon { vertical-align: text-bottom; }
 .footprint-cell-label {
     font-size: 10px; color: var(--text-secondary);
     font-weight: 600; letter-spacing: 0.02em;
+}
+
+/* 조용한 함께한 흔적 (22번 재설계) — 큰 4분할 그리드 대신 한 줄 요약 + details 펼치기 */
+.footprint-quiet {
+    background: var(--bg-elev, var(--surface-elevated));
+    border: 1px solid var(--border, var(--line));
+    border-radius: 10px;
+    padding: 12px 14px;
+}
+.footprint-quiet .org-layer-title { margin: 0 0 4px 0; }
+.footprint-summary {
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 12px; flex-wrap: wrap;
+}
+.footprint-summary-stats {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 13px; color: var(--text-secondary);
+    flex-wrap: wrap;
+}
+.footprint-stat { display: inline-flex; align-items: baseline; gap: 4px; }
+.footprint-stat-num { font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.footprint-stat-unit { font-size: 12px; color: var(--text-secondary); }
+.footprint-stat-divider { color: var(--text-tertiary, var(--ink-tertiary)); }
+.footprint-trend-line {
+    font-size: 12px; color: var(--text-secondary);
+    margin: 6px 0 0; line-height: 1.4;
+    word-break: keep-all;
+}
+.footprint-recent-details { margin-top: 8px; }
+.footprint-recent-details > summary {
+    cursor: pointer; font-size: 12px; color: var(--text-secondary);
+    padding: 6px 0; list-style: none;
+}
+.footprint-recent-details > summary::-webkit-details-marker { display: none; }
+.footprint-recent-details > summary::before {
+    content: '▸ '; transition: transform 160ms ease;
+    display: inline-block;
+}
+.footprint-recent-details[open] > summary::before {
+    content: '▾ ';
 }
 .footprint-cell-value {
     font-size: 18px; font-weight: 600; color: var(--text-primary);
@@ -2635,9 +2798,10 @@ svg.person-radar { display: block; }
 }
 .org-modal-close:hover { background: var(--hover); color: var(--text-primary); }
 .org-modal-body {
-    display: grid; grid-template-columns: 240px 1fr; gap: var(--sp-5);
-    padding: var(--sp-5); overflow-y: auto;
+    display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: var(--sp-5);
+    padding: var(--sp-5); overflow-y: auto; overflow-x: hidden;
 }
+.org-modal-body > * { min-width: 0; }
 
 /* 좌측 패널 */
 .org-detail-left {
@@ -2743,6 +2907,8 @@ svg.person-radar { display: block; }
 .member-add-row {
     display: grid; grid-template-columns: 1fr auto;
     gap: var(--sp-2); margin-bottom: var(--sp-3);
+    position: relative;
+    align-items: stretch;
 }
 .member-add-row input {
     padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px;
@@ -2750,6 +2916,24 @@ svg.person-radar { display: block; }
 }
 .member-add-row input:focus {
     outline: 2px solid var(--accent-soft); border-color: var(--accent);
+}
+.member-add-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 0 14px;
+    font-size: 13px; font-weight: 500;
+    white-space: nowrap;
+}
+.member-add-btn .btn-icon { width: 14px; height: 14px; }
+
+/* 조직 종류 선택 옆 가이드 한 줄 (23번) */
+.org-type-guide {
+    font-size: 11px; color: var(--text-secondary, var(--ink-secondary));
+    margin: 6px 0 0; padding-left: 108px; /* org-row의 label width(100)+gap에 정렬 */
+    line-height: 1.4;
+    word-break: keep-all;
+}
+@media (max-width: 640px) {
+    .org-type-guide { padding-left: 0; }
 }
 .member-list {
     display: flex; gap: var(--sp-2); flex-wrap: wrap;
