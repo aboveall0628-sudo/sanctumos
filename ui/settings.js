@@ -16,6 +16,11 @@ import { validatePassword, firstError, bindPolicyHint, POLICY_VERSION } from '..
 // Phase B-3: 예전 결단 정리용
 import { getAllDecisions, deleteDecision } from '../data/decisionsRepo.js';
 import { deleteCalendarEventById } from './app.js';
+// Phase E-8/A: 말씀 본문 표시 설정 (폰트 크기, 파트 on/off)
+import {
+    getScriptureSettings, setFontSize, setEnabledParts, FONT_SIZES, applyFontSizeToCSS,
+} from './scriptureSettings.js';
+import { BIBLE_METADATA } from './scripture.js';
 
 let _userId = null;
 let _userEmail = null;
@@ -56,6 +61,13 @@ function injectExtraSections() {
         `;
         diagBox.parentNode.insertBefore(idRow, diagBox.nextSibling);
     }
+
+    // 말씀 본문 카드 (Phase E-8/A) — 폰트 크기 + 표시할 파트 on/off
+    const scriptureCard = document.createElement('div');
+    scriptureCard.id = 'settings-scripture-card';
+    scriptureCard.className = 'card-section';
+    scriptureCard.innerHTML = renderScriptureSettingsHTML();
+    container.appendChild(scriptureCard);
 
     // 비밀번호 변경 카드
     const pwCard = document.createElement('div');
@@ -406,4 +418,85 @@ function bindEvents() {
         btnScan.disabled = false;
         await logAuditAction(_userId, 'decisions_cleanup', { total, calOk, calFail, docOk, docFail });
     };
+
+    // ─── Phase E-8/A: 말씀 본문 설정 (폰트/파트) ───
+    bindScriptureSettingsEvents();
 }
+
+/**
+ * 말씀 본문 카드 HTML — 폰트 크기 라디오 + 4파트 체크박스.
+ * 다음 단계(번역본/시작점/자유 선택)도 같은 카드에 점진적으로 들어옴.
+ */
+function renderScriptureSettingsHTML() {
+    const cur = getScriptureSettings();
+    const fontOptions = Object.entries(FONT_SIZES).map(([key, cfg]) => `
+        <label class="seg-option">
+            <input type="radio" name="scripture-font" value="${key}" ${cur.fontSize === key ? 'checked' : ''}>
+            <span style="font-size:${cfg.verse}px; line-height:1.2;">가</span>
+            <span class="seg-option-label">${cfg.label}</span>
+        </label>
+    `).join('');
+
+    const partOptions = BIBLE_METADATA.parts.map(p => `
+        <label class="part-check">
+            <input type="checkbox" name="scripture-part" value="${p.id}" ${cur.enabledParts.includes(p.id) ? 'checked' : ''}>
+            <span class="part-check-body">
+                <span class="part-check-title">${p.name}</span>
+                <span class="part-check-desc">${p.desc}</span>
+            </span>
+        </label>
+    `).join('');
+
+    return `
+        <h3 class="section-title"><i class="section-icon" data-lucide="book-marked"></i> 말씀 본문</h3>
+        <p class="section-desc">오늘 화면에서 보일 말씀의 크기와 파트를 조절할 수 있어요. 바꾸면 바로 반영돼요.</p>
+
+        <div class="setting-block">
+            <div class="setting-label">글자 크기</div>
+            <div class="seg-row" id="scripture-font-row">${fontOptions}</div>
+        </div>
+
+        <div class="setting-block" style="margin-top: var(--sp-4);">
+            <div class="setting-label">표시할 파트</div>
+            <p class="setting-hint">하나만 켜면 그 파트만 묵상해요. 모두 켜면 1년 4파트 동시 통독이에요.</p>
+            <div class="part-check-list" id="scripture-part-list">${partOptions}</div>
+            <div id="scripture-part-warn" class="setting-warn" style="display:none;">
+                최소 한 파트는 켜져 있어야 해요.
+            </div>
+        </div>
+    `;
+}
+
+function bindScriptureSettingsEvents() {
+    // 폰트 크기 — 라디오 변경 시 즉시 저장 + CSS 변수 갱신 + (오늘 화면 보이는 중이면) 재렌더는
+    // scripture.js가 settings-changed 이벤트로 처리.
+    document.querySelectorAll('input[name="scripture-font"]').forEach(r => {
+        r.addEventListener('change', (e) => {
+            const v = e.target.value;
+            setFontSize(v);
+            applyFontSizeToCSS(v);
+        });
+    });
+
+    // 파트 체크박스 — 0개 방지, 변경 시 저장
+    const list = document.getElementById('scripture-part-list');
+    const warn = document.getElementById('scripture-part-warn');
+    if (list) {
+        list.addEventListener('change', () => {
+            const checked = [...list.querySelectorAll('input[name="scripture-part"]:checked')]
+                .map(el => parseInt(el.value, 10));
+            if (checked.length === 0) {
+                if (warn) warn.style.display = 'block';
+                // 마지막 한 개를 끄려 한 경우 — 가장 작은 파트 id를 다시 켬
+                const minP = Math.min(...BIBLE_METADATA.parts.map(p => p.id));
+                const fallback = list.querySelector(`input[name="scripture-part"][value="${minP}"]`);
+                if (fallback) fallback.checked = true;
+                setEnabledParts([minP]);
+                return;
+            }
+            if (warn) warn.style.display = 'none';
+            setEnabledParts(checked);
+        });
+    }
+}
+

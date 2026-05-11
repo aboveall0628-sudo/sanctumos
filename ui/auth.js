@@ -161,7 +161,7 @@ function renderSetupScreen() {
                 <button id="recovery-cancel-btn" class="text-btn" style="flex:1">취소</button>
                 <button id="recovery-submit-btn" class="primary-btn" style="flex:2">열기</button>
             </div>
-            <p style="font-size:12px; color:var(--text-secondary); margin-top:16px;">열고 나면 설정·보안에서 새 비밀번호로 꼭 바꿔주세요.</p>
+            <p style="font-size:12px; color:var(--text-secondary); margin-top:16px;">열고 나면 설정에서 새 비밀번호로 꼭 바꿔주세요.</p>
         </div>
     `;
     document.body.appendChild(recoveryOverlay);

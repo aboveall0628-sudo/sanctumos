@@ -412,7 +412,9 @@ button .btn-icon { vertical-align: text-bottom; }
 .verse-list { padding: var(--sp-3) var(--sp-4); background: var(--bg-card); }
 .verse-item {
     display: flex; gap: var(--sp-3); padding: var(--sp-1) 0;
-    font-size: 14px; line-height: 1.7; cursor: pointer;
+    font-size: var(--scripture-fs, 15px);
+    line-height: var(--scripture-lh, 1.75);
+    cursor: pointer;
 }
 .verse-item:hover { color: var(--accent); }
 .verse-num {
@@ -1737,6 +1739,89 @@ button .btn-icon { vertical-align: text-bottom; }
     white-space: pre-wrap;
 }
 .past-card.expanded .past-card-preview { color: var(--text-primary); }
+
+/* Phase E-8/A: 라이브러리/게시판 스타일 — 날짜·요일만, 한 줄 한 묵상 */
+.past-board {
+    list-style: none; margin: 0; padding: 0;
+    border-top: 1px solid var(--border);
+}
+.past-row {
+    display: grid;
+    grid-template-columns: 1fr auto 24px;
+    align-items: center;
+    gap: var(--sp-4);
+    padding: var(--sp-3) var(--sp-4);
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background var(--ease);
+}
+.past-row:hover, .past-row:focus { background: var(--bg-elev); outline: none; }
+.past-row:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
+.past-row-date {
+    font-size: 14px; font-weight: 500; color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+}
+.past-row-day { font-size: 12px; color: var(--text-secondary); }
+.past-row-chev {
+    width: 16px; height: 16px; color: var(--text-secondary);
+    transition: transform var(--ease), color var(--ease);
+}
+.past-row:hover .past-row-chev { color: var(--accent); transform: translateX(2px); }
+
+/* ═══ 설정 — 말씀 본문 (Phase E-8/A) ═══ */
+.setting-block { margin-top: var(--sp-2); }
+.setting-label {
+    font-size: 13px; font-weight: 600; color: var(--text-primary);
+    margin-bottom: var(--sp-2);
+}
+.setting-hint {
+    font-size: 12px; color: var(--text-secondary);
+    margin: 0 0 var(--sp-3); line-height: 1.5;
+}
+.setting-warn {
+    margin-top: var(--sp-2);
+    font-size: 12px; color: var(--dot-orange);
+}
+
+/* 폰트 크기 세그먼트 — 라디오를 시각적 버튼으로 위장 */
+.seg-row { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+.seg-option {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: var(--sp-3) var(--sp-4);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--bg-card); cursor: pointer;
+    transition: border-color var(--ease), background var(--ease);
+    min-width: 64px;
+}
+.seg-option:hover { border-color: var(--accent); }
+.seg-option input[type="radio"] { display: none; }
+.seg-option:has(input:checked) {
+    border-color: var(--accent); background: var(--accent-soft);
+}
+.seg-option-label { font-size: 11px; color: var(--text-secondary); }
+.seg-option:has(input:checked) .seg-option-label { color: var(--accent); font-weight: 600; }
+
+/* 파트 체크박스 — 각 파트가 한 줄 카드 */
+.part-check-list { display: flex; flex-direction: column; gap: var(--sp-2); }
+.part-check {
+    display: flex; align-items: flex-start; gap: var(--sp-3);
+    padding: var(--sp-3) var(--sp-4);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--bg-card); cursor: pointer;
+    transition: border-color var(--ease), background var(--ease);
+}
+.part-check:hover { border-color: var(--accent); }
+.part-check:has(input:checked) {
+    border-color: var(--accent); background: var(--accent-soft);
+}
+.part-check input[type="checkbox"] {
+    margin-top: 3px;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+.part-check-body { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+.part-check-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.part-check-desc { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
 
 /* ═══ Sensitive mode ═══ */
 .sensitive-masked .sensitive { filter: blur(6px); cursor: pointer; transition: filter 0.2s ease; user-select: none; }

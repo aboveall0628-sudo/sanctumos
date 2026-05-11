@@ -60,7 +60,7 @@ export async function renderPastMeditationsView(userId) {
                 </p>
                 <p style="margin-top:24px;font-size:12px;color:var(--ink-secondary)">
                     예전에 적은 묵상이 보이지 않는다면,<br>
-                    <strong>설정·보안 → 데이터 복구</strong>에서 진단해 볼까요?
+                    <strong>설정 → 데이터 복구</strong>에서 진단해 볼까요?
                 </p>
             </div>
         `;
@@ -91,7 +91,7 @@ export async function renderPastMeditationsView(userId) {
                 <h3>묵상 노트를 못 열었어요</h3>
                 <p class="empty-state-desc">
                     잠금 열쇠가 맞지 않거나 데이터가 살짝 흔들린 것 같아요.<br>
-                    설정·보안에서 한 번 더 진단해 볼까요?
+                    설정에서 한 번 더 진단해 볼까요?
                 </p>
             </div>
         `;
@@ -103,7 +103,7 @@ export async function renderPastMeditationsView(userId) {
     container.innerHTML = `
         <div class="past-toolbar">
             <input id="past-search" type="search" class="past-search"
-                   placeholder="키워드로 찾기 (책 이름, 본문 단어 등)" />
+                   placeholder="키워드로 찾기 (책 이름, 본문 단어 등) — 본문에서 검색" />
             <input id="past-from" type="date" class="past-date-input" title="시작 날짜" />
             <span style="color:var(--text-secondary)">~</span>
             <input id="past-to" type="date" class="past-date-input" title="끝 날짜" />
@@ -137,39 +137,43 @@ export async function renderPastMeditationsView(userId) {
             return;
         }
 
-        results.innerHTML = filtered.map(item => `
-            <div class="past-card" data-id="${item.id}">
-                <div class="past-card-header">
-                    <span class="past-card-date">${formatDate(item.date)}</span>
-                    <span class="past-card-day">${dayOfWeek(item.date)}</span>
-                </div>
-                <div class="past-card-preview">${escapeHtml(preview(item.content))}</div>
-            </div>
-        `).join('');
+        // Phase E-8/A: 게시판 스타일 — 날짜·요일만. 클릭 시 해당 날짜의 "오늘" 뷰로 점프.
+        results.innerHTML = `
+            <ul class="past-board" role="list">
+                ${filtered.map(item => `
+                    <li class="past-row" data-id="${item.id}" data-date="${item.date}" tabindex="0" role="link"
+                        title="이 날짜의 오늘 화면 열기">
+                        <span class="past-row-date">${formatDate(item.date)}</span>
+                        <span class="past-row-day">${dayOfWeek(item.date)}</span>
+                        <i class="past-row-chev" data-lucide="chevron-right"></i>
+                    </li>
+                `).join('')}
+            </ul>
+        `;
 
-        // 카드 펼치기
-        results.querySelectorAll('.past-card').forEach(card => {
-            card.addEventListener('click', () => {
-                const id = card.dataset.id;
-                const item = items.find(x => x.id === id);
-                if (!item) return;
-                const expanded = card.classList.toggle('expanded');
-                const previewEl = card.querySelector('.past-card-preview');
-                previewEl.textContent = expanded ? item.content : preview(item.content);
+        // 클릭/엔터 → __sanctumGoToDate
+        const jump = (dateStr) => {
+            if (!dateStr) return;
+            if (typeof window.__sanctumGoToDate === 'function') {
+                window.__sanctumGoToDate(dateStr);
+            }
+        };
+        results.querySelectorAll('.past-row').forEach(row => {
+            row.addEventListener('click', () => jump(row.dataset.date));
+            row.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    jump(row.dataset.date);
+                }
             });
         });
+        if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
     };
 
     searchInput.addEventListener('input', renderResults);
     fromInput.addEventListener('change', renderResults);
     toInput.addEventListener('change', renderResults);
     renderResults();
-}
-
-function preview(text) {
-    if (!text) return '(아직 비어있어요)';
-    const lines = text.split('\n').filter(l => l.trim());
-    return lines.slice(0, 2).join('  ').slice(0, 140) + (text.length > 140 ? '...' : '');
 }
 
 function formatDate(dateStr) {
@@ -182,10 +186,4 @@ function dayOfWeek(dateStr) {
     if (!dateStr) return '';
     const d = new Date(dateStr + 'T00:00:00');
     return ['일', '월', '화', '수', '목', '금', '토'][d.getDay()] + '요일';
-}
-
-function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, c => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-    }[c]));
 }

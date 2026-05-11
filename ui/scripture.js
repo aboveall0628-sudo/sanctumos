@@ -7,6 +7,8 @@
  * 4파트 (시가서/모세오경+대선지서/역사서+소선지서/신약) 동시 진행 + 1년 1독.
  */
 
+import { getScriptureSettings } from './scriptureSettings.js';
+
 const BIBLE_METADATA = {
     parts: [
         {
@@ -182,7 +184,19 @@ export async function renderScriptureForDate(date) {
 
     container.innerHTML = '';
 
-    BIBLE_METADATA.parts.forEach(part => {
+    const { enabledParts } = getScriptureSettings();
+    const visibleParts = BIBLE_METADATA.parts.filter(p => enabledParts.includes(p.id));
+
+    if (visibleParts.length === 0) {
+        container.innerHTML = `
+            <div class="meditation-error">
+                표시할 파트가 없어요. <strong>설정 → 말씀 본문</strong>에서 한 파트 이상 켜 주세요.
+            </div>
+        `;
+        return;
+    }
+
+    visibleParts.forEach(part => {
         const { info, index, total } = getChapterForPart(part, calculateOffset(date));
         const verses = getVersesForChapter(info.abbr, info.chapter);
         const partEl = document.createElement('div');
@@ -228,6 +242,22 @@ export async function renderScriptureForDate(date) {
 
     ensureStickyCopyBar(container);
     updateCopyButton();
+}
+
+/**
+ * 설정에서 표시할 파트가 바뀌면 같은 날짜로 다시 그림.
+ * (날짜는 #calendar-input이 들고 있음 — 그게 비면 오늘.)
+ */
+let _settingsListenerBound = false;
+export function bindScriptureSettingsListener() {
+    if (_settingsListenerBound) return;
+    _settingsListenerBound = true;
+    window.addEventListener('sanctum:scripture-settings-changed', () => {
+        const input = document.getElementById('calendar-input');
+        const dateStr = input?.value;
+        const d = dateStr ? new Date(dateStr + 'T00:00:00') : new Date();
+        renderScriptureForDate(d).catch(() => {});
+    });
 }
 
 /**

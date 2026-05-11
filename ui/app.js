@@ -17,7 +17,8 @@ import { initGlobalErrorHandler } from '../security/errorHandler.js';
 import { initQuickReview, showToast } from './quickReview.js';
 import { initSensitiveMode } from './sensitiveMode.js';
 import { initThemeManager } from './themeManager.js';
-import { renderScriptureForDate, loadBibleData as loadBibleDataModule } from './scripture.js';
+import { renderScriptureForDate, loadBibleData as loadBibleDataModule, bindScriptureSettingsListener } from './scripture.js';
+import { applyFontSizeToCSS as applyScriptureFontSize } from './scriptureSettings.js';
 import { initTodayView, refreshTodayView } from './todayView.js';
 import { initTimeline, refreshTimeline } from './timeline.js';
 // 기존 v2 자동 리포트 생성은 사용자 버튼 트리거로 대체 (reports/dailyReportFlow.js)
@@ -223,6 +224,9 @@ async function init() {
     initQuickReview({ onSaved: refreshTodayData });
     initSensitiveMode();
     initThemeManager();
+    // 말씀 폰트 크기 — localStorage에 저장된 값을 CSS 변수로 박아둠 (잠금 전에도 적용)
+    applyScriptureFontSize();
+    bindScriptureSettingsListener();
     setupNavigation();
     renderLucideIcons();
 
@@ -472,6 +476,20 @@ window.__sanctumGoToNextDay = async function() {
         document.getElementById('meditation-note')?.focus();
     }, 200);
     showToast('🌅 새 하루를 시작해 봐요');
+};
+
+/**
+ * (Phase E-8/A) 지난 묵상 카드에서 특정 날짜로 점프.
+ * "오늘" 뷰로 전환 + currentDate 변경 + 묵상 노트로 스크롤.
+ * dateStr 형식: 'YYYY-MM-DD'.
+ */
+window.__sanctumGoToDate = async function(dateStr) {
+    if (!dateStr) return;
+    if (typeof window.__sanctumSwitchView === 'function') window.__sanctumSwitchView('today');
+    await setCurrentDate(dateStr);
+    setTimeout(() => {
+        document.getElementById('section-scripture')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 200);
 };
 
 // 핀 원칙 띠는 ui/todayView.js로 이전
