@@ -523,8 +523,21 @@ function reflectGcalAuthUI() {
 }
 window.__sanctumReflectGcalAuthUI = reflectGcalAuthUI;
 
-function gapiLoaded() {
-    if (typeof gapi === 'undefined') return;
+// gapi/google 스크립트는 async defer라 app.js 실행 시점엔 아직 안 붙어 있을 수 있다.
+// 한 번 보고 없다고 그냥 return하면 부팅이 'Google과 연결하는 중...'에서 영구 멈춤.
+// → 최대 ~5초까지 100ms 간격으로 폴링.
+const SCRIPT_WAIT_MS = 100;
+const SCRIPT_WAIT_MAX_TRIES = 60; // 6초
+
+function gapiLoaded(tries = 0) {
+    if (typeof gapi === 'undefined') {
+        if (tries < SCRIPT_WAIT_MAX_TRIES) {
+            setTimeout(() => gapiLoaded(tries + 1), SCRIPT_WAIT_MS);
+        } else {
+            setBootStatus('Google API 스크립트를 못 받았어요. 새로고침(Ctrl+Shift+R)해 주실래요?', 'error');
+        }
+        return;
+    }
     gapi.load('client', async () => {
         await gapi.client.init({ apiKey: GOOGLE_API_KEY, discoveryDocs: DISCOVERY_DOCS });
         gapiInited = true;
@@ -543,8 +556,15 @@ function gapiLoaded() {
     });
 }
 
-function gisLoaded() {
-    if (typeof google === 'undefined') return;
+function gisLoaded(tries = 0) {
+    if (typeof google === 'undefined') {
+        if (tries < SCRIPT_WAIT_MAX_TRIES) {
+            setTimeout(() => gisLoaded(tries + 1), SCRIPT_WAIT_MS);
+        } else {
+            setBootStatus('Google 로그인 모듈을 못 받았어요. 새로고침(Ctrl+Shift+R)해 주실래요?', 'error');
+        }
+        return;
+    }
     tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: GOOGLE_CLIENT_ID,
         scope: SCOPES,
