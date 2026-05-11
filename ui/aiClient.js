@@ -434,6 +434,211 @@ function buildWeeklyDashboardFallback(stats, principles, context) {
     return parts.join(' ');
 }
 
+// ═══════════════════════════════════════════════════════════════════
+//  Reports 모듈 — STEP 1.5 (Phase E-5-B, 2026-05-11)
+//  docs/reports-spec.md §3.2 주간 리포트
+//  헤더: ## 사실 / ## 가설 / ## 결단의 흐름 / ## 묵상에 가져갈 질문
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * 주간 리포트 AI 호출
+ *
+ * weeklyAggregator의 결정론적 stats를 받아 네 섹션을 산문/배열로 채움:
+ *   ## 사실               → aiSummary
+ *   ## 가설               → hypotheses [{ text, repetitionCount }]   (반복 횟수 표기 필수)
+ *   ## 결단의 흐름        → decisionFlow (A3 추상화 산문, 라벨·ID 명시 X)
+ *   ## 묵상에 가져갈 질문 → questionsForMeditation[3]
+ *
+ * 가명화: stats 안의 인물 토큰은 호출자(flow)가 personCounts 에서 ID→이름 매핑한 뒤
+ * context.persons 로 넣어줌. 응답의 P_001 토큰은 callLLM 의 depseudonymize 가 역가명화.
+ *
+ * @param {Object}      weekStats     - aggregateWeeklyStats() 출력
+ * @param {Object}      context       - { persons, orgs, places, amounts } 배열
+ * @param {Array|null}  daySummaries  - (선택) 일간 리포트 7개 요약. 현재는 null 권장 — 주간 stats 만으로도 충분.
+ * @param {Object}      opts          - { force?: bool }
+ * @returns {Promise<{
+ *   aiSummary: string|null,
+ *   hypotheses: Array<{text:string, repetitionCount:string|null}>,
+ *   decisionFlow: string|null,
+ *   questionsForMeditation: string[],
+ *   fallback: boolean
+ * }>}
+ */
+export async function callWeeklyReport(weekStats, context = {}, daySummaries = null, opts = {}) {
+    const plain = {
+        stats:        weekStats,
+        daySummaries: daySummaries || null,     // 현재는 null. 추후 합성 모드 대비 자리.
+        context: {
+            persons: context.persons || [],
+            orgs:    context.orgs    || [],
+            places:  context.places  || [],
+            amounts: context.amounts || [],
+        },
+    };
+
+    const result = await callLLM('weekReport', plain, {
+        deep:        false,             // flash 모델 (spec §3.2)
+        stats:       weekStats,
+        bypassCache: !!opts.force,
+    });
+
+    if (result.fallback) {
+        return { ...buildWeeklyReportFallback(weekStats), fallback: true };
+    }
+
+    const parsed = parseWeeklyReportResponse(result.text);
+    return { ...parsed, fallback: false };
+}
+
+/**
+ * weekReport 응답 파서 — 네 마크다운 헤더를 섹션으로 분리.
+ *
+ * 가설 라인 규약: `- (N/7) 텍스트` 또는 `- (3/7일에서) 텍스트` 등.
+ * 정규식으로 `(N/M)` 패턴을 떼어 repetitionCount 로 분리, 본문은 text.
+ *
+ * 형식 위반 시 partial fallback — 못 찾은 섹션은 null/[]로 두고,
+ * 헤더가 하나도 없으면 전체 텍스트를 aiSummary 로.
+ */
+function parseWeeklyReportResponse(text) {
+    const result = {
+        aiSummary:              null,
+        hypotheses:             [],
+        decisionFlow:           null,
+        questionsForMeditation: [],
+    };
+    const headers = [
+        { keys: ['사실'],                          target: 'aiSummary'              },
+        { keys: ['가설'],                          target: 'hypotheses'             },
+        { keys: ['결단의 흐름', '결단 흐름'],       target: 'decisionFlow'           },
+        { keys: ['묵상에 가져갈 질문', '묵상 질문'], target: 'questionsForMeditation' },
+    ];
+
+    const lines = String(text).split(/\r?\n/);
+    let currentTarget = null;
+    let buffer = [];
+
+    const stripBullet = (s) => s.replace(/^[-*•·]\s*/, '').replace(/^\d+[.)]\s*/, '').trim();
+
+    const flush = () => {
+        if (!currentTarget || buffer.length === 0) return;
+        const content = buffer.join('\n').trim();
+
+        if (currentTarget === 'hypotheses') {
+            // 각 bullet 한 줄씩. `(N/M)` 패턴을 떼어 repetitionCount, 나머지를 text.
+            const bullets = content.split(/\n/).map(stripBullet).filter(l => l.length > 0);
+            result.hypotheses = bullets.slice(0, 5).map(line => {
+                const m = line.match(/^\(?\s*(\d+\s*\/\s*\d+)(?:\s*일?에?서?)?\s*\)?\s*[-—:]?\s*(.+)$/);
+                if (m) {
+                    return {
+                        text:            m[2].trim(),
+                        repetitionCount: m[1].replace(/\s+/g, ''),
+                    };
+                }
+                return { text: line, repetitionCount: null };
+            });
+        } else if (currentTarget === 'questionsForMeditation') {
+            const questions = content.split(/\n/).map(stripBullet).filter(l => l.length > 0);
+            result.questionsForMeditation = questions.slice(0, 3);
+        } else {
+            // aiSummary, decisionFlow — 산문 그대로
+            result[currentTarget] = content;
+        }
+        buffer = [];
+    };
+
+    for (const line of lines) {
+        const m = line.match(/^#{1,3}\s*(.+?)\s*$/);
+        if (m) {
+            const headerText = m[1].trim();
+            const found = headers.find(h => h.keys.some(k => headerText.includes(k)));
+            if (found) {
+                flush();
+                currentTarget = found.target;
+                continue;
+            }
+        }
+        if (currentTarget) buffer.push(line);
+    }
+    flush();
+
+    // 헤더 하나도 못 찾으면 전체를 aiSummary 로
+    const empty = !result.aiSummary
+        && result.hypotheses.length === 0
+        && !result.decisionFlow
+        && result.questionsForMeditation.length === 0;
+    if (empty) result.aiSummary = String(text).trim();
+
+    return result;
+}
+
+/**
+ * llmProxy 미배포·실패 시 fallback — stats 만으로 만들 수 있는 최소 진단.
+ *
+ * 톤 가이드 준수: 처방·영적 정량화·부재 명시 0건.
+ * 가설은 비워둔다 (반복 횟수 없는 가설은 spec 위반이라 차라리 만들지 않음).
+ */
+function buildWeeklyReportFallback(weekStats) {
+    const s          = weekStats || {};
+    const totalDots  = s.totalDots ?? 0;
+    const tband      = s.timeBandPattern || {};
+    const decision   = s.decisionFlow || {};
+    const pinned     = (s.pinnedPrincipleApplication?.items) || [];
+    const persons    = (s.personCounts?.items) || [];
+
+    const factsParts = [];
+    if (totalDots > 0) {
+        factsParts.push(`이번 주 도트가 ${totalDots}개 기록되었습니다.`);
+    } else {
+        factsParts.push('이번 주는 아직 기록된 도트가 적었습니다.');
+    }
+
+    // 시간대 4구간 — 가장 만족도 높은 / 낮은 구간 한 줄
+    const bandList = Object.values(tband).filter(b => typeof b?.avg === 'number');
+    if (bandList.length >= 2) {
+        const sorted = [...bandList].sort((a, b) => b.avg - a.avg);
+        factsParts.push(
+            `시간대 만족도는 "${sorted[0].label}"에서 ${sorted[0].avg}로 가장 높게, ` +
+            `"${sorted[sorted.length - 1].label}"에서 ${sorted[sorted.length - 1].avg}로 가장 낮게 관찰되었습니다.`
+        );
+    }
+
+    // 핀 원칙
+    if (pinned.length > 0) {
+        const applied = pinned.filter(p => p.appliedCount > 0);
+        if (applied.length > 0) {
+            const total = applied.reduce((sum, p) => sum + p.appliedCount, 0);
+            factsParts.push(`핀 원칙 ${applied.length}개가 이번 주 도트에 ${total}회 함께 등장했습니다.`);
+        }
+    }
+
+    // 인물 만남
+    if (persons.length > 0) {
+        const top = persons.slice(0, 3).length;
+        factsParts.push(`함께한 사람은 ${persons.length}명, 그중 가장 자주 만난 ${top}명의 흐름이 보였습니다.`);
+    }
+
+    // 결단 흐름 — A3 추상화 톤만
+    let decisionFlowText;
+    if (decision.sampleSize > 0) {
+        decisionFlowText =
+            `이번 주, 결단에서 실행까지의 평균 거리는 ${decision.avgDistanceDays}일이었습니다. ` +
+            `시간표에 옮겨진 결단의 흐름이 ${decision.sampleSize}회 관찰되었습니다.`;
+    } else {
+        decisionFlowText = '이번 주는 시간표에 옮겨진 결단의 실행 흐름을 관찰하기에 표본이 부족했습니다.';
+    }
+
+    return {
+        aiSummary:    factsParts.join(' ') || null,
+        hypotheses:   [],
+        decisionFlow: decisionFlowText,
+        questionsForMeditation: [
+            '이번 주 가장 잔잔히 머문 시간은 어디였습니까?',
+            '결단과 행동 사이의 거리가, 어떻게 느껴졌습니까?',
+            '함께한 사람들 안에서 무엇이 보였습니까?',
+        ],
+    };
+}
+
 function buildDailyReportFallback(stats) {
     const ds    = stats.dotStats || {};
     const sat   = stats.satisfactionDistribution || {};
