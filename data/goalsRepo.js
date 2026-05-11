@@ -4,7 +4,7 @@
  * 계층: daily → weekly → monthly → quarterly → yearly → 5year → 10year
  */
 
-import { db, doc, deleteDoc, collection, query, where, orderBy } from './firebase.js';
+import { db, doc, deleteDoc, collection, query, where } from './firebase.js';
 import { saveRecord, queryRecords } from './baseRepo.js';
 
 const PERIODS = ['daily', 'weekly', 'monthly', 'quarterly', 'yearly', '5year', '10year'];
@@ -17,15 +17,22 @@ export async function saveGoal(dek, goalData) {
 }
 
 /**
- * 사용자의 모든 목표 조회
+ * 사용자의 모든 목표 조회.
+ * orderBy 제거 + client-side sort — composite index 없이도 동작 (dots/decisions 와 같은 패턴).
  */
 export async function getAllGoals(dek, userId) {
     const q = query(
         collection(db, 'goals'),
-        where('userId', '==', userId),
-        orderBy('period', 'asc')
+        where('userId', '==', userId)
     );
-    return await queryRecords(dek, q);
+    const goals = await queryRecords(dek, q);
+    // PERIODS 순서대로 정렬 (daily → 10year)
+    const periodOrder = { daily: 0, weekly: 1, monthly: 2, quarterly: 3, yearly: 4, '5year': 5, '10year': 6 };
+    return goals.sort((a, b) => {
+        const ap = periodOrder[a.period] ?? 99;
+        const bp = periodOrder[b.period] ?? 99;
+        return ap - bp;
+    });
 }
 
 /**

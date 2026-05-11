@@ -635,16 +635,21 @@ function computeBibleProgress(records) {
 }
 
 // ─── 묵상 작성 횟수 ───────────────────────────────────────
+// 사용자별 모든 묵상을 한 번 fetch 후 클라이언트에서 date 범위 필터.
+// 묵상은 하루 1건 수준이라 데이터량 작음. composite index 회피.
 async function countMeditations(userId, startDate, endDate) {
     try {
         const q = query(
             collection(db, 'meditations'),
             where('userId', '==', userId),
-            where('date', '>=', startDate),
-            where('date', '<=', endDate),
         );
         const snap = await getDocs(q);
-        return snap.docs.length;
+        let count = 0;
+        snap.docs.forEach(d => {
+            const date = d.data().date;
+            if (date && date >= startDate && date <= endDate) count++;
+        });
+        return count;
     } catch (e) {
         console.warn('meditations count failed:', e);
         return 0;
