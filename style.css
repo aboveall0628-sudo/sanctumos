@@ -3612,3 +3612,205 @@ svg.person-radar { display: block; }
     border-radius: 999px;
     transition: width 300ms ease;
 }
+
+/* ── 단축키 도움말 모달 ─────────────────────────────────── */
+.shortcut-help-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1100;
+    padding: 24px;
+    animation: shortcutHelpFade 120ms ease-out;
+}
+.shortcut-help-overlay.hidden { display: none; }
+
+@keyframes shortcutHelpFade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.shortcut-help-card {
+    background: var(--surface, #fff);
+    color: var(--ink-primary, #1a1a1a);
+    border-radius: 16px;
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.25);
+    width: min(720px, 100%);
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.shortcut-help-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px 12px;
+    border-bottom: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.08));
+}
+.shortcut-help-head h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+.shortcut-help-close {
+    background: transparent;
+    border: none;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    color: var(--ink-secondary, #6b6b6b);
+    padding: 6px 10px;
+    border-radius: 8px;
+}
+.shortcut-help-close:hover { background: var(--surface-elevated, rgba(0, 0, 0, 0.05)); }
+
+.shortcut-help-search {
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.06));
+}
+.shortcut-help-search input {
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border, rgba(0, 0, 0, 0.12));
+    background: var(--surface-elevated, rgba(0, 0, 0, 0.03));
+    font: inherit;
+    color: inherit;
+}
+.shortcut-help-search input:focus {
+    outline: none;
+    border-color: var(--brand-primary, #5b8def);
+    box-shadow: 0 0 0 3px rgba(91, 141, 239, 0.15);
+}
+
+.shortcut-help-body {
+    overflow-y: auto;
+    padding: 8px 24px 16px;
+    flex: 1;
+}
+
+.shortcut-group { margin: 16px 0 8px; }
+.shortcut-group-title {
+    margin: 0 0 8px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ink-secondary, #6b6b6b);
+}
+
+.shortcut-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.shortcut-row {
+    display: grid;
+    grid-template-columns: minmax(140px, 200px) 1fr;
+    gap: 16px;
+    align-items: center;
+    padding: 8px 10px;
+    border-radius: 8px;
+}
+.shortcut-row:hover { background: var(--surface-elevated, rgba(0, 0, 0, 0.03)); }
+
+.shortcut-row-keys {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.shortcut-row-label {
+    font-size: 14px;
+    font-weight: 500;
+}
+.shortcut-row-desc {
+    font-size: 12px;
+    color: var(--ink-secondary, #6b6b6b);
+    margin-top: 2px;
+}
+
+.kbd {
+    display: inline-block;
+    padding: 2px 7px;
+    font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--ink-primary, #1a1a1a);
+    background: var(--surface-elevated, rgba(0, 0, 0, 0.05));
+    border: 1px solid var(--border, rgba(0, 0, 0, 0.15));
+    border-bottom-width: 2px;
+    border-radius: 5px;
+    box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.05);
+    white-space: nowrap;
+}
+.kbd-plus {
+    margin: 0 2px;
+    font-size: 10px;
+    color: var(--ink-secondary, #6b6b6b);
+}
+.kbd-or {
+    margin: 0 6px;
+    font-size: 10px;
+    color: var(--ink-secondary, #6b6b6b);
+}
+
+.shortcut-help-foot {
+    padding: 12px 24px;
+    border-top: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.06));
+    display: flex;
+    gap: 16px;
+    font-size: 11px;
+    color: var(--ink-secondary, #6b6b6b);
+}
+.shortcut-help-foot kbd {
+    display: inline-block;
+    padding: 1px 6px;
+    font-family: ui-monospace, monospace;
+    font-size: 10px;
+    background: var(--surface-elevated, rgba(0, 0, 0, 0.05));
+    border: 1px solid var(--border, rgba(0, 0, 0, 0.15));
+    border-radius: 4px;
+}
+
+.shortcut-empty {
+    padding: 24px 0;
+    text-align: center;
+    color: var(--ink-secondary, #6b6b6b);
+    font-size: 13px;
+}
+
+/* 다크 모드 */
+[data-theme="dark"] .shortcut-help-card {
+    background: var(--surface, #1f1f23);
+    color: var(--ink-primary, #f0f0f0);
+}
+[data-theme="dark"] .kbd {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.18);
+}
+
+/* 모바일 */
+@media (max-width: 600px) {
+    .shortcut-help-overlay { padding: 12px; }
+    .shortcut-help-card { max-height: 90vh; }
+    .shortcut-row {
+        grid-template-columns: 1fr;
+        gap: 6px;
+    }
+}
+
+/* 설정 화면의 단축키 영역 */
+.settings-shortcuts-help-btn {
+    margin-top: 8px;
+}
+

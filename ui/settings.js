@@ -114,6 +114,64 @@ function injectExtraSections() {
         </div>
     `;
     container.appendChild(cleanupCard);
+
+    // 단축키 설정 카드 (Phase E-9 / Step 1)
+    const shortcutCard = document.createElement('div');
+    shortcutCard.id = 'settings-shortcuts-card';
+    shortcutCard.className = 'card-section';
+    shortcutCard.innerHTML = `
+        <h3 class="section-title"><i class="section-icon" data-lucide="keyboard"></i> 키보드 단축키</h3>
+        <p class="section-desc">키보드만으로 거의 모든 동작을 처리할 수 있어요. <kbd class="kbd">Ctrl</kbd>+<kbd class="kbd">/</kbd> 를 누르면 전체 목록이 떠요.</p>
+        <div class="settings-row">
+            <div class="settings-row-text">
+                <h4 style="margin:0;font-size:14px;font-weight:600;">단축키 사용</h4>
+                <p class="section-desc" style="margin-top:4px;">끄면 모든 단축키가 비활성화돼요.</p>
+            </div>
+            <label class="switch" for="shortcuts-enabled-toggle">
+                <input type="checkbox" id="shortcuts-enabled-toggle">
+                <span class="switch-slider"></span>
+            </label>
+        </div>
+        <div class="settings-row">
+            <div class="settings-row-text">
+                <h4 style="margin:0;font-size:14px;font-weight:600;">단일 문자 단축키 사용</h4>
+                <p class="section-desc" style="margin-top:4px;">접근성을 위해 끌 수 있어요. 단일 키(예: <kbd class="kbd">?</kbd>)는 비활성, <kbd class="kbd">Ctrl</kbd>·<kbd class="kbd">Alt</kbd> 조합은 계속 작동.</p>
+            </div>
+            <label class="switch" for="shortcuts-single-char-toggle">
+                <input type="checkbox" id="shortcuts-single-char-toggle">
+                <span class="switch-slider"></span>
+            </label>
+        </div>
+        <button type="button" id="shortcuts-help-open-btn" class="text-btn settings-shortcuts-help-btn">
+            <i data-lucide="keyboard" class="btn-icon"></i> 단축키 도움말 열기
+        </button>
+    `;
+    container.appendChild(shortcutCard);
+}
+
+async function bindShortcutSettings() {
+    const router = await import('../shortcuts/router.js');
+    const help = await import('./shortcutHelp.js');
+
+    const enabledToggle = document.getElementById('shortcuts-enabled-toggle');
+    const singleToggle = document.getElementById('shortcuts-single-char-toggle');
+    const helpBtn = document.getElementById('shortcuts-help-open-btn');
+
+    if (enabledToggle) {
+        enabledToggle.checked = router.isShortcutsEnabled();
+        enabledToggle.addEventListener('change', () => {
+            router.setShortcutsEnabled(enabledToggle.checked);
+        });
+    }
+    if (singleToggle) {
+        singleToggle.checked = router.isSingleCharEnabled();
+        singleToggle.addEventListener('change', () => {
+            router.setSingleCharEnabled(singleToggle.checked);
+        });
+    }
+    if (helpBtn) {
+        helpBtn.addEventListener('click', () => help.openShortcutHelp());
+    }
 }
 
 function bindEvents() {
@@ -429,6 +487,9 @@ function bindEvents() {
 
     // ─── 자동 잠금 시간(분) ───
     bindAutoLockMinutes();
+
+    // ─── 단축키 설정 카드 (Phase E-9/Step 1) ───
+    bindShortcutSettings().catch(e => console.warn('[shortcuts] settings bind failed:', e));
 }
 
 function bindAutoLockMinutes() {

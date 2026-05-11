@@ -36,6 +36,8 @@ import { renderOrganizationsView } from './orgCard.js';
 // Phase E-7: 우측 상단 알람 종 + 자동 알람 생성기
 import { initRemindersUI, refreshRemindersUI } from './reminders.js';
 import { generateAllAutoReminders } from '../data/reminderGenerator.js';
+// 단축키 / 모달 매니저 — Phase E-9 (Step 1)
+import { initShortcuts } from '../shortcuts/router.js';
 
 // ─── 전역 상태 ───
 window.appStarted = true;
@@ -335,6 +337,9 @@ async function onVaultUnlocked(dek) {
         .catch(e => console.warn('auto reminders failed:', e));
 
     showToast('🔓 안전하게 열렸어요');
+
+    // 단축키 시스템 — 잠금 해제 후 한 번만 초기화 (router 가 중복 호출 가드)
+    try { initShortcuts(); } catch (e) { console.warn('[shortcuts] init failed:', e); }
 }
 
 function onVaultLocked() {
@@ -450,7 +455,49 @@ window.__sanctumRenderLucide = renderLucideIcons;
 // 도트 평가는 시간표에서 이미 끝남. 리포트 생성은 오늘 화면의 "오늘 리포트 만들기" 버튼.
 // 토요일 추가 회고(주/월/분기/연)는 토요일에만 오늘 화면에 단계별로 버튼이 더 붙음.
 
+// ─── 앱 내 내비 히스토리 (Alt+←/→) ───
+// 브라우저 history 와 별개. 시스템 호출(back/forward) 시엔 push 생략.
+const _navHistory = [];
+let _navIndex = -1;
+let _navSilent = false;
+
+function _recordNav(viewId) {
+    if (_navSilent) return;
+    // 동일 viewId 연속 push 방지
+    if (_navHistory[_navIndex] === viewId) return;
+    // 현재 인덱스 이후의 forward 항목은 폐기
+    _navHistory.length = _navIndex + 1;
+    _navHistory.push(viewId);
+    _navIndex = _navHistory.length - 1;
+    // 메모리 보호 — 최근 50개만
+    if (_navHistory.length > 50) {
+        _navHistory.shift();
+        _navIndex--;
+    }
+}
+
+window.__sanctumNavHistory = {
+    back() {
+        if (_navIndex <= 0) return false;
+        _navIndex--;
+        _navSilent = true;
+        switchView(_navHistory[_navIndex]);
+        _navSilent = false;
+        return true;
+    },
+    forward() {
+        if (_navIndex >= _navHistory.length - 1) return false;
+        _navIndex++;
+        _navSilent = true;
+        switchView(_navHistory[_navIndex]);
+        _navSilent = false;
+        return true;
+    },
+};
+
 function switchView(viewId) {
+    _recordNav(viewId);
+
     document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
     const target = document.getElementById(`view-${viewId}`);
     if (target) target.classList.remove('hidden');
@@ -498,6 +545,8 @@ function switchView(viewId) {
 
 // v3-①-D 정식 메뉴 도착 전까지 외부(설정 뷰의 임시 진입 버튼 등)에서 호출하기 위한 노출
 window.__sanctumSwitchView = switchView;
+// 단축키 시스템(registry.js) 이 사용. 이름이 짧고 의미가 명확해서 신규 코드는 이쪽을 사용.
+window.__sanctumNav = switchView;
 
 /**
  * "내일 묵상 시작하기" — 오늘 뷰 하단 버튼이 호출.
