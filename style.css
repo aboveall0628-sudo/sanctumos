@@ -1801,27 +1801,41 @@ button .btn-icon { vertical-align: text-bottom; }
 .seg-option-label { font-size: 11px; color: var(--text-secondary); }
 .seg-option:has(input:checked) .seg-option-label { color: var(--accent); font-weight: 600; }
 
-/* 파트 체크박스 — 각 파트가 한 줄 카드 */
-.part-check-list { display: flex; flex-direction: column; gap: var(--sp-2); }
-.part-check {
+/* 묵상 계획 프리셋 — 각 계획이 한 줄 라디오 카드 (Phase E-8/B-1) */
+.plan-list { display: flex; flex-direction: column; gap: var(--sp-2); }
+.plan-option {
     display: flex; align-items: flex-start; gap: var(--sp-3);
     padding: var(--sp-3) var(--sp-4);
     border: 1px solid var(--border); border-radius: var(--radius);
     background: var(--bg-card); cursor: pointer;
     transition: border-color var(--ease), background var(--ease);
 }
-.part-check:hover { border-color: var(--accent); }
-.part-check:has(input:checked) {
+.plan-option:hover { border-color: var(--accent); }
+.plan-option:has(input:checked) {
     border-color: var(--accent); background: var(--accent-soft);
 }
-.part-check input[type="checkbox"] {
+.plan-option input[type="radio"] {
     margin-top: 3px;
     accent-color: var(--accent);
     cursor: pointer;
 }
-.part-check-body { display: flex; flex-direction: column; gap: 2px; flex: 1; }
-.part-check-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
-.part-check-desc { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+.plan-body { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.plan-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.plan-desc { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+.plan-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.plan-chip {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: 10.5px; font-weight: 500;
+    color: var(--text-secondary);
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+}
+.plan-option:has(input:checked) .plan-chip {
+    color: var(--accent); border-color: var(--accent);
+    background: var(--bg-card);
+}
 
 /* ═══ Sensitive mode ═══ */
 .sensitive-masked .sensitive { filter: blur(6px); cursor: pointer; transition: filter 0.2s ease; user-select: none; }

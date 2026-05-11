@@ -7,7 +7,7 @@
  * 4파트 (시가서/모세오경+대선지서/역사서+소선지서/신약) 동시 진행 + 1년 1독.
  */
 
-import { getScriptureSettings } from './scriptureSettings.js';
+import { getActivePlan } from './scriptureSettings.js';
 
 const BIBLE_METADATA = {
     parts: [
@@ -184,13 +184,13 @@ export async function renderScriptureForDate(date) {
 
     container.innerHTML = '';
 
-    const { enabledParts } = getScriptureSettings();
-    const visibleParts = BIBLE_METADATA.parts.filter(p => enabledParts.includes(p.id));
+    const plan = getActivePlan();
+    const visibleParts = BIBLE_METADATA.parts.filter(p => plan.parts.includes(p.id));
 
     if (visibleParts.length === 0) {
         container.innerHTML = `
             <div class="meditation-error">
-                표시할 파트가 없어요. <strong>설정 → 말씀 본문</strong>에서 한 파트 이상 켜 주세요.
+                표시할 파트가 없어요. <strong>설정 → 말씀 본문</strong>에서 묵상 계획을 골라 주세요.
             </div>
         `;
         return;

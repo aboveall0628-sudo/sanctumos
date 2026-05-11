@@ -16,9 +16,10 @@ import { validatePassword, firstError, bindPolicyHint, POLICY_VERSION } from '..
 // Phase B-3: 예전 결단 정리용
 import { getAllDecisions, deleteDecision } from '../data/decisionsRepo.js';
 import { deleteCalendarEventById } from './app.js';
-// Phase E-8/A: 말씀 본문 표시 설정 (폰트 크기, 파트 on/off)
+// Phase E-8/A·B-1: 말씀 본문 표시 설정 (폰트 크기, 묵상 계획 프리셋)
 import {
-    getScriptureSettings, setFontSize, setEnabledParts, FONT_SIZES, applyFontSizeToCSS,
+    getScriptureSettings, setFontSize, setActivePlanId,
+    FONT_SIZES, PRESETS, applyFontSizeToCSS,
 } from './scriptureSettings.js';
 import { BIBLE_METADATA } from './scripture.js';
 
@@ -437,19 +438,27 @@ function renderScriptureSettingsHTML() {
         </label>
     `).join('');
 
-    const partOptions = BIBLE_METADATA.parts.map(p => `
-        <label class="part-check">
-            <input type="checkbox" name="scripture-part" value="${p.id}" ${cur.enabledParts.includes(p.id) ? 'checked' : ''}>
-            <span class="part-check-body">
-                <span class="part-check-title">${p.name}</span>
-                <span class="part-check-desc">${p.desc}</span>
-            </span>
-        </label>
-    `).join('');
+    // 프리셋(묵상 계획) 라디오 카드 — 각 카드는 포함 파트의 이름도 작은 칩으로 보여줌
+    const planOptions = PRESETS.map(plan => {
+        const partChips = plan.parts.map(pid => {
+            const p = BIBLE_METADATA.parts.find(x => x.id === pid);
+            return p ? `<span class="plan-chip">${p.name.replace('파트', 'P')}</span>` : '';
+        }).join('');
+        return `
+            <label class="plan-option">
+                <input type="radio" name="scripture-plan" value="${plan.id}" ${cur.activePlanId === plan.id ? 'checked' : ''}>
+                <span class="plan-body">
+                    <span class="plan-title">${plan.name}</span>
+                    <span class="plan-desc">${plan.desc}</span>
+                    <span class="plan-chips">${partChips}</span>
+                </span>
+            </label>
+        `;
+    }).join('');
 
     return `
         <h3 class="section-title"><i class="section-icon" data-lucide="book-marked"></i> 말씀 본문</h3>
-        <p class="section-desc">오늘 화면에서 보일 말씀의 크기와 파트를 조절할 수 있어요. 바꾸면 바로 반영돼요.</p>
+        <p class="section-desc">오늘 화면에 어떤 본문을, 어떤 크기로 보여줄지 골라요. 바꾸면 바로 반영돼요.</p>
 
         <div class="setting-block">
             <div class="setting-label">글자 크기</div>
@@ -457,19 +466,15 @@ function renderScriptureSettingsHTML() {
         </div>
 
         <div class="setting-block" style="margin-top: var(--sp-4);">
-            <div class="setting-label">표시할 파트</div>
-            <p class="setting-hint">하나만 켜면 그 파트만 묵상해요. 모두 켜면 1년 4파트 동시 통독이에요.</p>
-            <div class="part-check-list" id="scripture-part-list">${partOptions}</div>
-            <div id="scripture-part-warn" class="setting-warn" style="display:none;">
-                최소 한 파트는 켜져 있어야 해요.
-            </div>
+            <div class="setting-label">묵상 계획</div>
+            <p class="setting-hint">미리 만들어 둔 계획 중에서 골라요. 다음 단계에서 "내가 직접 만들기"도 열릴 예정이에요.</p>
+            <div class="plan-list" id="scripture-plan-list">${planOptions}</div>
         </div>
     `;
 }
 
 function bindScriptureSettingsEvents() {
-    // 폰트 크기 — 라디오 변경 시 즉시 저장 + CSS 변수 갱신 + (오늘 화면 보이는 중이면) 재렌더는
-    // scripture.js가 settings-changed 이벤트로 처리.
+    // 폰트 크기 — 라디오 변경 시 즉시 저장 + CSS 변수 갱신
     document.querySelectorAll('input[name="scripture-font"]').forEach(r => {
         r.addEventListener('change', (e) => {
             const v = e.target.value;
@@ -478,25 +483,11 @@ function bindScriptureSettingsEvents() {
         });
     });
 
-    // 파트 체크박스 — 0개 방지, 변경 시 저장
-    const list = document.getElementById('scripture-part-list');
-    const warn = document.getElementById('scripture-part-warn');
-    if (list) {
-        list.addEventListener('change', () => {
-            const checked = [...list.querySelectorAll('input[name="scripture-part"]:checked')]
-                .map(el => parseInt(el.value, 10));
-            if (checked.length === 0) {
-                if (warn) warn.style.display = 'block';
-                // 마지막 한 개를 끄려 한 경우 — 가장 작은 파트 id를 다시 켬
-                const minP = Math.min(...BIBLE_METADATA.parts.map(p => p.id));
-                const fallback = list.querySelector(`input[name="scripture-part"][value="${minP}"]`);
-                if (fallback) fallback.checked = true;
-                setEnabledParts([minP]);
-                return;
-            }
-            if (warn) warn.style.display = 'none';
-            setEnabledParts(checked);
+    // 묵상 계획 라디오 — 즉시 저장. scripture.js가 settings-changed 이벤트로 재렌더.
+    document.querySelectorAll('input[name="scripture-plan"]').forEach(r => {
+        r.addEventListener('change', (e) => {
+            setActivePlanId(e.target.value);
         });
-    }
+    });
 }
 
