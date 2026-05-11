@@ -125,7 +125,6 @@ export function openQuickReview({ timeSlot, cells, userId, date, plannedTask, de
 
     // v3: 인물·조직 칩 즉시 한 번 그리고, 백그라운드로 카드 로드 후 datalist 갱신
     renderLinkChips();
-    resetBriefingPanel();
     ensurePersonsAndOrgsLoaded(userId).then(() => {
         renderLinkChips();
         refreshLinkDatalists();
@@ -246,11 +245,6 @@ function renderModal() {
                     <div id="qr-org-chips" class="qr-chip-row"></div>
                 </div>
 
-                <!-- v3: AI 브리핑 패널 -->
-                <div class="qr-briefing-field">
-                    <button id="qr-briefing-btn" class="text-btn qr-briefing-btn"><i data-lucide="sparkles" class="btn-icon"></i> AI 브리핑 보기</button>
-                    <div id="qr-briefing-panel" class="qr-briefing-panel hidden"></div>
-                </div>
             </div>
 
             <div class="qr-actions">
@@ -339,7 +333,6 @@ function bindEvents() {
     document.addEventListener('click', (e) => {
         if (e.target.id === 'qr-person-add') addPersonFromInput();
         if (e.target.id === 'qr-org-add') addOrgFromInput();
-        if (e.target.id === 'qr-briefing-btn') toggleBriefing();
     });
     document.addEventListener('keydown', (e) => {
         if (e.target.id === 'qr-person-input' && e.key === 'Enter') { e.preventDefault(); addPersonFromInput(); }
@@ -643,96 +636,6 @@ async function addOrgFromInput() {
     input.value = '';
     renderLinkChips();
     refreshLinkDatalists();
-}
-
-function resetBriefingPanel() {
-    const panel = document.getElementById('qr-briefing-panel');
-    if (panel) {
-        panel.innerHTML = '';
-        panel.classList.add('hidden');
-    }
-    const btn = document.getElementById('qr-briefing-btn');
-    if (btn) btn.textContent = '🌟 AI 브리핑 보기';
-}
-
-let _briefingLoading = false;
-async function toggleBriefing() {
-    const panel = document.getElementById('qr-briefing-panel');
-    const btn = document.getElementById('qr-briefing-btn');
-    if (!panel || !btn) return;
-
-    // 이미 펼쳐져 있으면 접기
-    if (!panel.classList.contains('hidden')) {
-        panel.classList.add('hidden');
-        btn.innerHTML = '<i data-lucide="sparkles" class="btn-icon"></i> AI 브리핑 보기';
-        if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
-        return;
-    }
-
-    // 이미 내용이 있으면 다시 펼치기
-    if (panel.dataset.loaded === '1') {
-        panel.classList.remove('hidden');
-        btn.innerHTML = '<i data-lucide="sparkles" class="btn-icon"></i> AI 브리핑 접기';
-        if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
-        return;
-    }
-
-    if (_briefingLoading) return;
-    _briefingLoading = true;
-    btn.disabled = true;
-    btn.innerHTML = '<i data-lucide="sparkles" class="btn-icon"></i> 불러오는 중…';
-    panel.classList.remove('hidden');
-    panel.innerHTML = '<div class="qr-briefing-loading">잠깐만요, AI 브리핑을 준비하고 있어요…</div>';
-    if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
-
-    try {
-        const taskText = (document.getElementById('qr-actual-input')?.value
-            || document.getElementById('qr-planned-task')?.textContent
-            || '').trim();
-        // 가명화에 쓸 context — 칩으로 선택된 카드의 이름들
-        const personNames = _selectedPersonIds
-            .map(id => _personsCache.find(p => p.id === id)?.name)
-            .filter(Boolean);
-        const orgNames = _selectedOrgIds
-            .map(id => _orgsCache.find(o => o.id === id)?.name)
-            .filter(Boolean);
-
-        const { getBriefingForTask } = await import('./aiClient.js');
-        const result = await getBriefingForTask(
-            taskText,
-            [],                                  // principles: 핀 원칙 연동은 다음 STEP
-            {},                                  // pastStats
-            { persons: personNames, orgs: orgNames }
-        );
-        panel.innerHTML = briefingHtml(result.sections, result.fallback);
-        panel.dataset.loaded = '1';
-        btn.innerHTML = '<i data-lucide="sparkles" class="btn-icon"></i> AI 브리핑 접기';
-    } catch (e) {
-        console.warn('briefing failed:', e);
-        panel.innerHTML = '<div class="qr-briefing-loading">잠깐 막혔어요. 다시 한 번 눌러 주실래요?</div>';
-        btn.innerHTML = '<i data-lucide="sparkles" class="btn-icon"></i> AI 브리핑 보기';
-    } finally {
-        _briefingLoading = false;
-        btn.disabled = false;
-        if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
-    }
-}
-
-function briefingHtml(sections, fallback) {
-    // s.icon은 Lucide name (aiClient에서 book-open / bar-chart-3 / alert-triangle / hand / sparkles 등)
-    const items = (sections || []).map(s => `
-        <div class="qr-briefing-card">
-            <div class="qr-briefing-card-head">
-                <i class="qr-briefing-icon" data-lucide="${escapeAttr(s.icon || 'sparkles')}"></i>
-                <span class="qr-briefing-title">${escapeHtml(s.title || '')}</span>
-            </div>
-            <div class="qr-briefing-body">${escapeHtml(s.body || '').replace(/\n/g, '<br>')}</div>
-        </div>
-    `).join('');
-    const tag = fallback
-        ? '<div class="qr-briefing-fallback-tag"><i data-lucide="alert-triangle" class="btn-icon"></i> 인터넷이 멀거나 AI가 잠시 쉬는 중이에요 — 로컬 안내로 대체했어요.</div>'
-        : '';
-    return `${tag}<div class="qr-briefing-grid">${items}</div>`;
 }
 
 function escapeHtml(s) {
