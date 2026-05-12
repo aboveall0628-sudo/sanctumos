@@ -514,6 +514,45 @@ function bindModalEvents() {
 
     bindOrgAnnivEvents(root);
     bindStanceChangeEvents(root);
+    bindAxisUnlockEvents(root);
+}
+
+/**
+ * 🔒 lock 해제 (↻) 버튼 — 조직 카드의 unlocked 축을 도트 derived 값으로 즉시 되돌림.
+ */
+function bindAxisUnlockEvents(root) {
+    root.addEventListener('click', async (e) => {
+        const btn = e.target.closest('.axis-unlock-btn');
+        if (!btn) return;
+        const rowEl = btn.closest('[data-axis]');
+        if (!rowEl) return;
+        const axis = rowEl.dataset.axis;
+        if (!axis) return;
+
+        if (_editingDraft.locked) {
+            delete _editingDraft.locked[axis];
+        }
+        try {
+            const stats = _editingId ? _statsMap.get(_editingId) : null;
+            const { applyDerivedToOrg } = await import('../data/derivedScores.js');
+            applyDerivedToOrg(_editingDraft, stats);
+        } catch (err) { console.warn('org axis re-derive failed:', err); }
+
+        // 영향받은 레이어 다시 그리기
+        if (axis === 'riskLevel') {
+            const sec = root.querySelector('#org-layer-3');
+            if (sec) {
+                sec.outerHTML = layer3Html(_editingDraft);
+                bindLayer3Events(root);
+            }
+        } else {
+            const sec = root.querySelector('#org-layer-2');
+            if (sec) {
+                sec.outerHTML = layer2Html(_editingDraft);
+                bindLayer2Events(root);
+            }
+        }
+    });
 }
 
 // ─── stance 변경 (v3-①-F) ───
@@ -617,29 +656,44 @@ function bindLayer1Events(root) {
 // ─── Layer 2 관계 (1~5 별점) ───
 function layer2Html(o) {
     return `
-        <section class="org-layer">
+        <section class="org-layer" id="org-layer-2">
             <h4 class="org-layer-title">Layer 2 · 관계</h4>
-            <p class="org-layer-hint">"지금 내 눈에 이렇게 보인다"의 거울일 뿐이에요.</p>
-            ${rel5Row('friendliness', '우호도', o.friendliness)}
-            ${rel5Row('trust',        '신뢰',   o.trust)}
-            ${rel5Row('importance',   '중요도', o.importance)}
+            <p class="org-layer-hint">
+                "지금 내 눈에 이렇게 보인다"의 거울일 뿐이에요.<br>
+                🔒 내가 정한 값 · 📊 도트가 만든 값 — 표시 옆 작은 마크로 알 수 있어요.
+            </p>
+            ${rel5Row('friendliness', '우호도', o.friendliness, !!((o.locked||{}).friendliness))}
+            ${rel5Row('trust',        '신뢰',   o.trust,        !!((o.locked||{}).trust))}
+            ${rel5Row('importance',   '중요도', o.importance,   !!((o.locked||{}).importance))}
         </section>
     `;
 }
 
-function rel5Row(key, label, value) {
+function rel5Row(key, label, value, locked) {
     const v = value == null ? null : Number(value);
     return `
-        <div class="rel-row" data-rel-key="${key}">
+        <div class="rel-row" data-rel-key="${key}" data-axis="${escapeAttr(key)}" data-axis-kind="orgRel">
             <span class="rel-label">${label}</span>
             <div class="rel-stars">
                 ${[1,2,3,4,5].map(n => `
                     <button class="rel-star ${v != null && n <= v ? 'active' : ''}" data-rel-value="${n}">★</button>
                 `).join('')}
                 <button class="rel-clear" title="비우기">✕</button>
+                ${orgLockBadgeHtml(locked, v == null)}
             </div>
         </div>
     `;
+}
+
+function orgLockBadgeHtml(locked, isNull) {
+    if (isNull) return '';
+    if (locked) {
+        return `
+            <span class="axis-lock-badge axis-locked" title="내가 직접 정한 값. 도트가 자동으로 바꾸지 않아요.">🔒 내가 정함</span>
+            <button type="button" class="axis-unlock-btn" data-action="unlock" title="도트가 만든 값으로 되돌리기">↻</button>
+        `;
+    }
+    return `<span class="axis-lock-badge axis-derived" title="도트 만족도 누적에서 자동으로 만들어진 값이에요.">📊 도트가 만듦</span>`;
 }
 
 function bindLayer2Events(root) {
@@ -668,9 +722,13 @@ function bindLayer2Events(root) {
 // ─── Layer 3 위험도 (3단계 칩) ───
 function layer3Html(o) {
     const cur = o.riskLevel;
+    const locked = !!((o.locked || {}).riskLevel);
     return `
-        <section class="org-layer">
-            <h4 class="org-layer-title">Layer 3 · 위험도</h4>
+        <section class="org-layer" id="org-layer-3" data-axis="riskLevel" data-axis-kind="orgRel">
+            <h4 class="org-layer-title">
+                Layer 3 · 위험도
+                <span class="risk-lock-slot">${orgLockBadgeHtml(locked, cur == null)}</span>
+            </h4>
             <p class="org-layer-hint">조직 자체가 "위험"한 게 아니라, 지금 나의 영적 상태에서 주의가 필요한 정도예요.</p>
             <div class="risk-chips">
                 ${RISK_OPTIONS.map(r => `

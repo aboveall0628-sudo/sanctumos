@@ -451,6 +451,71 @@ function bindModalEvents() {
 
     bindBelongsEvents(root);
     bindStanceChangeEvents(root);
+    bindAxisUnlockEvents(root);
+}
+
+/**
+ * 🔒 lock 해제 (↻) 버튼 — 그 축의 lock 플래그를 false로 돌리고,
+ * 도트 누적에서 다시 derived 값으로 갱신해 즉시 화면 반영.
+ * 어디든 .axis-unlock-btn 클릭만으로 동작하도록 이벤트 위임.
+ */
+function bindAxisUnlockEvents(root) {
+    root.addEventListener('click', async (e) => {
+        const btn = e.target.closest('.axis-unlock-btn');
+        if (!btn) return;
+        const rowEl = btn.closest('[data-axis]');
+        if (!rowEl) return;
+        const axis = rowEl.dataset.axis;
+        const kind = rowEl.dataset.axisKind;
+        if (!axis || !kind) return;
+
+        // lock 해제
+        const lockKey = `${kind}Locked`;
+        if (_editingDraft[lockKey]) {
+            delete _editingDraft[lockKey][axis];
+            if (Object.keys(_editingDraft[lockKey]).length === 0) {
+                _editingDraft[lockKey] = {};
+            }
+        }
+
+        // 모달 열 때 이미 계산된 _statsMap에서 이 인물 통계를 가져와 derived 재계산
+        try {
+            const stats = _editingId ? _statsMap.get(_editingId) : null;
+            const { applyDerivedToPerson } = await import('../data/derivedScores.js');
+            applyDerivedToPerson(_editingDraft, stats);
+        } catch (err) { console.warn('axis re-derive failed:', err); }
+
+        // 해당 레이어 다시 그리기 (lock 인디케이터 + 값 동시 갱신)
+        rerenderAffectedLayer(root, kind);
+        if (kind === 'bigFive') updateRadar();
+    });
+}
+
+function rerenderAffectedLayer(root, kind) {
+    if (kind === 'bigFive') {
+        const sec = root.querySelector('.person-layer:has([data-bf-steps])');
+        if (sec) {
+            sec.outerHTML = layer2Html(_editingDraft);
+            bindLayer2Events(root);
+        }
+        return;
+    }
+    if (kind === 'competencies') {
+        const sec = root.querySelector('#layer-3-section');
+        if (sec) {
+            sec.outerHTML = layer3Html(_editingDraft);
+            bindLayer3Events(root);
+        }
+        return;
+    }
+    if (kind === 'relationship') {
+        const sec = root.querySelector('.person-layer:has(.rel-row)');
+        if (sec) {
+            sec.outerHTML = layer4Html(_editingDraft);
+            bindLayer4Events(root);
+        }
+        return;
+    }
 }
 
 // ─── stance 변경 (v3-①-F) ───
@@ -734,29 +799,35 @@ function buildStanceHint(p, stats) {
 // ─── Layer 2 Big Five ───
 function layer2Html(p) {
     const big = p.bigFive || {};
+    const locks = p.bigFiveLocked || {};
     return `
         <section class="person-layer">
             <h4 class="person-layer-title">Layer 2 · 성격 (Big Five)</h4>
             <p class="person-layer-hint">
                 ❗ 라벨이 사람을 가두지 않습니다. "지금 내 눈에 이렇게 보인다"의 거울일 뿐.
+                <br>🔒 내가 정한 값 · 📊 도트가 만든 값 — 표시 옆 작은 마크로 알 수 있어요.
             </p>
             ${BIGFIVE_KEYS.map(({ k, name, hint }) => fiveStepRow({
                 id: `bf-${k}`,
+                axis: k,
+                axisKind: 'bigFive',
                 label: `${name} (${k})`,
                 hint,
                 value: big[k],
+                locked: !!locks[k],
             })).join('')}
         </section>
     `;
 }
 
-function fiveStepRow({ id, label, hint, value }) {
+function fiveStepRow({ id, axis, axisKind, label, hint, value, locked }) {
     const isNull = (value == null);
     return `
-        <div class="bf-row">
+        <div class="bf-row" data-axis="${escapeAttr(axis || '')}" data-axis-kind="${escapeAttr(axisKind || '')}">
             <div class="bf-row-head">
                 <span class="bf-row-label">${label}</span>
                 <span class="bf-row-hint">${hint || ''}</span>
+                ${lockBadgeHtml(locked, isNull)}
                 <label class="bf-row-unknown">
                     <input type="checkbox" data-bf-unknown="${id}" ${isNull ? 'checked' : ''} />
                     모르겠어요
@@ -769,6 +840,23 @@ function fiveStepRow({ id, label, hint, value }) {
             </div>
         </div>
     `;
+}
+
+/**
+ * lock 인디케이터 + (locked일 때) 되돌리기 버튼.
+ * - locked=true: 🔒 내가 정한 값. 옆에 '↻' 버튼 노출 (도트가 만든 값으로 되돌리기)
+ * - locked=false: 📊 도트가 만든 값
+ * - 모르겠어요(isNull)는 아무 표시 안 함 (값 자체가 없으니 lock 의미 없음)
+ */
+function lockBadgeHtml(locked, isNull) {
+    if (isNull) return '';
+    if (locked) {
+        return `
+            <span class="axis-lock-badge axis-locked" title="내가 직접 정한 값. 도트가 자동으로 바꾸지 않아요.">🔒 내가 정함</span>
+            <button type="button" class="axis-unlock-btn" data-action="unlock" title="도트가 만든 값으로 되돌리기">↻</button>
+        `;
+    }
+    return `<span class="axis-lock-badge axis-derived" title="이 값은 도트 만족도 누적에서 자동으로 만들어진 값이에요. 능력 그 자체가 아닌 '나에게 남은 인상'에 가깝습니다.">📊 도트가 만듦</span>`;
 }
 
 function bindLayer2Events(root) {
@@ -836,12 +924,14 @@ function layer3Html(p) {
 
 function compRowHtml(key, label, value, isCustom) {
     const v = (value == null) ? null : Number(value);
+    const locked = !!((_editingDraft?.competenciesLocked || {})[key]);
     return `
-        <div class="comp-row ${v == null ? 'is-null' : ''}" data-comp-key="${escapeAttr(key)}">
+        <div class="comp-row ${v == null ? 'is-null' : ''}" data-comp-key="${escapeAttr(key)}" data-axis="${escapeAttr(key)}" data-axis-kind="competencies">
             <span class="comp-label">${escapeHtml(label)}</span>
             <input class="comp-slider" type="range" min="0" max="100" step="10"
                    value="${v == null ? 0 : v}" />
             <span class="comp-value">${v == null ? '–' : v}</span>
+            ${lockBadgeHtml(locked, v == null)}
             <button class="comp-clear" title="모름으로 비우기">✕</button>
             ${isCustom ? '<button class="comp-remove" title="이 항목 제거">🗑</button>' : ''}
         </div>
@@ -918,14 +1008,16 @@ function layer4Html(p) {
 
 function rel5Row(key, label, value) {
     const v = value == null ? null : Number(value);
+    const locked = !!((_editingDraft?.relationshipLocked || {})[key]);
     return `
-        <div class="rel-row" data-rel-key="${key}">
+        <div class="rel-row" data-rel-key="${key}" data-axis="${escapeAttr(key)}" data-axis-kind="relationship">
             <span class="rel-label">${label}</span>
             <div class="rel-stars">
                 ${[1,2,3,4,5].map(n => `
                     <button class="rel-star ${v != null && n <= v ? 'active' : ''}" data-rel-value="${n}">★</button>
                 `).join('')}
                 <button class="rel-clear" title="비우기">✕</button>
+                ${lockBadgeHtml(locked, v == null)}
             </div>
         </div>
     `;
