@@ -68,29 +68,36 @@ export async function getDayReport(dek, userId, date) {
 
 /**
  * 최근 N개 일간 리포트 (자동 복호화)
+ *
+ * Firestore composite index 회피: userId 단일 where + 클라이언트 정렬·limit.
+ * (메모리: feedback_firestore_index_pattern.md)
  */
 export async function listDayReports(dek, userId, limitCount = 30) {
     const q = query(
         collection(db, COLLECTION),
         where('userId', '==', userId),
-        orderBy('startDate', 'desc'),
-        limit(limitCount),
+        limit(500),
     );
-    return queryRecords(dek, q);
+    const all = await queryRecords(dek, q);
+    return all
+        .sort((a, b) => (b.startDate || '').localeCompare(a.startDate || ''))
+        .slice(0, limitCount);
 }
 
 /**
  * 기간(startDate ~ endDate)에 속한 일간 리포트 조회 (주간 합성용)
+ * 동일 패턴 — userId 단일 where + 클라이언트 필터·정렬.
  */
 export async function getDayReportsByDateRange(dek, userId, startDate, endDate) {
     const q = query(
         collection(db, COLLECTION),
         where('userId', '==', userId),
-        where('startDate', '>=', startDate),
-        where('startDate', '<=', endDate),
-        orderBy('startDate', 'asc'),
+        limit(500),
     );
-    return queryRecords(dek, q);
+    const all = await queryRecords(dek, q);
+    return all
+        .filter(r => r.startDate >= startDate && r.startDate <= endDate)
+        .sort((a, b) => (a.startDate || '').localeCompare(b.startDate || ''));
 }
 
 /**

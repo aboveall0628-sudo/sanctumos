@@ -113,13 +113,15 @@ export async function getReport(dek, collectionName, reportId) {
  * 리포트 목록 조회
  */
 export async function getReports(dek, collectionName, userId, limitCount = 10) {
+    // Firestore composite index 회피: userId 단일 where + 클라이언트 정렬.
     const q = query(
         collection(db, collectionName),
         where('userId', '==', userId),
-        orderBy('startDate', 'desc'),
     );
     const reports = await queryRecords(dek, q);
-    return reports.slice(0, limitCount);
+    return reports
+        .sort((a, b) => (b.startDate || '').localeCompare(a.startDate || ''))
+        .slice(0, limitCount);
 }
 
 /**

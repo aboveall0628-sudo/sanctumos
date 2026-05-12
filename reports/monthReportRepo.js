@@ -76,15 +76,19 @@ export async function getMonthReport(dek, userId, yearMonth) {
 
 /**
  * 최근 N개 월간 리포트 (startDate desc)
+ *
+ * Firestore composite index 회피: userId 단일 where + 클라이언트 정렬.
  */
 export async function listMonthReports(dek, userId, limitCount = 6) {
     const q = query(
         collection(db, COLLECTION),
         where('userId', '==', userId),
-        orderBy('startDate', 'desc'),
-        limit(limitCount),
+        limit(100),
     );
-    return queryRecords(dek, q);
+    const all = await queryRecords(dek, q);
+    return all
+        .sort((a, b) => (b.startDate || '').localeCompare(a.startDate || ''))
+        .slice(0, limitCount);
 }
 
 /**

@@ -81,15 +81,19 @@ export async function getWeekReport(dek, userId, yearWeek) {
 
 /**
  * 최근 N개 주간 리포트 (startDate desc, 자동 복호화)
+ *
+ * Firestore composite index 회피: userId 단일 where + 클라이언트 정렬.
  */
 export async function listWeekReports(dek, userId, limitCount = 12) {
     const q = query(
         collection(db, COLLECTION),
         where('userId', '==', userId),
-        orderBy('startDate', 'desc'),
-        limit(limitCount),
+        limit(200),
     );
-    return queryRecords(dek, q);
+    const all = await queryRecords(dek, q);
+    return all
+        .sort((a, b) => (b.startDate || '').localeCompare(a.startDate || ''))
+        .slice(0, limitCount);
 }
 
 /**
