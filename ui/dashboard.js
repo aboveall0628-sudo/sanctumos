@@ -32,10 +32,14 @@ import { getDEK } from './lockScreen.js';
 // Phase E-8/D: 통독 진도 = 활성 plan + anchor 기반 자동 계산. Firestore bibleProgress 의존 제거.
 import { computePlanProgress } from './scripture.js';
 import { getActivePlan } from './scriptureSettings.js';
+// Phase E-9/R-QA 3세: 다음 아침 게이트에 미열람 Q&A 자동 노출
+import { listUnseenReportQuestions, markQuestionSeen } from '../reports/reportQuestionsRepo.js';
 import { computeTopTasks, computeTopLabels, computeTopCategories, formatMinutesShort } from '../data/dotInsights.js';
 import { findCategory } from '../data/dotCategories.js';
 
 export async function renderDashboardView(userId) {
+    // R-QA 3세 게이트 헬퍼에서 사용 — module-private이 아니라 lazy fetch에서 안전하게 읽으려고
+    window.__sanctumUserId = userId;
     const dek = getDEK();
     if (!dek) {
         renderLocked();
@@ -130,8 +134,53 @@ function renderTodayStart(pinned, yesterdayReport) {
                     어제 묵상에 가져간 질문도 자동으로 이어집니다.
                 </div>
             ` : ''}
+            <div id="today-start-unseen-qna"></div>
         </div>
     `;
+
+    // Phase E-9/R-QA 3세 — 미열람 리포트 Q&A 자동 노출 (lazy)
+    renderUnseenReportQuestions().catch(e => console.warn('unseen Q&A render failed:', e));
+}
+
+async function renderUnseenReportQuestions() {
+    const slot = document.getElementById('today-start-unseen-qna');
+    if (!slot) return;
+    const dek = getDEK();
+    if (!dek) return;
+    const userId = document.body.dataset.uid;
+    // userId는 dashboard fetch 시점의 인자로 받음 — module 스코프에 보관되지 않음
+    // 대신 lockScreen이 dek를 들고 있고, 우리는 currentUserId가 필요. 임시 우회:
+    // 이미 root.innerHTML 가 그려진 시점에는 _userIdHelper 가 있다고 가정 안 함.
+    // 안전: window.appUserId 가 없으면 그냥 skip.
+    const uid = window.__sanctumUserId;
+    if (!uid) return;
+    try {
+        const items = await listUnseenReportQuestions(dek, uid, 3);
+        if (!items || items.length === 0) return;
+        slot.innerHTML = `
+            <div class="today-start-qna-wrap">
+                <div class="today-start-qna-head">
+                    <i data-lucide="message-circle" class="today-start-icon"></i>
+                    <span class="today-start-label">묵상에 가져갈 질문 (어제 던진 것)</span>
+                </div>
+                ${items.map(it => `
+                    <article class="today-start-qna-card" data-qid="${escapeHtml(it.id)}">
+                        <p class="today-start-qna-q">"${escapeHtml(it.question || '')}"</p>
+                        ${it.returnToMeditation
+                            ? `<p class="today-start-qna-tail">${escapeHtml(it.returnToMeditation).replace(/\n/g, '<br>')}</p>`
+                            : ''}
+                    </article>
+                `).join('')}
+            </div>
+        `;
+        // 노출 즉시 seen 마킹 — 다음 아침엔 안 보임
+        items.forEach(it => {
+            markQuestionSeen(uid, it.id).catch(() => {});
+        });
+        if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
+    } catch (e) {
+        console.warn('listUnseenReportQuestions failed:', e);
+    }
 }
 
 function greetingByHour() {

@@ -819,6 +819,114 @@ function buildMonthlyReportFallback(monthStats) {
     };
 }
 
+/**
+ * Phase E-9/R-QA: 리포트 Q&A 호출 (spec §4 — 세 겹 안전장치 중 2세 포함).
+ *
+ * @param {Object} args
+ *   @param {string} args.question        사용자 질문 ("왜 화요일이 낮았어?")
+ *   @param {string} args.reportType      'day'|'week'|'month'|'quarter'|'year'
+ *   @param {Object} args.stats           해당 리포트의 stats (가명화·deterministic)
+ *   @param {Object} [args.context]       persons/orgs/places/amounts (가명화 복원용)
+ *
+ * @returns {Promise<{
+ *   observationFlow: string,       관찰된 흐름 본문 (마지막 두 줄 제외 부분)
+ *   returnToMeditation: string,    필수 종결 두 줄
+ *   full: string,                  화면 표시용 전체 텍스트 (둘을 한 줄 띄어 합침)
+ *   fallback: boolean,
+ *   safetyPatched: boolean         AI가 종결 두 줄을 빠뜨려 클라이언트가 보완했는지
+ * }>}
+ */
+export async function callReportQuestion({ question, reportType, stats, context = {} }) {
+    const plain = {
+        question,
+        reportType,
+        stats,
+        context: {
+            persons: context.persons || [],
+            orgs:    context.orgs    || [],
+            places:  context.places  || [],
+            amounts: context.amounts || [],
+        },
+    };
+
+    const result = await callLLM('reportQuestion', plain, {
+        deep:        false,    // flash — Q&A 는 가벼움
+        stats,
+        bypassCache: true,     // 같은 질문도 매번 fresh (질문 텍스트가 키에 안 들어감)
+    });
+
+    if (result.fallback) {
+        return { ...buildReportQuestionFallback(stats, question), fallback: true, safetyPatched: false };
+    }
+
+    const parsed = parseReportQuestionResponse(result.text);
+    return { ...parsed, fallback: false };
+}
+
+/**
+ * Q&A 응답 파서 — spec §4 출력 템플릿 기준.
+ *
+ * 정상 출력:
+ *   관찰된 데이터의 흐름:
+ *     ① ...
+ *     ② ...
+ *
+ *   이것은 "왜"의 답이 아닙니다. 데이터가 그린 흐름일 뿐입니다.
+ *
+ *   이 흐름을 가지고 내일 아침 묵상에서
+ *   말씀과 기도 안에서 하나님을 먼저 만나세요.
+ *
+ * 세 겹 안전장치 2세: 마지막 두 줄("이것은 '왜'의 답이 아닙니다" + "내일 묵상으로")
+ *   이 누락되면 클라이언트가 보완해 끼움. safetyPatched=true 로 표시.
+ */
+function parseReportQuestionResponse(text) {
+    const NOT_WHY_LINE   = "이것은 \"왜\"의 답이 아닙니다. 데이터가 그린 흐름일 뿐입니다.";
+    const MEDITATION_LINE = "이 흐름을 가지고 내일 아침 묵상에서 말씀과 기도 안에서 하나님을 먼저 만나세요.";
+
+    const raw = String(text || '').trim();
+    // 가벼운 정규화 — 따옴표 종류, 공백, 줄바꿈
+    const looksLike = (line, candidate) => {
+        const norm = (s) => String(s).replace(/['""'']/g, '"').replace(/\s+/g, ' ').trim();
+        return norm(candidate).includes(norm(line).slice(0, 18))
+            || norm(line).includes(norm(candidate).slice(0, 18));
+    };
+
+    const lines = raw.split(/\n+/).map(l => l.trim()).filter(Boolean);
+    let hasNotWhy = lines.some(l => looksLike(l, NOT_WHY_LINE) || (l.includes('왜') && l.includes('답이 아닙니다')));
+    let hasMeditation = lines.some(l => looksLike(l, MEDITATION_LINE)
+        || (l.includes('내일 아침') && l.includes('묵상')));
+
+    let safetyPatched = false;
+    let observationFlow = raw;
+    let returnToMeditation = `${NOT_WHY_LINE}\n\n${MEDITATION_LINE}`;
+
+    if (hasNotWhy && hasMeditation) {
+        // 정상 — 응답에서 마지막 두 줄을 떼어내 분리
+        const lastNotWhyIdx = lines.findLastIndex(l => l.includes('답이 아닙니다'));
+        const flowLines = lines.slice(0, Math.max(0, lastNotWhyIdx));
+        const tailLines = lines.slice(Math.max(0, lastNotWhyIdx));
+        observationFlow = flowLines.join('\n').trim();
+        returnToMeditation = tailLines.join('\n').trim();
+    } else {
+        // 안전장치 2세 — 본문 그대로 두고 종결 두 줄을 클라이언트가 보완
+        safetyPatched = true;
+    }
+
+    const full = `${observationFlow}\n\n${returnToMeditation}`.trim();
+    return { observationFlow, returnToMeditation, full, safetyPatched };
+}
+
+function buildReportQuestionFallback(stats, question) {
+    const flow = stats && stats.totalDots != null
+        ? `이 기간에 ${stats.totalDots}개의 도트가 관찰되었습니다.\n질문 "${String(question || '').slice(0, 60)}"에 대해 AI 흐름을 지금 부를 수 없는 상태예요.`
+        : `질문 "${String(question || '').slice(0, 60)}"에 대해 AI 흐름을 지금 부를 수 없는 상태예요.`;
+    return {
+        observationFlow: flow,
+        returnToMeditation: `이것은 "왜"의 답이 아닙니다. 데이터가 그린 흐름일 뿐입니다.\n\n이 흐름을 가지고 내일 아침 묵상에서 말씀과 기도 안에서 하나님을 먼저 만나세요.`,
+        full: `${flow}\n\n이것은 "왜"의 답이 아닙니다. 데이터가 그린 흐름일 뿐입니다.\n\n이 흐름을 가지고 내일 아침 묵상에서 말씀과 기도 안에서 하나님을 먼저 만나세요.`,
+    };
+}
+
 function buildDailyReportFallback(stats) {
     const ds    = stats.dotStats || {};
     const sat   = stats.satisfactionDistribution || {};

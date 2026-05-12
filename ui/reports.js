@@ -17,6 +17,8 @@ import { getDEK } from './lockScreen.js';
 import { showToast } from './quickReview.js';
 // Phase E-9/R-DD: 리포트 카드 드릴다운 (spec §1.6 2층 "raw 데이터")
 import { attachDrillDown } from './reportDrillDown.js';
+// Phase E-9/R-QA: A3 확장 — 카드 하단 Q&A 입력창
+import { mountReportQna } from './reportQna.js';
 
 let _userId = null;
 let _currentTab = 'day';
@@ -58,17 +60,20 @@ async function loadReports() {
         if (_currentTab === 'day') {
             const reports = await listDayReports(dek, _userId, 30);
             container.innerHTML = renderDayList(reports);
+            bindDayQna(container, dek, reports);
         } else if (_currentTab === 'week') {
             const reports = await listWeekReports(dek, _userId, 12);
             container.innerHTML = renderWeekList(reports);
             bindWeekRegenerateButtons(dek);
             bindWeekDrillDown(container, dek, reports);
+            bindWeekQna(container, dek, reports);
         } else if (_currentTab === 'month') {
             // Phase E-9/R-2: 월간도 새 spec 카드로
             const reports = await listMonthReports(dek, _userId, 6);
             container.innerHTML = renderMonthList(reports);
             bindMonthRegenerateButtons(dek);
             bindMonthDrillDown(container, dek, reports);
+            bindMonthQna(container, dek, reports);
         } else {
             // 옛 흐름 (quarter/year) — 새 spec 구축 전이라 호환 유지
             const reports = await getReports(dek, OLD_COLLECTION_MAP[_currentTab], _userId, 10);
@@ -136,7 +141,7 @@ function renderDayCard(r) {
     `;
 
     return `
-        <article class="report-card card-section">
+        <article class="report-card card-section" data-day-id="${escapeHtml(r.startDate || '')}">
             <header class="report-card-header">
                 <h3>${escapeHtml(r.startDate || '')}</h3>
             </header>
@@ -339,6 +344,60 @@ function bindWeekDrillDown(container, dek, reports) {
 
         // person chip 텍스트 → 실제 이름 (lazy)
         enrichPersonChips(card, dek);
+    });
+}
+
+/**
+ * Phase E-9/R-QA: 카드별 Q&A 입력창 부착.
+ * 푸터(.report-card-foot) 앞에 reportQna 컴포넌트를 박음.
+ */
+function bindDayQna(container, dek, reports) {
+    container.querySelectorAll('[data-day-id]').forEach((card, idx) => {
+        const r = reports[idx];
+        if (!r) return;
+        const foot = card.querySelector('.report-card-foot');
+        if (!foot) return;
+        mountReportQna(foot, {
+            reportId:   r.startDate,
+            reportType: 'day',
+            stats:      r.stats || {},
+            context:    {},
+            dek, userId: _userId,
+        });
+    });
+}
+
+function bindWeekQna(container, dek, reports) {
+    container.querySelectorAll('[data-year-week]').forEach((card, idx) => {
+        const r = reports[idx];
+        if (!r) return;
+        const foot = card.querySelector('.report-card-foot');
+        if (!foot) return;
+        const yearWeek = card.dataset.yearWeek || r.stats?.yearWeek || r.startDate;
+        mountReportQna(foot, {
+            reportId:   yearWeek,
+            reportType: 'week',
+            stats:      r.stats || {},
+            context:    {},
+            dek, userId: _userId,
+        });
+    });
+}
+
+function bindMonthQna(container, dek, reports) {
+    container.querySelectorAll('[data-year-month]').forEach((card, idx) => {
+        const r = reports[idx];
+        if (!r) return;
+        const foot = card.querySelector('.report-card-foot');
+        if (!foot) return;
+        const yearMonth = card.dataset.yearMonth || r.stats?.yearMonth || r.startDate?.slice(0, 7);
+        mountReportQna(foot, {
+            reportId:   yearMonth,
+            reportType: 'month',
+            stats:      r.stats || {},
+            context:    {},
+            dek, userId: _userId,
+        });
     });
 }
 

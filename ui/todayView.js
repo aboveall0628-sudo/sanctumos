@@ -35,6 +35,8 @@ import { getMonthRange } from '../reports/monthlyAggregator.js';
 import { determineLayers } from './eveningLoop.js';
 // Phase E-9/R-DD: 인라인 카드에도 드릴다운
 import { attachDrillDown } from './reportDrillDown.js';
+// Phase E-9/R-QA: 카드 하단 Q&A 입력창
+import { mountReportQna } from './reportQna.js';
 
 let _userId = null;
 let _date = null;
@@ -131,6 +133,9 @@ async function loadTodayReport(dek) {
                 </button>
             </div>
         `;
+        // Phase E-9/R-QA: 일간 리포트 Q&A 입력창 — 푸터 anchor 를 만들어 박음
+        attachQnaToTodayReport(body, dek, report);
+
         // 리포트가 이미 있을 때도 토요일이면 주/월/분기/연 회고 단계별 버튼 노출
         renderSaturdayLayers(body);
 
@@ -626,6 +631,58 @@ function bindInlineDrill(inlineRoot, dek) {
             label: '이 기간 결단의 흐름 (raw)',
         });
     });
+    // Phase E-9/R-QA: 인라인 카드 안에 Q&A 입력창 — 푸터(여기까지가 데이터예요…) 앞에.
+    inlineRoot.querySelectorAll('.week-report-inline, .month-report-inline').forEach(card => {
+        // 마지막 자식이 "여기까지가 데이터예요…" 푸터. 거기 앞에 박음.
+        const foot = [...card.children].reverse().find(el => el.textContent?.includes('여기까지가 데이터'));
+        if (!foot) return;
+        const isMonth = card.classList.contains('month-report-inline');
+        const start = card.dataset.start;
+        const end = card.dataset.end;
+        const reportId = isMonth ? (start || '').slice(0, 7) : weeklyKeyFromRange(start, end);
+        mountReportQna(foot, {
+            reportId,
+            reportType: isMonth ? 'month' : 'week',
+            // 인라인은 stats를 따로 들고 다니지 않음 — Q&A 호출 시 그 자리에서 lazy 로딩 가능하지만
+            // 우선 빈 stats로 보내고, 답변 톤은 시스템 프롬프트가 책임짐.
+            stats: {},
+            context: {},
+            dek,
+            userId: _userId,
+        });
+    });
+}
+
+/**
+ * 오늘 리포트(today-report-body)에 Q&A 입력창 부착.
+ * 푸터 자리가 없으므로 임시 anchor div를 끝에 박고 그 앞에 mountReportQna.
+ */
+function attachQnaToTodayReport(body, dek, report) {
+    if (!body) return;
+    if (body.querySelector('.qna-wrap')) return;
+    const anchor = document.createElement('div');
+    anchor.className = 'report-card-foot today-qna-anchor';
+    anchor.textContent = '여기까지가 데이터예요. 다음은 묵상 안에서.';
+    body.appendChild(anchor);
+    mountReportQna(anchor, {
+        reportId:   _date,
+        reportType: 'day',
+        stats:      report?.stats || {},
+        context:    {},
+        dek,
+        userId: _userId,
+    });
+}
+
+function weeklyKeyFromRange(start, end) {
+    // 'YYYY-MM-DD' end → ISO yearWeek 'YYYY-Www'
+    if (!end) return start || '';
+    const d = new Date(end + 'T00:00:00');
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+    const week1 = new Date(d.getFullYear(), 0, 4);
+    const weekNum = 1 + Math.round(((d - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+    return `${d.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
 }
 
 // ─── 다음 날 묵상 버튼 ───
