@@ -102,13 +102,20 @@ export async function queryRecords(dek, firestoreQuery) {
     }
     const snapshot = await getDocs(firestoreQuery);
     const results = [];
+    let failed = 0;
     for (const docSnap of snapshot.docs) {
         try {
             results.push(await readDocument(dek, docSnap.data()));
         } catch (e) {
-            console.warn(`Decrypt failed for ${docSnap.id}`, e);
-            throw e;
+            // Phase E-9/R-FIX2: 부분 실패 흡수.
+            // 한 문서가 깨졌다고 전체 list를 막지 않음 — 메뉴가 통째로 비는 사용자 경험을
+            // 방지하고, 깨진 문서는 콘솔에 남겨 디버그 가능하게.
+            failed += 1;
+            console.warn(`[queryRecords] Decrypt failed for ${docSnap.id}, skipping:`, e?.message || e);
         }
+    }
+    if (failed > 0) {
+        console.warn(`[queryRecords] ${failed}건 복호화 실패, ${results.length}건 반환`);
     }
     return results;
 }
