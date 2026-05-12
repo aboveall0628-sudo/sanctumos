@@ -25,6 +25,9 @@ import { getDayReport } from '../reports/dayReportRepo.js';
 import { generateDailyReport } from '../reports/dailyReportFlow.js';
 // Phase E-5-B: 주간 리포트 토요일 흐름
 import { generateWeeklyReport } from '../reports/weeklyReportFlow.js';
+// Phase E-9/R-2: 월말 토요일 월간 리포트 흐름
+import { generateMonthlyReport } from '../reports/monthlyReportFlow.js';
+import { getMonthRange } from '../reports/monthlyAggregator.js';
 // 토요일이면 주/월/분기/연/5·10년 회고가 단계별로 추가 (eveningLoop의 토요일 감지 재사용)
 import { determineLayers } from './eveningLoop.js';
 
@@ -210,21 +213,20 @@ function renderSaturdayLayers(body) {
     section.innerHTML = `
         ${layerButtonsHtml}
         <div id="today-week-report-inline"></div>
+        <div id="today-month-report-inline"></div>
         <div style="text-align:center; margin-top:10px">
             <button class="primary-btn" id="today-go-next-day-btn">🌅 내일 묵상 시작하기 →</button>
         </div>
     `;
     body.appendChild(section);
 
-    // 단계별 회고 버튼 — week 만 실제 흐름. 나머지는 placeholder.
+    // 단계별 회고 버튼 — week / month 가 실제 흐름. quarter/year/decade 는 placeholder.
     section.querySelectorAll('button[data-layer]').forEach(btn => {
         btn.addEventListener('click', async () => {
             const layer = btn.dataset.layer;
-            if (layer !== 'week') {
-                showToast(`${layerLabels[layer].label}는 곧 만들어질 예정이에요`);
-                return;
-            }
-            await handleWeekReportClick(btn);
+            if (layer === 'week')  { await handleWeekReportClick(btn);  return; }
+            if (layer === 'month') { await handleMonthReportClick(btn); return; }
+            showToast(`${layerLabels[layer].label}는 곧 만들어질 예정이에요`);
         });
     });
 
@@ -359,6 +361,151 @@ function renderWeekReportInline(r) {
             ${questionsHtml}
             <div style="text-align:center; margin-top:14px">
                 <button id="week-report-regenerate-btn" class="text-btn" style="font-size:13px; color:var(--text-secondary, #888); cursor:pointer; background:none; border:none">
+                    ↻ 리포트 재작성하기
+                </button>
+            </div>
+            <div style="text-align:center; margin-top:10px; padding-top:10px; border-top:1px solid var(--border, rgba(0,0,0,0.08)); font-size:12px; color:var(--text-secondary)">
+                여기까지가 데이터예요. 다음은 묵상 안에서.
+            </div>
+        </article>
+    `;
+}
+
+/**
+ * Phase E-9/R-2: 이번 달 리포트 생성 트리거 — 월말 토요일 회고 인라인.
+ * monthStart = 그 달의 1일, monthEnd = 그 달의 마지막 날 (getMonthRange로 계산).
+ */
+async function handleMonthReportClick(btn) {
+    const dek = getDEK();
+    if (!dek) { showToast('잠금 해제가 필요해요'); return; }
+
+    const inline = document.getElementById('today-month-report-inline');
+    const originalLabel = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '만드는 중이에요...';
+
+    try {
+        const yearMonth = (_date || '').slice(0, 7);   // 'YYYY-MM'
+        const { start, end } = getMonthRange(yearMonth);
+        const result = await generateMonthlyReport(dek, _userId, start, end);
+
+        if (result.status === 'no-dots') {
+            if (inline) {
+                inline.innerHTML = `<p style="color:var(--text-secondary); font-size:13px; margin-top:12px; text-align:center">이번 달은 아직 기록된 도트가 없어서 리포트가 만들어지지 않았어요.</p>`;
+            }
+            btn.disabled = false;
+            btn.textContent = originalLabel;
+            return;
+        }
+
+        if (inline) inline.innerHTML = renderMonthReportInline(result.report);
+        btn.style.display = 'none';
+        if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
+
+        document.getElementById('month-report-regenerate-btn')?.addEventListener('click', async () => {
+            const rb = document.getElementById('month-report-regenerate-btn');
+            if (rb) { rb.disabled = true; rb.textContent = '다시 만드는 중이에요...'; }
+            try {
+                const r2 = await generateMonthlyReport(dek, _userId, start, end, { force: true });
+                if (inline) inline.innerHTML = renderMonthReportInline(r2.report);
+                if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
+                showToast('월간 리포트가 새로 만들어졌어요');
+            } catch (e) {
+                console.error('monthly regenerate failed:', e);
+                showToast('재작성이 잠깐 막혔어요');
+                if (rb) { rb.disabled = false; rb.textContent = '↻ 리포트 재작성하기'; }
+            }
+        });
+    } catch (e) {
+        console.error('monthly report generate failed:', e);
+        showToast('월간 리포트 생성이 잠깐 막혔어요');
+        btn.disabled = false;
+        btn.textContent = originalLabel;
+    }
+}
+
+/**
+ * 월간 리포트 인라인 카드 — 토요일 회고 안에서 표시.
+ * ui/reports.js 의 month 탭 카드와 같은 시각 언어, 인라인용으로 약간 축소.
+ */
+function renderMonthReportInline(r) {
+    if (!r) return '';
+    const stats = r.stats || {};
+    const totalDots = stats.totalDots ?? 0;
+    const weeksWithData = stats.weeklyMatrix?.weeksWithData ?? 0;
+    const cats = stats.categorySatisfactionMatrix?.items || [];
+    const topCat = cats[0];
+    const topCatHours = topCat ? Math.round((topCat.durationMinutes || 0) / 60 * 10) / 10 : null;
+    const personCount = stats.personNetwork?.totalUniquePersons ?? 0;
+
+    const hypothesesHtml = (r.hypotheses || []).length > 0
+        ? `<div class="report-section" style="margin-top:14px">
+               <div style="font-weight:600; font-size:13px; color:var(--text-secondary); margin-bottom:6px">
+                   <i data-lucide="lightbulb"></i> 가설
+               </div>
+               <ul style="margin:0; padding-left:20px">
+                   ${r.hypotheses.map(h => `
+                       <li style="margin-bottom:6px">
+                           ${h.repetitionCount ? `<span style="display:inline-block; padding:1px 6px; background:var(--bg-secondary, #f0f0f0); border-radius:10px; font-size:11px; margin-right:6px">${escapeHtml(h.repetitionCount)}</span>` : ''}
+                           ${escapeHtml(h.text)}
+                       </li>
+                   `).join('')}
+               </ul>
+           </div>`
+        : '';
+
+    const patterns = r.patternsObserved || [];
+    const patternsHtml = patterns.length > 0
+        ? `<div class="report-section" style="margin-top:14px">
+               <div style="font-weight:600; font-size:13px; color:var(--text-secondary); margin-bottom:6px">
+                   <i data-lucide="repeat"></i> 이번 달 자주 관찰된 패턴
+               </div>
+               ${patterns.map(p => `
+                   <div style="margin-top:8px; padding:10px; background:var(--bg-elev); border-left:3px solid var(--accent); border-radius:6px">
+                       <strong style="font-size:13px">${escapeHtml(p.title || '관찰된 패턴')}</strong>
+                       <p style="margin:4px 0 0; font-size:13px; line-height:1.6; white-space:pre-wrap">${escapeHtml(p.body || '')}</p>
+                   </div>
+               `).join('')}
+           </div>`
+        : '';
+
+    const decisionFlowHtml = r.decisionFlow
+        ? `<div class="report-section" style="margin-top:14px">
+               <div style="font-weight:600; font-size:13px; color:var(--text-secondary); margin-bottom:6px">
+                   <i data-lucide="compass"></i> 결단의 흐름
+               </div>
+               <p style="margin:0; white-space:pre-wrap">${escapeHtml(r.decisionFlow)}</p>
+           </div>`
+        : '';
+
+    const questionsHtml = (r.questionsForMeditation || []).length > 0
+        ? `<div class="report-section" style="margin-top:14px">
+               <div style="font-weight:600; font-size:13px; color:var(--text-secondary); margin-bottom:6px">
+                   <i data-lucide="message-circle-question"></i> 묵상에 가져갈 질문
+               </div>
+               <ul style="margin:0; padding-left:20px">${r.questionsForMeditation.map(q => `<li>${escapeHtml(q)}</li>`).join('')}</ul>
+           </div>`
+        : '';
+
+    return `
+        <article class="card-section" style="margin-top:16px; padding:16px">
+            <header style="margin-bottom:10px">
+                <h3 style="margin:0; font-size:15px">${escapeHtml(stats.yearMonth || r.startDate || '')}</h3>
+                ${r.startDate && r.endDate ? `<p style="margin:4px 0 0; font-size:12px; color:var(--text-secondary)">${escapeHtml(r.startDate)} ~ ${escapeHtml(r.endDate)}</p>` : ''}
+            </header>
+            <div style="display:flex; gap:14px; flex-wrap:wrap; margin-bottom:10px; font-size:13px; color:var(--text-secondary)">
+                <span><strong>${totalDots}</strong> 도트</span>
+                ${weeksWithData > 0 ? `<span><strong>${weeksWithData}</strong> 주 합류</span>` : ''}
+                ${topCat ? `<span><strong>${topCatHours}h</strong> ${escapeHtml(topCat.category)}</span>` : ''}
+                ${personCount > 0 ? `<span><strong>${personCount}</strong> 만난 사람</span>` : ''}
+            </div>
+            ${r.aiSummary ? `<div class="ai-summary-card"><p style="margin:0; white-space:pre-wrap">${escapeHtml(r.aiSummary)}</p></div>` : ''}
+            ${hypothesesHtml}
+            ${patternsHtml}
+            ${decisionFlowHtml}
+            ${questionsHtml}
+            <div style="text-align:center; margin-top:14px">
+                <button id="month-report-regenerate-btn" class="text-btn" style="font-size:13px; color:var(--text-secondary, #888); cursor:pointer; background:none; border:none">
                     ↻ 리포트 재작성하기
                 </button>
             </div>

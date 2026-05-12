@@ -10,6 +10,8 @@
 import { listDayReports } from '../reports/dayReportRepo.js';
 import { listWeekReports } from '../reports/weekReportRepo.js';
 import { generateWeeklyReport } from '../reports/weeklyReportFlow.js';
+import { listMonthReports } from '../reports/monthReportRepo.js';
+import { generateMonthlyReport } from '../reports/monthlyReportFlow.js';
 import { getReports } from '../data/reportPipeline.js';
 import { getDEK } from './lockScreen.js';
 import { showToast } from './quickReview.js';
@@ -17,8 +19,8 @@ import { showToast } from './quickReview.js';
 let _userId = null;
 let _currentTab = 'day';
 
+// month 는 STEP 2 에서 새 spec 으로 전환됨. quarter/year 만 옛 흐름 유지.
 const OLD_COLLECTION_MAP = {
-    month:   'monthReports',
     quarter: 'quarterReports',
     year:    'yearReports',
 };
@@ -58,8 +60,13 @@ async function loadReports() {
             const reports = await listWeekReports(dek, _userId, 12);
             container.innerHTML = renderWeekList(reports);
             bindWeekRegenerateButtons(dek);
+        } else if (_currentTab === 'month') {
+            // Phase E-9/R-2: 월간도 새 spec 카드로
+            const reports = await listMonthReports(dek, _userId, 6);
+            container.innerHTML = renderMonthList(reports);
+            bindMonthRegenerateButtons(dek);
         } else {
-            // 옛 흐름 (month/quarter/year) — 아직 새 spec 구축 전이라 호환 유지
+            // 옛 흐름 (quarter/year) — 새 spec 구축 전이라 호환 유지
             const reports = await getReports(dek, OLD_COLLECTION_MAP[_currentTab], _userId, 10);
             container.innerHTML = renderOldList(reports);
         }
@@ -259,7 +266,151 @@ function bindWeekRegenerateButtons(dek) {
     });
 }
 
-// ─── 옛 탭 (month/quarter/year) — 새 spec 구축 전 호환 ───
+// ─── month 탭 (새 spec — Phase E-9/R-2) ─────────────────
+function renderMonthList(reports) {
+    if (!reports || reports.length === 0) {
+        return `
+            <div class="no-data">
+                아직 만든 월간 리포트가 없어요. 월말 토요일에 오늘 화면 하단에서 [이번 달 리포트 만들기]를 눌러 보세요.
+            </div>
+        `;
+    }
+    return reports.map(renderMonthCard).join('');
+}
+
+function renderMonthCard(r) {
+    const stats     = r.stats || {};
+    const totalDots = stats.totalDots ?? 0;
+    const weeksWithData = stats.weeklyMatrix?.weeksWithData ?? 0;
+
+    // 카테고리 점유 top 1 — 시간 합계로 요약
+    const cats = stats.categorySatisfactionMatrix?.items || [];
+    const topCat = cats[0];
+    const topCatHours = topCat ? Math.round((topCat.durationMinutes || 0) / 60 * 10) / 10 : null;
+
+    const decisionDistance = stats.decisionFlow?.avgDistanceDays;
+    const decisionSample   = stats.decisionFlow?.sampleSize ?? 0;
+
+    const personCount = stats.personNetwork?.totalUniquePersons ?? 0;
+
+    const pinned = stats.pinnedPrincipleEffectiveness || {};
+    const pinnedDelta = (pinned.hasPinned
+        && pinned.applied?.avgSatisfaction != null
+        && pinned.unapplied?.avgSatisfaction != null)
+        ? Math.round((pinned.applied.avgSatisfaction - pinned.unapplied.avgSatisfaction) * 100) / 100
+        : null;
+
+    const statsRow = `
+        <div class="report-stats-row">
+            <span class="report-stat"><strong>${totalDots}</strong> <small>도트</small></span>
+            ${weeksWithData > 0 ? `<span class="report-stat"><strong>${weeksWithData}</strong> <small>주 합류</small></span>` : ''}
+            ${topCat ? `<span class="report-stat"><strong>${topCatHours}h</strong> <small>${escapeHtml(topCat.category)}</small></span>` : ''}
+            ${decisionSample > 0 ? `<span class="report-stat"><strong>${decisionDistance}일</strong> <small>결단→실행 평균</small></span>` : ''}
+            ${personCount > 0 ? `<span class="report-stat"><strong>${personCount}</strong> <small>만난 사람</small></span>` : ''}
+            ${pinnedDelta != null ? `<span class="report-stat"><strong>${pinnedDelta > 0 ? '+' : ''}${pinnedDelta}</strong> <small>핀 원칙 효과</small></span>` : ''}
+        </div>
+    `;
+
+    const summaryBlock = r.aiSummary
+        ? `<div class="report-summary"><p style="white-space:pre-wrap">${escapeHtml(r.aiSummary)}</p></div>`
+        : `<div class="report-summary report-summary-empty">
+               이 달은 아직 AI 산문이 채워지지 않았어요. 카드 하단의 [리포트 재작성하기]를 눌러 보세요.
+           </div>`;
+
+    const hypotheses = r.hypotheses || [];
+    const hypothesesBlock = hypotheses.length > 0
+        ? `<div class="report-section report-hypotheses" style="margin-top:14px">
+               <span class="report-section-label"><i data-lucide="lightbulb" class="report-section-icon"></i> 가설</span>
+               <ul style="margin:6px 0 0 0; padding-left:20px">
+                   ${hypotheses.map(h => `
+                       <li style="margin-bottom:6px">
+                           ${h.repetitionCount ? `<span class="hypothesis-badge" style="display:inline-block; padding:1px 6px; background:var(--bg-secondary, #f0f0f0); border-radius:10px; font-size:11px; margin-right:6px">${escapeHtml(h.repetitionCount)}</span>` : ''}
+                           ${escapeHtml(h.text)}
+                       </li>
+                   `).join('')}
+               </ul>
+           </div>`
+        : '';
+
+    // A1 — 이번 달 자주 관찰된 패턴 (도트 ID 노출 X, 산문)
+    const patterns = r.patternsObserved || [];
+    const patternsBlock = patterns.length > 0
+        ? `<div class="report-section" style="margin-top:14px">
+               <span class="report-section-label"><i data-lucide="repeat" class="report-section-icon"></i> 이번 달 자주 관찰된 패턴</span>
+               ${patterns.map(p => `
+                   <div class="report-pattern" style="margin-top:10px; padding:12px; background:var(--bg-elev); border-left:3px solid var(--accent); border-radius:6px">
+                       <h4 style="margin:0 0 6px; font-size:13px; font-weight:600">${escapeHtml(p.title || '관찰된 패턴')}</h4>
+                       <p style="margin:0; font-size:13px; line-height:1.6; white-space:pre-wrap">${escapeHtml(p.body || '')}</p>
+                   </div>
+               `).join('')}
+           </div>`
+        : '';
+
+    const decisionFlowBlock = r.decisionFlow
+        ? `<div class="report-section" style="margin-top:14px">
+               <span class="report-section-label"><i data-lucide="compass" class="report-section-icon"></i> 결단의 흐름</span>
+               <p style="margin:6px 0 0 0; white-space:pre-wrap">${escapeHtml(r.decisionFlow)}</p>
+           </div>`
+        : '';
+
+    const questions = r.questionsForMeditation || [];
+    const qBlock = questions.length > 0
+        ? `<div class="report-questions">
+               <span class="report-section-label"><i data-lucide="message-circle-question" class="report-section-icon"></i> 묵상에 가져갈 질문</span>
+               <ul>${questions.map(q => `<li>${escapeHtml(q)}</li>`).join('')}</ul>
+           </div>`
+        : '';
+
+    return `
+        <article class="report-card card-section" data-year-month="${escapeHtml(stats.yearMonth || '')}" data-start="${escapeHtml(r.startDate || '')}" data-end="${escapeHtml(r.endDate || '')}">
+            <header class="report-card-header">
+                <h3>${escapeHtml(stats.yearMonth || r.startDate || '')}</h3>
+                ${r.startDate && r.endDate ? `<span class="report-card-meta">${escapeHtml(r.startDate)} ~ ${escapeHtml(r.endDate)}</span>` : ''}
+            </header>
+            ${statsRow}
+            ${summaryBlock}
+            ${hypothesesBlock}
+            ${patternsBlock}
+            ${decisionFlowBlock}
+            ${qBlock}
+            <div style="text-align:center; margin-top:14px">
+                <button class="text-btn month-regenerate-btn" style="font-size:13px; color:var(--text-secondary, #888); cursor:pointer; background:none; border:none">
+                    ↻ 리포트 재작성하기
+                </button>
+            </div>
+            <div class="report-card-foot">여기까지가 데이터예요. 다음은 묵상 안에서.</div>
+        </article>
+    `;
+}
+
+function bindMonthRegenerateButtons(dek) {
+    document.querySelectorAll('.month-regenerate-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const card = e.target.closest('[data-year-month]');
+            if (!card) return;
+            const monthStart = card.dataset.start;
+            const monthEnd   = card.dataset.end;
+            if (!monthStart || !monthEnd) {
+                showToast('이 카드는 기간 정보가 없어요');
+                return;
+            }
+            btn.disabled = true;
+            btn.textContent = '다시 만드는 중이에요...';
+            try {
+                await generateMonthlyReport(dek, _userId, monthStart, monthEnd, { force: true });
+                await loadReports();
+                showToast('월간 리포트가 새로 만들어졌어요');
+            } catch (e) {
+                console.error('month regenerate failed:', e);
+                showToast('재작성이 잠깐 막혔어요. 잠시 후 다시 시도해 주세요');
+                btn.disabled = false;
+                btn.textContent = '↻ 리포트 재작성하기';
+            }
+        });
+    });
+}
+
+// ─── 옛 탭 (quarter/year) — 새 spec 구축 전 호환 ───
 function renderOldList(reports) {
     if (!reports || reports.length === 0) {
         return `<div class="no-data">아직 이 단계의 리포트가 없어요. 곧 만들어질 예정이에요.</div>`;
