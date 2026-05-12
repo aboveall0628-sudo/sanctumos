@@ -3437,6 +3437,55 @@ svg.person-radar { display: block; }
     font-size: 12px; list-style: none; margin-left: -18px;
 }
 
+/* 조직 카드 v5 — 1차 분류 multi-select 체크박스 그리드 */
+.org-row-vertical {
+    display: flex; flex-direction: column;
+    gap: 8px;
+    grid-template-columns: 1fr;
+}
+.org-role-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+@media (max-width: 640px) {
+    .org-role-grid { grid-template-columns: 1fr; }
+}
+.org-role-chip {
+    display: flex; flex-direction: column; gap: 4px;
+    padding: 10px 12px;
+    border: 1px solid var(--border, var(--line));
+    border-radius: 10px;
+    background: var(--bg-card, var(--surface-card));
+    cursor: pointer;
+    transition: all 160ms ease;
+    position: relative;
+}
+.org-role-chip:hover { border-color: var(--brand-primary, var(--accent)); }
+.org-role-chip input[type="checkbox"] {
+    position: absolute; opacity: 0; pointer-events: none;
+}
+.org-role-chip.checked {
+    background: var(--brand-soft);
+    border-color: var(--brand-primary, var(--accent));
+}
+.org-role-chip-head {
+    font-size: 13px; color: var(--text-primary, var(--ink-primary));
+}
+.org-role-chip-head b { font-weight: 600; margin-left: 2px; }
+.org-role-chip-hint {
+    font-size: 11px;
+    color: var(--text-secondary, var(--ink-secondary));
+    line-height: 1.4;
+    word-break: keep-all;
+}
+.org-role-chip.checked .org-role-chip-head::after {
+    content: '✓';
+    margin-left: 6px;
+    color: var(--brand-primary, var(--accent));
+    font-weight: 700;
+}
+
 /* 조직 카드 v4 — 2차 분류 칩 + 모달 select 행 숨김 */
 .org-secondary-chip {
     display: inline-flex; align-items: center;

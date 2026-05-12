@@ -52,35 +52,31 @@ const STANCE_FILTERS = [
     { key: 'adversary', label: '⚡ 적대' },
 ];
 
-// 1차 분류 — 이 곳이 나에게 어떤 곳인가
-const TYPE_OPTIONS = [
-    ['people',     '사람 모임', '👥'],
-    ['membership', '멤버십',    '🎫'],
-    ['regular',    '단골',      '☕'],
-    ['visit',      '방문',      '📍'],
-    ['other',      '기타',      '📦'],
+// 1차 분류 v5 — 한 곳이 여러 역할을 동시에 가질 수 있음 (multi-select 체크박스)
+const ROLE_OPTIONS = [
+    ['people',     '사람 모임', '👥', '회사·팀·학교·교회·동창회·가족처럼 사람이 중심'],
+    ['membership', '멤버십',    '🎫', '헬스장·코스트코·도서관·등록 학원·교회 등록처럼 등록·소속이 있는 곳'],
+    ['regular',    '단골',      '☕', '단골 미용실·동네 카페처럼 자주 가서 안면 있는 곳'],
+    ['visit',      '방문',      '📍', '한 번씩 / 새로 가본 곳 — 낯선 식당·미술관·관광지'],
 ];
 
-const TYPE_GUIDE = {
-    people:     '회사·팀·학교·교회·커뮤니티·가족 — 사람이 중심',
-    membership: '헬스장·코스트코·도서관 회원증·등록 학원처럼 등록된 곳',
-    regular:    '자주 가서 안면 있는 곳 — 단골 미용실·동네 카페·단골 식당',
-    visit:      '한 번씩만 / 새로 가본 곳 — 낯선 식당·미술관·관광지',
-    other:      '어디에도 안 맞으면 여기로',
-};
+const ROLE_META = Object.fromEntries(ROLE_OPTIONS.map(([k, l, icon]) => [k, { label: l, icon }]));
 
-// 사람 모임(people)일 때만 쓰는 세부 분류
+// 사람 모임(people 역할)일 때만 쓰는 세부 분류 — '공적/사적' 축까지 흡수
 const SUB_TYPE_OPTIONS = [
-    ['company',   '회사',         '🏢'],
-    ['team',      '팀',           '👥'],
-    ['school',    '학교/학원',    '🏫'],
-    ['church',    '교회',         '⛪'],
-    ['community', '커뮤니티/모임','🌐'],
-    ['family',    '가족',         '👨‍👩‍👧'],
-    ['other',     '기타',         '📦'],
+    // 공적 출발
+    ['company',   '회사',          '🏢'],
+    ['school',    '학교/학원',     '🏫'],
+    ['church',    '교회',          '⛪'],
+    ['team',      '팀',            '👥'],
+    // 사적 출발 / 관계 기반
+    ['community', '동호회·모임',   '🌐'],
+    ['friends',   '친구·동창회',   '☕'],
+    ['family',    '가족',          '👨‍👩‍👧'],
+    ['other',     '기타',          '📦'],
 ];
 
-// 장소형(membership/regular/visit)일 때만 쓰는 활동 메타. 분석·요약용.
+// 장소 역할(membership/regular/visit)일 때만 쓰는 활동 메타. 분석·요약용.
 const ACTIVITY_OPTIONS = [
     ['restaurant', '식당·카페', '🍽️'],
     ['shop',       '가게·상점', '🛒'],
@@ -93,7 +89,10 @@ const ACTIVITY_OPTIONS = [
     ['none',       '없음/기타', '📦'],
 ];
 
-function isPlaceType(t) { return t === 'membership' || t === 'regular' || t === 'visit'; }
+function hasPeopleRole(roles)  { return Array.isArray(roles) && roles.includes('people'); }
+function hasPlaceRole(roles)   {
+    return Array.isArray(roles) && (roles.includes('membership') || roles.includes('regular') || roles.includes('visit'));
+}
 
 const RISK_OPTIONS = [
     { key: 'safe',    label: '안전', icon: '✅', color: 'var(--dot-green)' },
@@ -259,24 +258,33 @@ function renderGrid() {
 
 function orgCardHtml(o) {
     const stance = STANCE_META[o.stance || 'neutral'];
-    const typeMeta = typeOf(o.type);
+    const primary = primaryRoleOf(o);
+    const roles = Array.isArray(o.roles) ? o.roles : [];
     const memberCount = (o.memberPersonIds || []).length;
     const stats = _statsMap.get(o.id);
-    // v4: 2차 분류(사람 모임 세부 / 활동 영역)을 작은 칩으로 같이 노출
-    const sub = (o.type === 'people') ? subTypeMeta(o.subType) : null;
-    const act = isPlaceType(o.type) ? activityMeta(o.activityType) : null;
-    const secondaryChip = sub
-        ? `<span class="org-secondary-chip" title="${sub.label}">${sub.icon} ${sub.label}</span>`
-        : (act && act.value !== 'none' ? `<span class="org-secondary-chip" title="${act.label}">${act.icon} ${act.label}</span>` : '');
+    // 모든 역할을 칩으로 (대표 1개 + 나머지)
+    const roleChips = roles.slice(1).map(r => {
+        const m = ROLE_META[r];
+        return m ? `<span class="org-secondary-chip">${m.icon} ${m.label}</span>` : '';
+    }).join('');
+    // 2차 분류 칩
+    const sub = hasPeopleRole(roles) ? subTypeMeta(o.subType) : null;
+    const act = hasPlaceRole(roles) ? activityMeta(o.activityType) : null;
+    const subChip = sub
+        ? `<span class="org-secondary-chip" title="${sub.label}">${sub.icon} ${sub.label}</span>` : '';
+    const actChip = (act && act.value !== 'none')
+        ? `<span class="org-secondary-chip" title="${act.label}">${act.icon} ${act.label}</span>` : '';
     return `
         <div class="org-card" data-org-id="${o.id}">
             <div class="org-card-head">
-                <div class="org-type-badge" title="${typeMeta.label}">${typeMeta.icon}</div>
+                <div class="org-type-badge" title="${primary.label}">${primary.icon}</div>
                 <div class="org-card-meta">
                     <div class="org-card-name">${escapeHtml(o.name || '이름 없음')}</div>
                     <div class="org-card-sub">
-                        <span class="org-type-label">${typeMeta.label}</span>
-                        ${secondaryChip}
+                        <span class="org-type-label">${primary.label}</span>
+                        ${roleChips}
+                        ${subChip}
+                        ${actChip}
                         <span class="org-member-count">👥 ${memberCount}</span>
                     </div>
                 </div>
@@ -351,10 +359,14 @@ function riskMiniBar(riskKey) {
         </div>`;
 }
 
-function typeOf(t) {
-    const found = TYPE_OPTIONS.find(([v]) => v === t);
-    if (found) return { value: found[0], label: found[1], icon: found[2] };
-    return { value: 'other', label: '기타', icon: '📦' };
+/**
+ * 카드의 대표 역할(가장 첫 번째 role)을 표시용으로 반환. roles 없으면 'other'.
+ */
+function primaryRoleOf(o) {
+    const r = (o && Array.isArray(o.roles)) ? o.roles : [];
+    if (r.length === 0) return { value: 'other', label: '기타', icon: '📦' };
+    const meta = ROLE_META[r[0]];
+    return meta ? { value: r[0], label: meta.label, icon: meta.icon } : { value: 'other', label: '기타', icon: '📦' };
 }
 
 function subTypeMeta(t) {
@@ -456,10 +468,10 @@ function openModal(orgId) {
 function newOrgDraft() {
     return {
         name: '',
-        // v4(2026-05-12) 2축 분류
-        type: 'people',            // people | membership | regular | visit | other
-        subType: 'community',      // people 일 때 세부
-        activityType: 'none',      // 장소형(membership/regular/visit) 일 때 활동 메타
+        // v5 — 1차 분류 multi-select. 신규 카드는 빈 배열로 시작해 사용자가 직접 골라야 함.
+        roles: [],
+        subType: 'community',
+        activityType: 'none',
         stance: 'neutral',
         friendliness: null,
         trust: null,
@@ -486,7 +498,7 @@ function renderModal() {
     if (!root || !_editingDraft) return;
     const o = _editingDraft;
     const stance = STANCE_META[o.stance || 'neutral'];
-    const typeMeta = typeOf(o.type);
+    const typeMeta = primaryRoleOf(o);
 
     root.innerHTML = `
         <div class="modal-overlay org-modal-overlay">
@@ -626,26 +638,36 @@ function bindStanceChangeEvents(root) {
 
 // ─── Layer 1 정체성 ───
 function layer1Html(o) {
-    const guide = TYPE_GUIDE[o.type] || TYPE_GUIDE.other;
-    const isPeople = o.type === 'people';
-    const isPlace = isPlaceType(o.type);
+    const roles = Array.isArray(o.roles) ? o.roles : [];
+    const isPeople = hasPeopleRole(roles);
+    const isPlace = hasPlaceRole(roles);
     return `
         <section class="org-layer">
             <h4 class="org-layer-title">정체성</h4>
-            <p class="org-layer-hint">"이 곳이 나에게 어떤 곳인가"를 먼저 골라요. 회사·교회는 사람 모임, 등록된 헬스장은 멤버십, 단골 미용실은 단골, 가끔 가는 식당은 방문이에요.</p>
+            <p class="org-layer-hint">
+                "이 곳이 나에게 어떤 곳인가"를 골라요. <b>복수 선택 가능</b> —
+                학교는 보통 [사람 모임 + 멤버십], 단골 카페에 적립카드가 있다면 [단골 + 멤버십]처럼 동시에 가질 수 있어요.
+            </p>
             <div class="org-row">
                 <label>이름</label>
                 <input id="o-name" type="text" value="${escapeAttr(o.name || '')}" placeholder="조직 이름" />
             </div>
-            <div class="org-row">
-                <label>종류</label>
-                <select id="o-type">
-                    ${TYPE_OPTIONS.map(([v, l, icon]) => `
-                        <option value="${v}" ${o.type === v ? 'selected' : ''}>${icon} ${l}</option>
-                    `).join('')}
-                </select>
+
+            <div class="org-row org-row-vertical">
+                <label>역할 (복수)</label>
+                <div class="org-role-grid" id="o-roles">
+                    ${ROLE_OPTIONS.map(([v, l, icon, hint]) => {
+                        const checked = roles.includes(v);
+                        return `
+                            <label class="org-role-chip ${checked ? 'checked' : ''}">
+                                <input type="checkbox" data-role="${escapeAttr(v)}" ${checked ? 'checked' : ''} />
+                                <span class="org-role-chip-head">${icon} <b>${l}</b></span>
+                                <span class="org-role-chip-hint">${escapeHtml(hint)}</span>
+                            </label>
+                        `;
+                    }).join('')}
+                </div>
             </div>
-            <p class="org-type-guide" id="o-type-guide">${escapeHtml(guide)}</p>
 
             <div class="org-row org-sub-row ${isPeople ? '' : 'hidden'}" id="o-sub-row">
                 <label>사람 모임 세부</label>
@@ -672,21 +694,38 @@ function bindLayer1Events(root) {
     root.querySelector('#o-name')?.addEventListener('input', e => {
         _editingDraft.name = e.target.value;
     });
-    root.querySelector('#o-type')?.addEventListener('change', e => {
-        _editingDraft.type = e.target.value;
-        const meta = typeOf(e.target.value);
-        const iconEl = root.querySelector('.org-type-display-icon');
-        const labelEl = root.querySelector('.org-type-display-label');
-        if (iconEl) iconEl.textContent = meta.icon;
-        if (labelEl) labelEl.textContent = meta.label;
-        const guideEl = root.querySelector('#o-type-guide');
-        if (guideEl) guideEl.textContent = TYPE_GUIDE[e.target.value] || TYPE_GUIDE.other;
-        // 1차 분류 바꿀 때 2차 select row 토글
-        const subRow = root.querySelector('#o-sub-row');
-        const actRow = root.querySelector('#o-activity-row');
-        if (subRow) subRow.classList.toggle('hidden', e.target.value !== 'people');
-        if (actRow) actRow.classList.toggle('hidden', !isPlaceType(e.target.value));
+
+    // 역할 체크박스 (multi-select)
+    root.querySelectorAll('#o-roles input[type="checkbox"][data-role]').forEach(cb => {
+        cb.addEventListener('change', () => {
+            const role = cb.dataset.role;
+            const current = Array.isArray(_editingDraft.roles) ? _editingDraft.roles.slice() : [];
+            if (cb.checked) {
+                if (!current.includes(role)) current.push(role);
+            } else {
+                const idx = current.indexOf(role);
+                if (idx >= 0) current.splice(idx, 1);
+            }
+            _editingDraft.roles = current;
+
+            // 칩 active 상태 갱신
+            cb.closest('.org-role-chip')?.classList.toggle('checked', cb.checked);
+
+            // 2차 행 토글 — 역할 조합에 따라
+            const subRow = root.querySelector('#o-sub-row');
+            const actRow = root.querySelector('#o-activity-row');
+            if (subRow) subRow.classList.toggle('hidden', !hasPeopleRole(current));
+            if (actRow) actRow.classList.toggle('hidden', !hasPlaceRole(current));
+
+            // 좌측 큰 type 카드의 아이콘·라벨 — 첫 번째 역할로 대표 표시
+            const primary = current[0] || null;
+            const iconEl = root.querySelector('.org-type-display-icon');
+            const labelEl = root.querySelector('.org-type-display-label');
+            if (iconEl) iconEl.textContent = primary ? ROLE_META[primary].icon : '📦';
+            if (labelEl) labelEl.textContent = primary ? ROLE_META[primary].label : '기타';
+        });
     });
+
     root.querySelector('#o-subtype')?.addEventListener('change', e => {
         _editingDraft.subType = e.target.value;
     });
@@ -1090,20 +1129,18 @@ async function onSave() {
     }
     delete draft.locked;
 
-    // v4: 2축 분류 보정 — type에 맞지 않는 2차 필드 정리
-    if (draft.type === 'people') {
-        if (!draft.subType) draft.subType = 'community';
-        // 사람 모임엔 activityType 의미 없음
-        if (draft.activityType) draft.activityType = 'none';
-    } else if (isPlaceType(draft.type)) {
-        if (!draft.activityType) draft.activityType = 'none';
-        // 장소엔 subType 의미 없음
-        delete draft.subType;
-    } else {
-        // other — 둘 다 비움
-        delete draft.subType;
-        if (!draft.activityType) draft.activityType = 'none';
+    // v5: roles 배열 보정 — 빈 배열이면 'visit' 기본값으로
+    if (!Array.isArray(draft.roles) || draft.roles.length === 0) {
+        draft.roles = ['visit'];
     }
+    // 사람 모임 역할 없으면 subType 의미 없음
+    if (!hasPeopleRole(draft.roles)) delete draft.subType;
+    else if (!draft.subType) draft.subType = 'community';
+    // 장소 역할 없으면 activityType 의미 없음
+    if (!hasPlaceRole(draft.roles)) draft.activityType = 'none';
+    else if (!draft.activityType) draft.activityType = 'none';
+    // 구 v3/v4 단일 type 필드는 정리 — roles[0]을 type에 미러링 (호환용)
+    draft.type = draft.roles[0];
 
     try {
         await saveOrganization(dek, _userId, draft);

@@ -167,8 +167,10 @@ export const POLICY = {
         plaintext: [
             'id', 'type', 'stance', 'friendliness', 'trust', 'importance', 'riskLevel',
             'createdAt', 'updatedAt',
-            // (v4 2026-05-12) 분류 2축 — 1차 type + 사람 모임의 세부(subType) + 장소의 활동 메타(activityType).
-            // 평문이라야 카드 그리드 필터·집계가 인덱싱 없이 가능.
+            // (v5 2026-05-12) 1차 분류 multi-select — 한 곳이 여러 역할(people/membership/regular/visit)을 동시에 가질 수 있음.
+            // type 필드는 v4 호환을 위해 plaintext에 남겨두지만 새 코드는 roles를 우선 사용.
+            'roles',
+            // (v4) 사람 모임 세부(subType) + 장소 활동 메타(activityType)
             'subType', 'activityType'
         ],
         encrypted: [
