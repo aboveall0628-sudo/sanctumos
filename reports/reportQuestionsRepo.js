@@ -57,16 +57,22 @@ export async function saveReportQuestion(dek, userId, opts) {
 
 /**
  * 특정 리포트에 대한 질문 목록 (최신순).
+ *
+ * Firestore composite index 회피: userId 단일 where 로 가져온 뒤
+ * 클라이언트에서 reportId 필터 + askedAt 정렬.
+ * (메모리: feedback_firestore_index_pattern.md)
  */
 export async function listQuestionsByReport(dek, userId, reportId, limitCount = 10) {
     const q = query(
         collection(db, COLLECTION),
         where('userId', '==', userId),
-        where('reportId', '==', reportId),
-        orderBy('askedAt', 'desc'),
-        limit(limitCount),
+        limit(100),
     );
-    return queryRecords(dek, q);
+    const all = await queryRecords(dek, q);
+    return all
+        .filter(r => r.reportId === reportId)
+        .sort((a, b) => toMillis(b.askedAt) - toMillis(a.askedAt))
+        .slice(0, limitCount);
 }
 
 /**

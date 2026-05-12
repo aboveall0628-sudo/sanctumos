@@ -56,38 +56,108 @@ async function loadReports() {
 
     container.innerHTML = '<div class="loading-spinner"></div>';
 
+    // Phase E-9/R-FIX: 각 list 호출을 개별 catch — 한 문서 복호화 실패가 메뉴 전체를 막지 않게.
+    // baseRepo.queryRecords가 한 문서 깨지면 throw하는 정책이라, 여기서 흡수.
+    const safeList = async (fn, label) => {
+        try { return await fn(); }
+        catch (e) {
+            console.warn(`[reports] ${label} 일부 또는 전체 로드 실패:`, e);
+            return null;
+        }
+    };
+
     try {
         if (_currentTab === 'day') {
-            const reports = await listDayReports(dek, _userId, 30);
+            const reports = await safeList(() => listDayReports(dek, _userId, 365), 'day');
             container.innerHTML = renderDayList(reports);
-            bindDayQna(container, dek, reports);
+            bindDayQna(container, dek, reports || []);
+            bindCollapsibleCards(container);
         } else if (_currentTab === 'week') {
-            const reports = await listWeekReports(dek, _userId, 12);
+            const reports = await safeList(() => listWeekReports(dek, _userId, 52), 'week');
             container.innerHTML = renderWeekList(reports);
             bindWeekRegenerateButtons(dek);
-            bindWeekDrillDown(container, dek, reports);
-            bindWeekQna(container, dek, reports);
+            bindWeekDrillDown(container, dek, reports || []);
+            bindWeekQna(container, dek, reports || []);
+            bindCollapsibleCards(container);
         } else if (_currentTab === 'month') {
-            // Phase E-9/R-2: 월간도 새 spec 카드로
-            const reports = await listMonthReports(dek, _userId, 6);
+            const reports = await safeList(() => listMonthReports(dek, _userId, 24), 'month');
             container.innerHTML = renderMonthList(reports);
             bindMonthRegenerateButtons(dek);
-            bindMonthDrillDown(container, dek, reports);
-            bindMonthQna(container, dek, reports);
+            bindMonthDrillDown(container, dek, reports || []);
+            bindMonthQna(container, dek, reports || []);
+            bindCollapsibleCards(container);
         } else {
-            // 옛 흐름 (quarter/year) — 새 spec 구축 전이라 호환 유지
-            const reports = await getReports(dek, OLD_COLLECTION_MAP[_currentTab], _userId, 10);
+            const reports = await safeList(
+                () => getReports(dek, OLD_COLLECTION_MAP[_currentTab], _userId, 20),
+                _currentTab
+            );
             container.innerHTML = renderOldList(reports);
+            bindCollapsibleCards(container);
         }
         if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
     } catch (e) {
         console.error('reports load failed:', e);
-        container.innerHTML = '<div class="no-data">리포트를 불러오는 중에 잠깐 막혔어요.</div>';
+        container.innerHTML = `
+            <div class="no-data">
+                리포트를 불러오는 중에 잠깐 막혔어요.
+                <p style="font-size:11px; color:var(--text-secondary); margin-top:8px">
+                    ${escapeHtml(e?.message || '')}
+                </p>
+            </div>`;
     }
+}
+
+/**
+ * Phase E-9/R-FIX: 리포트 카드 라디오 패턴 — 처음엔 모두 접힘(제목·미리보기 한 줄만).
+ * 헤더 클릭 또는 Enter/Space → 그 카드만 펼침/접힘. 여러 개 동시 펼침 OK.
+ */
+function bindCollapsibleCards(container) {
+    container.querySelectorAll('.report-card').forEach(card => {
+        // 기본 접힘
+        if (!card.hasAttribute('data-expanded')) card.setAttribute('data-collapsed', '');
+        const header = card.querySelector('.report-card-header');
+        if (!header || header.dataset.collapsibleBound === '1') return;
+        header.dataset.collapsibleBound = '1';
+        header.setAttribute('role', 'button');
+        header.setAttribute('tabindex', '0');
+        const toggle = (e) => {
+            if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') return;
+            e.preventDefault();
+            if (card.hasAttribute('data-collapsed')) {
+                card.removeAttribute('data-collapsed');
+                card.setAttribute('data-expanded', '');
+            } else {
+                card.removeAttribute('data-expanded');
+                card.setAttribute('data-collapsed', '');
+            }
+        };
+        header.addEventListener('click', toggle);
+        header.addEventListener('keydown', toggle);
+    });
+}
+
+/**
+ * 카드 미리보기 한 줄 — AI 산문 첫 줄을 70자 이내로.
+ * 산문이 없으면 stat 한 줄 요약.
+ */
+function previewLine(r) {
+    const s = String(r?.aiSummary || '').replace(/\s+/g, ' ').trim();
+    if (s.length > 0) {
+        return s.length > 70 ? s.slice(0, 70) + '…' : s;
+    }
+    return '아직 AI 산문이 채워지지 않았어요. 펼쳐서 다시 만들어 보세요.';
 }
 
 // ─── day 탭 (새 spec) ────────────────────────────────────
 function renderDayList(reports) {
+    if (reports === null) {
+        // safeList가 null 반환 — 부분 실패. 헤더만이라도 빈 상태로.
+        return `
+            <div class="no-data">
+                일부 또는 전체 리포트를 불러오지 못했어요. 콘솔에 사유가 남았어요.
+            </div>
+        `;
+    }
     if (!reports || reports.length === 0) {
         return `
             <div class="no-data">
@@ -143,19 +213,33 @@ function renderDayCard(r) {
     return `
         <article class="report-card card-section" data-day-id="${escapeHtml(r.startDate || '')}">
             <header class="report-card-header">
-                <h3>${escapeHtml(r.startDate || '')}</h3>
+                <h3>${escapeHtml(r.startDate || '')} <span class="report-day-of-week">${escapeHtml(dayOfWeekKr(r.startDate))}</span></h3>
+                <p class="report-preview">${escapeHtml(previewLine(r))}</p>
+                <i class="report-card-chev" data-lucide="chevron-down"></i>
             </header>
-            ${statsRow}
-            ${summaryBlock}
-            ${obsBlock}
-            ${qBlock}
-            <div class="report-card-foot">여기까지가 데이터예요. 다음은 묵상 안에서.</div>
+            <div class="report-card-body">
+                ${statsRow}
+                ${summaryBlock}
+                ${obsBlock}
+                ${qBlock}
+                <div class="report-card-foot">여기까지가 데이터예요. 다음은 묵상 안에서.</div>
+            </div>
         </article>
     `;
 }
 
+function dayOfWeekKr(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr + 'T00:00:00');
+    if (isNaN(d.getTime())) return '';
+    return ['일', '월', '화', '수', '목', '금', '토'][d.getDay()] + '요일';
+}
+
 // ─── week 탭 (새 spec — Phase E-5-B) ────────────────────
 function renderWeekList(reports) {
+    if (reports === null) {
+        return `<div class="no-data">일부 또는 전체 주간 리포트를 불러오지 못했어요.</div>`;
+    }
     if (!reports || reports.length === 0) {
         return `
             <div class="no-data">
@@ -277,9 +361,11 @@ function renderWeekCard(r) {
     return `
         <article class="report-card card-section" data-year-week="${escapeHtml(stats.yearWeek || '')}" data-start="${escapeHtml(r.startDate || '')}" data-end="${escapeHtml(r.endDate || '')}">
             <header class="report-card-header">
-                <h3>${escapeHtml(r.startDate || '')} ~ ${escapeHtml(r.endDate || '')}</h3>
-                ${stats.yearWeek ? `<span class="report-card-meta">${escapeHtml(stats.yearWeek)}</span>` : ''}
+                <h3>${escapeHtml(r.startDate || '')} ~ ${escapeHtml(r.endDate || '')} ${stats.yearWeek ? `<span class="report-card-meta">${escapeHtml(stats.yearWeek)}</span>` : ''}</h3>
+                <p class="report-preview">${escapeHtml(previewLine(r))}</p>
+                <i class="report-card-chev" data-lucide="chevron-down"></i>
             </header>
+            <div class="report-card-body">
             ${statsRow}
             ${summaryBlock}
             ${hypothesesBlock}
@@ -292,6 +378,7 @@ function renderWeekCard(r) {
                 </button>
             </div>
             <div class="report-card-foot">여기까지가 데이터예요. 다음은 묵상 안에서.</div>
+            </div>
         </article>
     `;
 }
@@ -352,53 +439,59 @@ function bindWeekDrillDown(container, dek, reports) {
  * 푸터(.report-card-foot) 앞에 reportQna 컴포넌트를 박음.
  */
 function bindDayQna(container, dek, reports) {
-    container.querySelectorAll('[data-day-id]').forEach((card, idx) => {
-        const r = reports[idx];
-        if (!r) return;
-        const foot = card.querySelector('.report-card-foot');
-        if (!foot) return;
-        mountReportQna(foot, {
-            reportId:   r.startDate,
-            reportType: 'day',
-            stats:      r.stats || {},
-            context:    {},
-            dek, userId: _userId,
+    try {
+        container.querySelectorAll('[data-day-id]').forEach((card, idx) => {
+            const r = reports[idx];
+            if (!r) return;
+            const foot = card.querySelector('.report-card-foot');
+            if (!foot) return;
+            mountReportQna(foot, {
+                reportId:   r.startDate,
+                reportType: 'day',
+                stats:      r.stats || {},
+                context:    {},
+                dek, userId: _userId,
+            });
         });
-    });
+    } catch (e) { console.warn('bindDayQna failed:', e); }
 }
 
 function bindWeekQna(container, dek, reports) {
-    container.querySelectorAll('[data-year-week]').forEach((card, idx) => {
-        const r = reports[idx];
-        if (!r) return;
-        const foot = card.querySelector('.report-card-foot');
-        if (!foot) return;
-        const yearWeek = card.dataset.yearWeek || r.stats?.yearWeek || r.startDate;
-        mountReportQna(foot, {
-            reportId:   yearWeek,
-            reportType: 'week',
-            stats:      r.stats || {},
-            context:    {},
-            dek, userId: _userId,
+    try {
+        container.querySelectorAll('[data-year-week]').forEach((card, idx) => {
+            const r = reports[idx];
+            if (!r) return;
+            const foot = card.querySelector('.report-card-foot');
+            if (!foot) return;
+            const yearWeek = card.dataset.yearWeek || r.stats?.yearWeek || r.startDate;
+            mountReportQna(foot, {
+                reportId:   yearWeek,
+                reportType: 'week',
+                stats:      r.stats || {},
+                context:    {},
+                dek, userId: _userId,
+            });
         });
-    });
+    } catch (e) { console.warn('bindWeekQna failed:', e); }
 }
 
 function bindMonthQna(container, dek, reports) {
-    container.querySelectorAll('[data-year-month]').forEach((card, idx) => {
-        const r = reports[idx];
-        if (!r) return;
-        const foot = card.querySelector('.report-card-foot');
-        if (!foot) return;
-        const yearMonth = card.dataset.yearMonth || r.stats?.yearMonth || r.startDate?.slice(0, 7);
-        mountReportQna(foot, {
-            reportId:   yearMonth,
-            reportType: 'month',
-            stats:      r.stats || {},
-            context:    {},
-            dek, userId: _userId,
+    try {
+        container.querySelectorAll('[data-year-month]').forEach((card, idx) => {
+            const r = reports[idx];
+            if (!r) return;
+            const foot = card.querySelector('.report-card-foot');
+            if (!foot) return;
+            const yearMonth = card.dataset.yearMonth || r.stats?.yearMonth || r.startDate?.slice(0, 7);
+            mountReportQna(foot, {
+                reportId:   yearMonth,
+                reportType: 'month',
+                stats:      r.stats || {},
+                context:    {},
+                dek, userId: _userId,
+            });
         });
-    });
+    } catch (e) { console.warn('bindMonthQna failed:', e); }
 }
 
 async function enrichPersonChips(card, dek) {
@@ -451,6 +544,9 @@ function bindWeekRegenerateButtons(dek) {
 
 // ─── month 탭 (새 spec — Phase E-9/R-2) ─────────────────
 function renderMonthList(reports) {
+    if (reports === null) {
+        return `<div class="no-data">일부 또는 전체 월간 리포트를 불러오지 못했어요.</div>`;
+    }
     if (!reports || reports.length === 0) {
         return `
             <div class="no-data">
@@ -596,9 +692,11 @@ function renderMonthCard(r) {
     return `
         <article class="report-card card-section" data-year-month="${escapeHtml(stats.yearMonth || '')}" data-start="${escapeHtml(r.startDate || '')}" data-end="${escapeHtml(r.endDate || '')}">
             <header class="report-card-header">
-                <h3>${escapeHtml(stats.yearMonth || r.startDate || '')}</h3>
-                ${r.startDate && r.endDate ? `<span class="report-card-meta">${escapeHtml(r.startDate)} ~ ${escapeHtml(r.endDate)}</span>` : ''}
+                <h3>${escapeHtml(stats.yearMonth || r.startDate || '')} ${r.startDate && r.endDate ? `<span class="report-card-meta">${escapeHtml(r.startDate)} ~ ${escapeHtml(r.endDate)}</span>` : ''}</h3>
+                <p class="report-preview">${escapeHtml(previewLine(r))}</p>
+                <i class="report-card-chev" data-lucide="chevron-down"></i>
             </header>
+            <div class="report-card-body">
             ${statsRow}
             ${summaryBlock}
             ${hypothesesBlock}
@@ -612,6 +710,7 @@ function renderMonthCard(r) {
                 </button>
             </div>
             <div class="report-card-foot">여기까지가 데이터예요. 다음은 묵상 안에서.</div>
+            </div>
         </article>
     `;
 }
@@ -692,6 +791,9 @@ function bindMonthRegenerateButtons(dek) {
 
 // ─── 옛 탭 (quarter/year) — 새 spec 구축 전 호환 ───
 function renderOldList(reports) {
+    if (reports === null) {
+        return `<div class="no-data">일부 또는 전체 리포트를 불러오지 못했어요.</div>`;
+    }
     if (!reports || reports.length === 0) {
         return `<div class="no-data">아직 이 단계의 리포트가 없어요. 곧 만들어질 예정이에요.</div>`;
     }
@@ -700,11 +802,14 @@ function renderOldList(reports) {
         return `
             <article class="report-card card-section">
                 <header class="report-card-header">
-                    <h3>${escapeHtml(r.startDate || '')} ~ ${escapeHtml(r.endDate || '')}</h3>
-                    <span class="report-card-meta">만족도 ${stats.avgSatisfaction ?? '-'}</span>
+                    <h3>${escapeHtml(r.startDate || '')} ~ ${escapeHtml(r.endDate || '')} <span class="report-card-meta">만족도 ${stats.avgSatisfaction ?? '-'}</span></h3>
+                    <p class="report-preview">${escapeHtml(previewLine(r))}</p>
+                    <i class="report-card-chev" data-lucide="chevron-down"></i>
                 </header>
-                <div class="report-summary">
-                    <p>${escapeHtml(r.aiSummary || 'AI 요약이 아직 채워지지 않았어요.')}</p>
+                <div class="report-card-body">
+                    <div class="report-summary">
+                        <p>${escapeHtml(r.aiSummary || 'AI 요약이 아직 채워지지 않았어요.')}</p>
+                    </div>
                 </div>
             </article>
         `;

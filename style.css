@@ -1446,6 +1446,64 @@ button .btn-icon { vertical-align: text-bottom; }
     .drill-dot-meta { white-space: normal; }
 }
 
+/* ═══ Report card 라디오 패턴 (Phase E-9/R-FIX) ═══
+   처음엔 헤더(제목 + 미리보기 한 줄)만 보이고, 클릭하면 본문 펼침. */
+.report-card { transition: box-shadow var(--ease); }
+.report-card[data-collapsed] .report-card-body { display: none; }
+.report-card[data-collapsed] .report-card-header {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+.report-card[data-expanded] .report-card-chev { transform: rotate(180deg); }
+.report-card-header {
+    position: relative;
+    cursor: pointer;
+    padding-right: 32px; /* chevron 공간 */
+    user-select: none;
+}
+.report-card-header:hover { color: var(--accent); }
+.report-card-header:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+.report-card-header h3 {
+    margin: 0 0 4px;
+    display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+}
+.report-day-of-week {
+    font-size: 12px; font-weight: 400;
+    color: var(--text-secondary);
+}
+.report-preview {
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    line-height: 1.55;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.report-card-chev {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    transform: translateY(-50%);
+    width: 16px; height: 16px;
+    color: var(--text-secondary);
+    transition: transform 0.18s ease;
+    pointer-events: none;
+}
+.report-card[data-expanded] .report-card-chev {
+    transform: translateY(-50%) rotate(180deg);
+}
+.report-card-body {
+    margin-top: var(--sp-3);
+    padding-top: var(--sp-3);
+    border-top: 1px solid var(--border);
+}
+
 /* ═══ Q&A (Phase E-9/R-QA) — 리포트 카드 3층 ═══ */
 .qna-wrap {
     margin-top: var(--sp-4);

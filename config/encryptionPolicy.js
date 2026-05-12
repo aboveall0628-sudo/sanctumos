@@ -113,7 +113,8 @@ export const POLICY = {
     // 사용자가 리포트에 "왜 X였어?"를 물으면 AI 흐름 응답을 여기 저장
     // 다음 묵상 화면에 자동 노출
     reportQuestions: {
-        plaintext: ['id', 'userId', 'reportId', 'reportType', 'askedAt', 'createdAt'],
+        // seenAt: 다음 아침 게이트에 노출된 후 mark — plaintext 메타.
+        plaintext: ['id', 'userId', 'reportId', 'reportType', 'askedAt', 'seenAt', 'createdAt'],
         encrypted: ['question', 'observationFlow', 'returnToMeditation']
     },
     // 통독 진행률: 챕터/날짜는 평문(통계 가능), 메모만 암호화
@@ -165,7 +166,10 @@ export const POLICY = {
     organizations: {
         plaintext: [
             'id', 'type', 'stance', 'friendliness', 'trust', 'importance', 'riskLevel',
-            'createdAt', 'updatedAt'
+            'createdAt', 'updatedAt',
+            // (v4 2026-05-12) 분류 2축 — 1차 type + 사람 모임의 세부(subType) + 장소의 활동 메타(activityType).
+            // 평문이라야 카드 그리드 필터·집계가 인덱싱 없이 가능.
+            'subType', 'activityType'
         ],
         encrypted: [
             'name', 'memberPersonIds', 'meaningfulVerse', 'notes', 'stanceHistory',
