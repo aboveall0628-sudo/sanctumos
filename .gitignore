@@ -1,0 +1,22 @@
+# 🚨 절대 commit 금지 — 사용자 데이터·복구 코드 노출 위험
+sanctumos_v1_backup_*.json
+sanctumos_v2_backup_*.json
+sanctumos_backup_*.json
+복구코드*.png
+복구코드*.jpg
+recovery-code*.png
+recovery-code*.jpg
+*.recovery
+*.dek
+
+# 로컬 node_modules / 빌드 산출물
+node_modules/
+functions/node_modules/
+dist/
+.DS_Store
+Thumbs.db
+
+# 임시 / 작업용
+*.log
+*.tmp
+.vscode/

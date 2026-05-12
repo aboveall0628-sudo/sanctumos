@@ -308,6 +308,22 @@ function renderTxList(list, isAll) {
             }
         });
     });
+
+    // 거래 카드 클릭 → 수정 모달 (X 버튼 클릭은 위에서 stopPropagation 으로 막힘)
+    wrap.querySelectorAll('.econ-tx-card').forEach(card => {
+        card.addEventListener('click', () => {
+            const txId = card.dataset.txId;
+            if (!txId) return;
+            const tx = list.find(t => t.id === txId);
+            if (!tx) return;
+            openQuickAdd({
+                userId: _userId,
+                accounts: _cache.accounts,
+                editingTx: tx,
+                onSaved: () => renderTransactionsTab(),
+            });
+        });
+    });
 }
 
 function txCardHTML(t) {
@@ -318,7 +334,7 @@ function txCardHTML(t) {
         ? `<span class="sensitive econ-tx-exact">${sign}${formatMoney(t.exactAmount)}원</span>`
         : '';
     return `
-        <article class="econ-tx-card econ-tx-${dir} ${giving ? 'econ-tx-giving' : ''}">
+        <article class="econ-tx-card econ-tx-${dir} ${giving ? 'econ-tx-giving' : ''}" data-tx-id="${t.id}" style="cursor:pointer">
             <div class="econ-tx-icon">${bucketIcon(t.amountBucket)}</div>
             <div class="econ-tx-main">
                 <div class="econ-tx-top">

@@ -923,6 +923,24 @@ async function handleSave() {
 
         await saveDot(dek, dotData);
 
+        // Phase F: 이번 세션에 추가한 거래들에 linkedDotId reverse 박기.
+        // saveDot 후 dotData.id 가 확정 (userId_date_timeSlot). 거래는 merge 저장이라
+        // 기존 다른 필드는 그대로 두고 linkedDotId 만 patch.
+        if (_addedTransactions.length > 0) {
+            try {
+                const econRepo = await import('../data/economyRepo.js');
+                for (const tx of _addedTransactions) {
+                    if (tx.linkedDotId === dotData.id) continue;
+                    await econRepo.saveTransaction(dek, _currentUserId, {
+                        ...tx,
+                        linkedDotId: dotData.id,
+                        linkedPersonIds: dotData.linkedPersonIds.slice(),
+                        linkedOrgIds:    dotData.linkedOrgIds.slice(),
+                    });
+                }
+            } catch (e) { console.warn('[quickReview] tx linkedDotId reverse failed:', e); }
+        }
+
         // 새 정책(2026-05-12): 도트 저장 직후 그 도트와 엮인 인물·조직의 unlocked 점수축을
         // 도트 누적 만족도 기준으로 자동 갱신. 실패해도 도트 저장 자체는 성공이므로 try/catch.
         try {

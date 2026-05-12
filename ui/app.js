@@ -453,6 +453,23 @@ async function refreshTodayEconomyCard() {
                 }
             });
         });
+
+        // 행 클릭 → 수정 모달 (X 버튼은 stopPropagation 으로 막힘)
+        list.querySelectorAll('.today-tx-row').forEach(row => {
+            row.style.cursor = 'pointer';
+            row.addEventListener('click', () => {
+                const txId = row.dataset.txId;
+                if (!txId) return;
+                const tx = txs.find(t => t.id === txId);
+                if (!tx) return;
+                openEconomyQuickAdd({
+                    userId: currentUserId,
+                    date: currentDate,
+                    editingTx: tx,
+                    onSaved: () => refreshTodayEconomyCard(),
+                });
+            });
+        });
     } catch (e) {
         console.warn('[economy] today card refresh failed:', e);
     }

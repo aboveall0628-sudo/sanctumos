@@ -40,6 +40,7 @@ export async function openQuickAdd(opts = {}) {
         linkedDotId = null,
         linkedPersonIds = [],
         linkedOrgIds = [],
+        editingTx = null,        // ← 수정 모드: 기존 거래 객체 통째로 받음
         onSaved,
     } = opts;
 
@@ -47,7 +48,8 @@ export async function openQuickAdd(opts = {}) {
     const dek = getDEK();
     if (!dek) { showToast('잠겨 있어요. 비밀번호로 먼저 열어 주실래요?'); return; }
 
-    const today = date || new Date().toISOString().slice(0, 10);
+    const isEdit = !!editingTx;
+    const initDate = editingTx?.date || date || new Date().toISOString().slice(0, 10);
     let accounts = providedAccounts;
     if (!accounts) {
         try { accounts = await getAllAccounts(dek, userId); }
@@ -58,13 +60,13 @@ export async function openQuickAdd(opts = {}) {
     overlay.innerHTML = `
         <div class="modal-card econ-quickadd-card">
             <header class="modal-head">
-                <h3>새 거래</h3>
+                <h3>${isEdit ? '거래 수정' : '새 거래'}</h3>
                 <button class="modal-close" aria-label="닫기">×</button>
             </header>
             <div class="modal-body">
                 <div class="econ-qa-row">
                     <label>날짜</label>
-                    <input id="ec-qa-date" type="date" value="${today}" />
+                    <input id="ec-qa-date" type="date" value="${initDate}" />
                 </div>
 
                 <div class="econ-qa-row">
@@ -132,9 +134,10 @@ export async function openQuickAdd(opts = {}) {
                 </div>
             </div>
             <footer class="modal-foot">
+                ${isEdit ? `<button id="ec-qa-del" class="text-btn" style="color:var(--dot-red)">지우기</button>` : ''}
                 <span style="flex:1"></span>
                 <button class="modal-cancel text-btn">취소</button>
-                <button id="ec-qa-save" class="primary-btn">저장</button>
+                <button id="ec-qa-save" class="primary-btn">${isEdit ? '저장' : '추가'}</button>
             </footer>
         </div>
     `;
@@ -143,13 +146,41 @@ export async function openQuickAdd(opts = {}) {
     overlay.querySelector('.modal-close')?.addEventListener('click', () => handle.close());
     overlay.querySelector('.modal-cancel')?.addEventListener('click', () => handle.close());
 
-    // 상태
+    // 상태 — 수정 모드면 기존 거래에서 prefill
     let state = {
-        direction: 'expense',
-        amountBucket: null,
-        category: null,
-        expenseType: 'variable',
+        direction: editingTx?.direction || 'expense',
+        amountBucket: editingTx?.amountBucket || null,
+        category: editingTx?.category || null,
+        expenseType: editingTx?.expenseType || 'variable',
     };
+
+    // prefill: 금액 + 메모 + 통장
+    if (editingTx?.exactAmount != null) {
+        const exactInput = overlay.querySelector('#ec-qa-exact');
+        if (exactInput) exactInput.value = String(editingTx.exactAmount);
+    }
+    if (editingTx?.description) {
+        const descInput = overlay.querySelector('#ec-qa-desc');
+        if (descInput) descInput.value = editingTx.description;
+    }
+    if (editingTx?.accountId && accounts.length > 1) {
+        const accSel = overlay.querySelector('#ec-qa-account');
+        if (accSel) accSel.value = editingTx.accountId;
+    }
+    // 방향 버튼 prefill
+    overlay.querySelectorAll('.econ-qa-dir-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.dir === state.direction);
+    });
+    // bucket prefill
+    if (state.amountBucket) {
+        overlay.querySelectorAll('.econ-qa-bucket-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.id === state.amountBucket);
+        });
+    }
+    // expenseType prefill
+    overlay.querySelectorAll('.econ-qa-extype-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.id === state.expenseType);
+    });
 
     // expense 일 때만 성질(고정/변동) 행 표시
     function updateExpenseTypeVisibility() {
@@ -246,27 +277,54 @@ export async function openQuickAdd(opts = {}) {
             category: state.category,
             description: overlay.querySelector('#ec-qa-desc').value.trim(),
         };
+        // 수정 모드: 기존 id 유지 + 기존 연결 보존
+        if (isEdit) {
+            data.id = editingTx.id;
+            if (editingTx.linkedDotId)        data.linkedDotId        = editingTx.linkedDotId;
+            if (editingTx.linkedPersonIds)    data.linkedPersonIds    = editingTx.linkedPersonIds;
+            if (editingTx.linkedOrgIds)       data.linkedOrgIds       = editingTx.linkedOrgIds;
+            if (editingTx.linkedAssetId)      data.linkedAssetId      = editingTx.linkedAssetId;
+            if (editingTx.linkedLiabilityId)  data.linkedLiabilityId  = editingTx.linkedLiabilityId;
+        }
         if (exactStr) data.exactAmount = Number(exactStr);
+        else delete data.exactAmount; // 수정 시 비우면 제거
         if (state.direction === 'expense') data.expenseType = state.expenseType;
-        if (accounts.length === 1) data.accountId = accounts[0].id;
+        if (accounts.length === 1 && !data.accountId) data.accountId = accounts[0].id;
         else if (accounts.length > 1) data.accountId = overlay.querySelector('#ec-qa-account').value;
-        if (linkedDotId) data.linkedDotId = linkedDotId;
-        if (linkedPersonIds && linkedPersonIds.length) data.linkedPersonIds = linkedPersonIds;
-        if (linkedOrgIds && linkedOrgIds.length) data.linkedOrgIds = linkedOrgIds;
+        if (!isEdit && linkedDotId) data.linkedDotId = linkedDotId;
+        if (!isEdit && linkedPersonIds && linkedPersonIds.length) data.linkedPersonIds = linkedPersonIds;
+        if (!isEdit && linkedOrgIds && linkedOrgIds.length) data.linkedOrgIds = linkedOrgIds;
 
         try {
             const id = await saveTransaction(dek, userId, data);
-            showToast(state.direction === 'income' ? '수입을 적었어요' : '지출을 적었어요');
+            showToast(isEdit ? '거래를 저장했어요' : (state.direction === 'income' ? '수입을 적었어요' : '지출을 적었어요'));
             handle.close();
             const tx = { id, ...data };
             if (typeof onSaved === 'function') onSaved(tx);
             // 모든 거래 표시 영역 자동 동기화
-            window.dispatchEvent(new CustomEvent('sanctum:economy-changed', { detail: { type: 'create', tx }}));
+            window.dispatchEvent(new CustomEvent('sanctum:economy-changed', { detail: { type: isEdit ? 'update' : 'create', tx }}));
         } catch (e) {
             console.error('[economy] save tx failed:', e);
             showToast('저장이 잠깐 막혔어요. 한 번만 더 시도해 주실래요?');
         }
     });
+
+    // 수정 모드의 [지우기] 버튼
+    if (isEdit) {
+        overlay.querySelector('#ec-qa-del')?.addEventListener('click', async () => {
+            if (!confirm('이 거래를 지울까요? 되돌릴 수 없어요.')) return;
+            try {
+                const repo = await import('../data/economyRepo.js');
+                await repo.deleteTransaction(userId, editingTx.id);
+                showToast('거래를 지웠어요');
+                handle.close();
+                window.dispatchEvent(new CustomEvent('sanctum:economy-changed', { detail: { type: 'delete', id: editingTx.id }}));
+            } catch (e) {
+                console.error('[economy] delete tx failed:', e);
+                showToast('지우는 중에 잠깐 막혔어요.');
+            }
+        });
+    }
 }
 
 function ensureOverlay() {

@@ -15,6 +15,9 @@
 import { getDotsByDate } from '../data/dotsRepo.js';
 // Phase B-4: 결단 → daily 목표 흡수 후 정렬도(alignment)는 daily 목표 기준으로 계산.
 import { getDailyGoals } from '../data/goalsRepo.js';
+// Phase F: 거래 데이터를 일간 stats 에 합산 — LLM 이 도트 + 거래를 함께 보고 산문 작성.
+import { getTransactionsByDate } from '../data/economyRepo.js';
+import { isGivingCategory } from '../config/economyBuckets.js';
 
 const MIN_PER_SLOT = 15;  // 15분 단위 슬롯
 
@@ -27,9 +30,10 @@ const MIN_PER_SLOT = 15;  // 15분 단위 슬롯
  * @returns {Promise<Object>} stats 객체 (8섹션 중 1~6 + 묵상 메타 boolean)
  */
 export async function aggregateDailyStats(dek, userId, date) {
-    const [dots, allDailyGoals] = await Promise.all([
+    const [dots, allDailyGoals, txs] = await Promise.all([
         getDotsByDate(dek, userId, date),
         getDailyGoals(dek, userId).catch(() => []),
+        getTransactionsByDate(dek, userId, date).catch(() => []),
     ]);
 
     // Phase B-4: 결단의 alignment 계산을 daily 목표 기준으로. 시간표에 박힌 목표만 의미 있음.
@@ -46,6 +50,8 @@ export async function aggregateDailyStats(dek, userId, date) {
         labelFrequency:           computeLabelFrequency(dots),
         connections:              computeConnections(dots),
         meditationMeta:           computeMeditationMeta(dots),
+        // Phase F: 거래 통계 — bucket 평문/category 평문만 LLM 에 노출. exactAmount 는 자물쇠 안.
+        transactionStats:         computeTransactionStats(txs),
     };
 }
 
@@ -238,6 +244,49 @@ function computeMeditationMeta(dots) {
     }
 
     return { morningGatePresent, eveningReviewPresent };
+}
+
+// ─── 9) Phase F — 거래 통계 ────────────────────────
+// 영적 안전장치: bucket(평문), category, direction, expenseType 만 노출.
+// exactAmount(절대값) 합산은 자물쇠 안 stats 에 머무름 — LLM 에 절대 금액 전달 X.
+function computeTransactionStats(txs) {
+    if (!Array.isArray(txs) || txs.length === 0) {
+        return {
+            totalCount: 0,
+            incomeCount: 0,
+            expenseCount: 0,
+            bucketCount: {},
+            categoryCount: {},
+            expenseTypeCount: { variable: 0, fixed: 0 },
+            givingCount: 0,
+        };
+    }
+    let incomeCount = 0, expenseCount = 0, givingCount = 0;
+    const bucketCount = {};
+    const categoryCount = {};
+    const expenseTypeCount = { variable: 0, fixed: 0 };
+    for (const t of txs) {
+        if (t.direction === 'income') incomeCount++;
+        else expenseCount++;
+        const b = t.amountBucket || 'small';
+        bucketCount[b] = (bucketCount[b] || 0) + 1;
+        const c = t.category || 'other-expense';
+        categoryCount[c] = (categoryCount[c] || 0) + 1;
+        if (t.direction === 'expense') {
+            const et = t.expenseType === 'fixed' ? 'fixed' : 'variable';
+            expenseTypeCount[et]++;
+        }
+        if (isGivingCategory(t.category)) givingCount++;
+    }
+    return {
+        totalCount: txs.length,
+        incomeCount,
+        expenseCount,
+        bucketCount,
+        categoryCount,
+        expenseTypeCount,
+        givingCount,
+    };
 }
 
 // ─── 헬퍼 ───
