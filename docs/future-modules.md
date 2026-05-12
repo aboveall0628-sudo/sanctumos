@@ -32,6 +32,12 @@ interactions: {
 
 ### 영적 안전장치
 
+#### ⚠️ 자기 모순 메모 (2026-05)
+실제 `persons` 컬렉션은 `stance` (ally / neutral / caution / adversary 4단계) 라벨을 가진다.
+"인물 라벨링 금지" 원칙과 정면 충돌. 다음 회차에서 처리할 것:
+- `adversary` 라벨을 톤 다운 (예: "주의 필요" / "기도 중") 또는 제거
+- 또는 stance 자체를 사용자 비공개 메모로 강등 (UI 노출 제한)
+
 #### ❌ 금지 사항
 - **인물별 평점/만족도 수치화** — "엄마: 3.2점" 같은 비교 금지
 - **랭킹/리더보드** — "이번 달 가장 안 만난 사람"처럼 비교 금지
@@ -55,19 +61,24 @@ interactions: {
 
 ---
 
-## 2. 경제 모듈 (transactions / accounts)
+## 2. 경제 모듈 (accounts / assets / liabilities / transactions / snapshots)
 
-### 데이터 모델 (예약, 비활성)
-```js
-transactions: {
-    plaintext: ['id', 'userId', 'date', 'amountBucket', 'category', 'createdAt'],
-    encrypted: ['amount', 'description', 'merchant', 'linkedPersonIds']
-}
-accounts: {
-    plaintext: ['id', 'userId', 'type', 'currency'],
-    encrypted: ['name', 'institution', 'balance']
-}
-```
+### 데이터 모델 — 현재 적용본
+> 이 문서의 초기 스케치(2 컬렉션)는 **2026-05** 에 7 컬렉션 모델로 확장됐다.
+> 권위 있는 정의는 `config/encryptionPolicy.js` 에 있고, 아래는 그 요약이다.
+> 코드 변경 시 본 문서를 함께 갱신할 것.
+
+| 컬렉션 | 평문 (검색용) | 암호화 (본인만) |
+|---|---|---|
+| `accounts` | `id, type, currency, isPrimary` | `name, institution` |
+| `assetCategories` | `id, kind` | `name` |
+| `assets` | `id, categoryId, currentValueBucket, lastValuationAt` | `label, details, exactValue` |
+| `liabilities` | `id, type, principalBucket` | `details, interestRate, exactPrincipal` |
+| `transactions` | `id, date, direction, amountBucket, category, subCategory, incomeType, expenseType` | `exactAmount, description, accountId, linkedAssetId, linkedLiabilityId, linkedDotId, linkedPersonIds, linkedOrgIds` |
+| `cashflowSnapshots` | `id, month, savingsRate, passiveRatio` | `totalsExact, breakdownExact, aiInsights` |
+| `netWorthSnapshots` | `id, month, netWorthBucket` | `totalsExact, breakdownExact` |
+
+**핵심 패턴**: bucket(상대값)은 평문, exact(절대값)은 암호화. 통계·검색은 bucket 으로, 절대값은 본인만 봐도 충분.
 
 ### 영적 안전장치
 
