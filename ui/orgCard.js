@@ -431,6 +431,8 @@ function newOrgDraft() {
         notes: '',
         foundedDate: '',     // 설립일/시작일 (선택)
         anniversaries: [],   // [{ date, label }]
+        // v3(2026-05-12): 첫 평가 1회 보존
+        firstImpression: null,
     };
 }
 
@@ -524,45 +526,6 @@ function bindModalEvents() {
 
     bindOrgAnnivEvents(root);
     bindStanceChangeEvents(root);
-    bindAxisUnlockEvents(root);
-}
-
-/**
- * 🔒 lock 해제 (↻) 버튼 — 조직 카드의 unlocked 축을 도트 derived 값으로 즉시 되돌림.
- */
-function bindAxisUnlockEvents(root) {
-    root.addEventListener('click', async (e) => {
-        const btn = e.target.closest('.axis-unlock-btn');
-        if (!btn) return;
-        const rowEl = btn.closest('[data-axis]');
-        if (!rowEl) return;
-        const axis = rowEl.dataset.axis;
-        if (!axis) return;
-
-        if (_editingDraft.locked) {
-            delete _editingDraft.locked[axis];
-        }
-        try {
-            const stats = _editingId ? _statsMap.get(_editingId) : null;
-            const { applyDerivedToOrg } = await import('../data/derivedScores.js');
-            applyDerivedToOrg(_editingDraft, stats);
-        } catch (err) { console.warn('org axis re-derive failed:', err); }
-
-        // 영향받은 레이어 다시 그리기
-        if (axis === 'riskLevel') {
-            const sec = root.querySelector('#org-layer-3');
-            if (sec) {
-                sec.outerHTML = layer3Html(_editingDraft);
-                bindLayer3Events(root);
-            }
-        } else {
-            const sec = root.querySelector('#org-layer-2');
-            if (sec) {
-                sec.outerHTML = layer2Html(_editingDraft);
-                bindLayer2Events(root);
-            }
-        }
-    });
 }
 
 // ─── stance 변경 (v3-①-F) ───
@@ -663,59 +626,64 @@ function bindLayer1Events(root) {
     });
 }
 
-// ─── Layer 2 관계 (1~5 별점) ───
+// ─── 관계 (1~5 별점) ───
 function layer2Html(o) {
+    const isNewCard = !_editingId;
     return `
         <section class="org-layer" id="org-layer-2">
             <h4 class="org-layer-title">관계</h4>
             <p class="org-layer-hint">
-                "지금 내 눈에 이렇게 보인다"의 거울일 뿐이에요.<br>
-                🔒 내가 정한 값 · 📊 도트가 만든 값 — 표시 옆 작은 마크로 알 수 있어요.
+                ${isNewCard
+                    ? '첫 평가만 직접 정해주시면, 이후엔 도트 평가가 알아서 갱신해요.'
+                    : '첫인상은 처음 만들 때 한 번 적었어요. 이후엔 도트 평가가 알아서 갱신합니다.'}
             </p>
-            ${rel5Row('friendliness', '우호도', o.friendliness, !!((o.locked||{}).friendliness))}
-            ${rel5Row('trust',        '신뢰',   o.trust,        !!((o.locked||{}).trust))}
-            ${rel5Row('importance',   '중요도', o.importance,   !!((o.locked||{}).importance))}
+            ${rel5Row('friendliness', '우호도', o.friendliness, o)}
+            ${rel5Row('trust',        '신뢰',   o.trust,        o)}
+            ${rel5Row('importance',   '중요도', o.importance,   o)}
         </section>
     `;
 }
 
-function rel5Row(key, label, value, locked) {
+function rel5Row(key, label, value, o) {
     const v = value == null ? null : Number(value);
+    const firstV = (o?.firstImpression || {})[key];
+    const first = (firstV == null) ? null : Math.round(firstV);
+    const isNewCard = !_editingId;
+
+    if (!isNewCard) {
+        return `
+            <div class="rel-row rel-row-readonly" data-rel-key="${key}">
+                <span class="rel-label">${label}</span>
+                <div class="rel-stars">
+                    ${[1,2,3,4,5].map(n => `
+                        <span class="rel-star ${v != null && n <= v ? 'active' : ''}">★</span>
+                    `).join('')}
+                    ${first != null ? `<span class="bf-first" title="첫인상">첫 ${first}</span>` : ''}
+                </div>
+            </div>
+        `;
+    }
     return `
-        <div class="rel-row" data-rel-key="${key}" data-axis="${escapeAttr(key)}" data-axis-kind="orgRel">
+        <div class="rel-row" data-rel-key="${key}">
             <span class="rel-label">${label}</span>
             <div class="rel-stars">
                 ${[1,2,3,4,5].map(n => `
                     <button class="rel-star ${v != null && n <= v ? 'active' : ''}" data-rel-value="${n}">★</button>
                 `).join('')}
-                <button class="rel-clear" title="비우기">✕</button>
-                ${orgLockBadgeHtml(locked, v == null)}
+                <button class="rel-clear" title="모름 (3으로 시작)">✕</button>
             </div>
         </div>
     `;
 }
 
-function orgLockBadgeHtml(locked, isNull) {
-    if (isNull) return '';
-    if (locked) {
-        return `
-            <span class="axis-lock-badge axis-locked" title="내가 직접 정한 값. 도트가 자동으로 바꾸지 않아요.">🔒 내가 정함</span>
-            <button type="button" class="axis-unlock-btn" data-action="unlock" title="도트가 만든 값으로 되돌리기">↻</button>
-        `;
-    }
-    return `<span class="axis-lock-badge axis-derived" title="도트 만족도 누적에서 자동으로 만들어진 값이에요.">📊 도트가 만듦</span>`;
-}
-
 function bindLayer2Events(root) {
     root.querySelectorAll('.rel-row').forEach(row => {
+        if (row.classList.contains('rel-row-readonly')) return;
         const key = row.dataset.relKey;
         row.querySelectorAll('.rel-star').forEach(btn => {
             btn.addEventListener('click', () => {
                 const v = Number(btn.dataset.relValue);
                 _editingDraft[key] = v;
-                // 사용자가 직접 조정한 축 lock → 도트 자동 갱신 차단
-                _editingDraft.locked = _editingDraft.locked || {};
-                _editingDraft.locked[key] = true;
                 row.querySelectorAll('.rel-star').forEach(s => {
                     const n = Number(s.dataset.relValue);
                     s.classList.toggle('active', n <= v);
@@ -723,47 +691,56 @@ function bindLayer2Events(root) {
             });
         });
         row.querySelector('.rel-clear')?.addEventListener('click', () => {
-            _editingDraft[key] = null;
-            row.querySelectorAll('.rel-star').forEach(s => s.classList.remove('active'));
+            // 정책 v3: 모름 → 3(중립)으로
+            _editingDraft[key] = 3;
+            row.querySelectorAll('.rel-star').forEach(s => {
+                const n = Number(s.dataset.relValue);
+                s.classList.toggle('active', n <= 3);
+            });
         });
     });
 }
 
-// ─── Layer 3 위험도 (3단계 칩) ───
+// ─── 위험도 (3단계 칩) ───
 function layer3Html(o) {
     const cur = o.riskLevel;
-    const locked = !!((o.locked || {}).riskLevel);
+    const isNewCard = !_editingId;
     return `
-        <section class="org-layer" id="org-layer-3" data-axis="riskLevel" data-axis-kind="orgRel">
-            <h4 class="org-layer-title">
-                위험도
-                <span class="risk-lock-slot">${orgLockBadgeHtml(locked, cur == null)}</span>
-            </h4>
-            <p class="org-layer-hint">조직 자체가 "위험"한 게 아니라, 지금 나의 영적 상태에서 주의가 필요한 정도예요.</p>
-            <div class="risk-chips">
+        <section class="org-layer" id="org-layer-3">
+            <h4 class="org-layer-title">위험도</h4>
+            <p class="org-layer-hint">
+                ${isNewCard
+                    ? '첫 평가만 직접 정해주세요. 이후엔 도트 만족도가 알아서 갱신합니다.'
+                    : '첫인상은 처음 만들 때 한 번 정했어요. 이후엔 도트 평가가 알아서 갱신합니다.'}
+            </p>
+            <div class="risk-chips ${isNewCard ? '' : 'is-readonly'}">
                 ${RISK_OPTIONS.map(r => `
-                    <button class="risk-chip ${cur === r.key ? 'active' : ''}"
+                    <button class="risk-chip ${cur === r.key ? 'active' : ''} ${isNewCard ? '' : 'disabled'}"
                             data-risk-value="${r.key}"
+                            ${isNewCard ? '' : 'tabindex="-1"'}
                             style="--risk-color:${r.color}">
                         <span>${r.icon}</span><span>${r.label}</span>
                     </button>
                 `).join('')}
-                <button class="risk-chip risk-chip-unknown ${cur == null ? 'active' : ''}"
-                        data-risk-value="">
-                    <span>□</span><span>모르겠어요</span>
-                </button>
+                ${isNewCard ? `
+                    <button class="risk-chip risk-chip-unknown ${cur == null ? 'active' : ''}"
+                            data-risk-value="">
+                        <span>□</span><span>모르겠어요 (caution)</span>
+                    </button>
+                ` : ''}
             </div>
         </section>
     `;
 }
 
 function bindLayer3Events(root) {
+    if (_editingId) return; // 기존 카드는 읽기 전용
     root.querySelectorAll('.risk-chip').forEach(btn => {
         btn.addEventListener('click', () => {
-            const v = btn.dataset.riskValue || null;
+            const raw = btn.dataset.riskValue;
+            // 모르겠어요 → caution 으로 기본값 (정책 v3)
+            const v = (raw === '' || raw == null) ? 'caution' : raw;
             _editingDraft.riskLevel = v;
-            _editingDraft.locked = _editingDraft.locked || {};
-            _editingDraft.locked.riskLevel = true;
             root.querySelectorAll('.risk-chip').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
         });
@@ -1026,6 +1003,23 @@ async function onSave() {
         showToast('조직 이름을 적어 주실래요?');
         return;
     }
+
+    // 정책 v3: 신규 카드일 때 1회만 firstImpression. null은 기본값으로 채움.
+    const isNewCard = !_editingId;
+    if (isNewCard) {
+        if (draft.friendliness == null) draft.friendliness = 3;
+        if (draft.trust == null) draft.trust = 3;
+        if (draft.importance == null) draft.importance = 3;
+        if (draft.riskLevel == null) draft.riskLevel = 'caution';
+        draft.firstImpression = {
+            friendliness: draft.friendliness,
+            trust: draft.trust,
+            importance: draft.importance,
+            riskLevel: draft.riskLevel,
+            createdAt: new Date().toISOString(),
+        };
+    }
+    delete draft.locked;
 
     try {
         await saveOrganization(dek, _userId, draft);

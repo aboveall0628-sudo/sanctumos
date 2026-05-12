@@ -116,6 +116,9 @@ export function openQuickReview({ timeSlot, cells, userId, date, plannedTask, de
     _selectedCategoryId = ed?.category || null;
     renderCategoryChips();
 
+    // 인물별 5축 평가 라벨 — 매 평가마다 새로 시작 (누적은 그 도트의 영향, 영구 저장은 안 함)
+    _personRatingLabels = {};
+
     // 상세 접기 — 단, 기존 도트에 reason/라벨/만족도≠3 같은 자세한 정보가 있으면 자동으로 펼침
     const hasDetail = !!(ed?.reason || restoredLabels.length > 0
         || (ed?.actualTask && ed.actualTask !== plannedTask)
@@ -282,12 +285,14 @@ function bindEvents() {
     });
 
     // 활동 카테고리 칩 — 단일 선택. 같은 칩을 다시 누르면 해제.
+    // 카테고리가 바뀌면 인물 칩 아래의 5축 평가 라벨도 그 카테고리에 맞게 다시 그려야 함.
     document.addEventListener('click', (e) => {
         const chip = e.target.closest('.qr-category-chip');
         if (!chip) return;
         const id = chip.dataset.categoryId;
         _selectedCategoryId = (_selectedCategoryId === id) ? null : id;
         renderCategoryChips();
+        renderLinkChips();
     });
 
     // 새 카테고리 추가 (사용자 정의)
@@ -402,18 +407,45 @@ function bindEvents() {
     document.addEventListener('click', (e) => {
         if (!e.target.closest('.qr-ac-wrap')) hideAutocompletePanels();
     });
-    // 칩 ✕ 제거 (이벤트 위임) — 만족도 점수도 같이 비움
+    // 칩 ✕ 제거 (이벤트 위임) — 만족도 점수·라벨도 같이 비움
     document.addEventListener('click', (e) => {
         const x = e.target.closest('.qr-chip-remove');
         if (!x) return;
-        const chip = x.closest('.qr-link-chip');
-        if (!chip) return;
-        const pid = chip.dataset.personId;
-        const oid = chip.dataset.orgId;
-        if (pid) { _selectedPersonIds = _selectedPersonIds.filter(id => id !== pid); delete _personRatings[pid]; }
-        if (oid) { _selectedOrgIds = _selectedOrgIds.filter(id => id !== oid); delete _orgRatings[oid]; }
+        // wrap 컨테이너에서 id 추출 (정책 v3 — 인물 칩이 wrap div로 묶여 있음)
+        const wrap = x.closest('.qr-link-chip-wrap');
+        if (!wrap) return;
+        const pid = wrap.dataset.personId;
+        const oid = wrap.dataset.orgId;
+        if (pid) {
+            _selectedPersonIds = _selectedPersonIds.filter(id => id !== pid);
+            delete _personRatings[pid];
+            delete _personRatingLabels[pid];
+        }
+        if (oid) {
+            _selectedOrgIds = _selectedOrgIds.filter(id => id !== oid);
+            delete _orgRatings[oid];
+        }
         renderLinkChips();
         refreshLinkDatalists();
+    });
+
+    // 5축 평가 라벨 토글 (정책 v3) — 복수 선택 가능
+    document.addEventListener('click', (e) => {
+        const labelBtn = e.target.closest('.qr-rating-label-chip');
+        if (!labelBtn) return;
+        const labelsRow = labelBtn.closest('.qr-chip-rating-labels');
+        if (!labelsRow) return;
+        const pid = labelsRow.dataset.personId;
+        const labelId = labelBtn.dataset.ratingId;
+        if (!pid || !labelId) return;
+        const current = _personRatingLabels[pid] || [];
+        if (current.includes(labelId)) {
+            _personRatingLabels[pid] = current.filter(x => x !== labelId);
+            labelBtn.classList.remove('selected');
+        } else {
+            _personRatingLabels[pid] = [...current, labelId];
+            labelBtn.classList.add('selected');
+        }
     });
 
     // 칩 안 만족도 도트 클릭 — 1~5점 토글. 같은 점수 다시 누르면 0(미평가)로.
@@ -478,6 +510,8 @@ function renderChipRow(rootId, ids, cache, datasetKey, fallbackIcon, ratings, ta
     const root = document.getElementById(rootId);
     if (!root) return;
     if (!ids.length) { root.innerHTML = ''; return; }
+    // 인물일 때만 5축 평가 라벨도 칩 아래에 표시 (정책 v3).
+    const axes = (target === 'person') ? getRatingAxesForCategory(_selectedCategoryId) : null;
     root.innerHTML = ids.map(id => {
         const card = cache.find(c => c.id === id);
         const rating = ratings[id] || 0;
@@ -490,13 +524,26 @@ function renderChipRow(rootId, ids, cache, datasetKey, fallbackIcon, ratings, ta
         const displayHtml = target === 'person'
             ? personDisplayHtml(card, escapeHtml)
             : escapeHtml(card?.name || '(이름 미상)');
+
+        const ratingLabels = (target === 'person' && axes && axes.length) ? `
+            <div class="qr-chip-rating-labels" data-person-id="${escapeAttr(id)}">
+                ${axes.map(a => {
+                    const selected = (_personRatingLabels[id] || []).includes(a.id);
+                    return `<button type="button" class="qr-rating-label-chip ${selected ? 'selected' : ''}" data-rating-id="${escapeAttr(a.id)}">${escapeHtml(a.label)}</button>`;
+                }).join('')}
+            </div>
+        ` : '';
+
         return `
-            <span class="qr-link-chip" data-${datasetKey}="${escapeAttr(id)}">
-                <span class="qr-link-chip-icon">${fallbackIcon}</span>
-                <span class="qr-link-chip-name">${displayHtml}</span>
-                <span class="qr-chip-rating" data-target="${target}" data-id="${escapeAttr(id)}" title="만족도 1~5 (같은 점수 다시 누르면 해제)">${ratingDots}</span>
-                <button class="qr-chip-remove" type="button" aria-label="제거">✕</button>
-            </span>
+            <div class="qr-link-chip-wrap" data-${datasetKey}="${escapeAttr(id)}">
+                <span class="qr-link-chip">
+                    <span class="qr-link-chip-icon">${fallbackIcon}</span>
+                    <span class="qr-link-chip-name">${displayHtml}</span>
+                    <span class="qr-chip-rating" data-target="${target}" data-id="${escapeAttr(id)}" title="만족도 1~5 (같은 점수 다시 누르면 해제)">${ratingDots}</span>
+                    <button class="qr-chip-remove" type="button" aria-label="제거">✕</button>
+                </span>
+                ${ratingLabels}
+            </div>
         `;
     }).join('');
 }
@@ -740,11 +787,13 @@ async function refreshDerivedScoresFor(dek, personIds, orgIds) {
     const personStats = computeAllPersonStats(dots);
     const orgStats = computeAllOrgStats(dots);
 
-    // 인물 갱신
+    // 인물 갱신 — 5축 라벨 가중치만 사용 (정책 v3).
+    // 만족도 평균 기반 거친 derived 갱신은 라벨 효과를 덮어버려 제거.
     for (const pid of pIds) {
         const p = _personsCache.find(x => x.id === pid);
         if (!p) continue;
-        const changed = applyDerivedToPerson(p, personStats.get(pid) || null);
+        const labels = _personRatingLabels[pid] || [];
+        const changed = applyRatingLabelsToPerson(p, labels);
         if (changed) {
             try { await savePerson(dek, _currentUserId, p); }
             catch (e) { console.warn('person derived save failed:', pid, e); }

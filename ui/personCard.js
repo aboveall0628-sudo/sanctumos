@@ -352,6 +352,8 @@ function newPersonDraft() {
         bigFive: { O: null, C: null, E: null, A: null, N: null },
         competencies: {},
         relationship: { closeness: null, trust: null, friendliness: null, importance: null },
+        // v3(2026-05-12): 첫 평가 1회만 수동, 이후엔 도트 자동. firstImpression 비교용.
+        firstImpression: null, // { bigFive, competencies, relationship, createdAt } — onSave 시 1회 set
         meaningfulVerse: '',
         notes: '',
         stanceHistory: [],
@@ -454,71 +456,6 @@ function bindModalEvents() {
 
     bindBelongsEvents(root);
     bindStanceChangeEvents(root);
-    bindAxisUnlockEvents(root);
-}
-
-/**
- * 🔒 lock 해제 (↻) 버튼 — 그 축의 lock 플래그를 false로 돌리고,
- * 도트 누적에서 다시 derived 값으로 갱신해 즉시 화면 반영.
- * 어디든 .axis-unlock-btn 클릭만으로 동작하도록 이벤트 위임.
- */
-function bindAxisUnlockEvents(root) {
-    root.addEventListener('click', async (e) => {
-        const btn = e.target.closest('.axis-unlock-btn');
-        if (!btn) return;
-        const rowEl = btn.closest('[data-axis]');
-        if (!rowEl) return;
-        const axis = rowEl.dataset.axis;
-        const kind = rowEl.dataset.axisKind;
-        if (!axis || !kind) return;
-
-        // lock 해제
-        const lockKey = `${kind}Locked`;
-        if (_editingDraft[lockKey]) {
-            delete _editingDraft[lockKey][axis];
-            if (Object.keys(_editingDraft[lockKey]).length === 0) {
-                _editingDraft[lockKey] = {};
-            }
-        }
-
-        // 모달 열 때 이미 계산된 _statsMap에서 이 인물 통계를 가져와 derived 재계산
-        try {
-            const stats = _editingId ? _statsMap.get(_editingId) : null;
-            const { applyDerivedToPerson } = await import('../data/derivedScores.js');
-            applyDerivedToPerson(_editingDraft, stats);
-        } catch (err) { console.warn('axis re-derive failed:', err); }
-
-        // 해당 레이어 다시 그리기 (lock 인디케이터 + 값 동시 갱신)
-        rerenderAffectedLayer(root, kind);
-        if (kind === 'bigFive') updateRadar();
-    });
-}
-
-function rerenderAffectedLayer(root, kind) {
-    if (kind === 'bigFive') {
-        const sec = root.querySelector('.person-layer:has([data-bf-steps])');
-        if (sec) {
-            sec.outerHTML = layer2Html(_editingDraft);
-            bindLayer2Events(root);
-        }
-        return;
-    }
-    if (kind === 'competencies') {
-        const sec = root.querySelector('#layer-3-section');
-        if (sec) {
-            sec.outerHTML = layer3Html(_editingDraft);
-            bindLayer3Events(root);
-        }
-        return;
-    }
-    if (kind === 'relationship') {
-        const sec = root.querySelector('.person-layer:has(.rel-row)');
-        if (sec) {
-            sec.outerHTML = layer4Html(_editingDraft);
-            bindLayer4Events(root);
-        }
-        return;
-    }
 }
 
 // ─── stance 변경 (v3-①-F) ───
@@ -869,74 +806,72 @@ function buildStanceHint(p, stats) {
 // ─── Layer 2 Big Five ───
 function layer2Html(p) {
     const big = p.bigFive || {};
-    const locks = p.bigFiveLocked || {};
+    const firstBig = (p.firstImpression && p.firstImpression.bigFive) || null;
+    const isNewCard = !_editingId; // 모달이 신규 카드 모드일 때만 수동 입력 허용
     return `
         <section class="person-layer">
             <h4 class="person-layer-title">성격 (Big Five)</h4>
             <p class="person-layer-hint">
                 ❗ 라벨이 사람을 가두지 않습니다. "지금 내 눈에 이렇게 보인다"의 거울일 뿐.
-                <br>🔒 내가 정한 값 · 📊 도트가 만든 값 — 표시 옆 작은 마크로 알 수 있어요.
+                ${isNewCard
+                    ? '<br>첫 평가만 직접 정해주시면, 이후엔 도트 평가가 알아서 갱신해요. 모르겠으면 그대로 두면 50으로 시작합니다.'
+                    : '<br>첫인상은 처음 카드를 만들 때 한 번 적었어요. 이후엔 도트 평가가 알아서 갱신합니다.'}
             </p>
             ${BIGFIVE_KEYS.map(({ k, name, hint }) => fiveStepRow({
                 id: `bf-${k}`,
                 axis: k,
-                axisKind: 'bigFive',
                 label: `${name} (${k})`,
                 hint,
                 value: big[k],
-                locked: !!locks[k],
+                firstValue: firstBig ? firstBig[k] : null,
+                editable: isNewCard,
             })).join('')}
         </section>
     `;
 }
 
-function fiveStepRow({ id, axis, axisKind, label, hint, value, locked }) {
+function fiveStepRow({ id, axis, label, hint, value, firstValue, editable }) {
     const isNull = (value == null);
-    // 정책(2026-05-12): 첫 평가(isNull)거나 내가 직접 정한 값(locked)일 때만 클릭 버튼 노출.
-    // 도트가 만든 값(derived)일 땐 버튼 숨기고 숫자만 보여줘 화면을 조용히.
-    // 다시 수동으로 바꾸고 싶으면 '모르겠어요'를 켰다 끄면 isNull로 돌아와 클릭 가능.
-    const showSteps = isNull || locked;
+    // 신규 카드(editable=true)일 때만 step 버튼 노출. 그 외엔 현재 값 + 첫인상 비교만.
+    if (!editable) {
+        const cur = isNull ? '–' : Math.round(value);
+        const first = (firstValue == null) ? null : Math.round(firstValue);
+        const delta = (first != null && !isNull) ? (Math.round(value) - first) : null;
+        const deltaText = delta == null ? '' : (delta === 0 ? '·' : (delta > 0 ? `▲${delta}` : `▼${Math.abs(delta)}`));
+        return `
+            <div class="bf-row" data-axis="${escapeAttr(axis || '')}">
+                <div class="bf-row-head">
+                    <span class="bf-row-label">${label}</span>
+                    <span class="bf-row-hint">${hint || ''}</span>
+                    <span class="bf-current">${cur}</span>
+                    ${first != null ? `<span class="bf-first" title="첫인상 — 처음 카드를 만들 때 적은 값">첫 ${first}</span>` : ''}
+                    ${delta != null ? `<span class="bf-delta ${delta > 0 ? 'up' : delta < 0 ? 'down' : ''}">${deltaText}</span>` : ''}
+                </div>
+            </div>
+        `;
+    }
+    // 신규 카드 — step 클릭 + "모르겠어요"
     return `
-        <div class="bf-row" data-axis="${escapeAttr(axis || '')}" data-axis-kind="${escapeAttr(axisKind || '')}">
+        <div class="bf-row" data-axis="${escapeAttr(axis || '')}">
             <div class="bf-row-head">
                 <span class="bf-row-label">${label}</span>
                 <span class="bf-row-hint">${hint || ''}</span>
-                ${!showSteps ? `<span class="bf-derived-value">${value}</span>` : ''}
-                ${lockBadgeHtml(locked, isNull)}
                 <label class="bf-row-unknown">
                     <input type="checkbox" data-bf-unknown="${id}" ${isNull ? 'checked' : ''} />
-                    모르겠어요
+                    모르겠어요 (50으로 시작)
                 </label>
             </div>
-            ${showSteps ? `
-                <div class="bf-row-steps ${isNull ? 'disabled' : ''}" data-bf-steps="${id}">
-                    ${SLIDER_LEVELS.map(lv => `
-                        <button class="bf-step ${value === lv ? 'active' : ''}" data-bf-value="${lv}">${lv}</button>
-                    `).join('')}
-                </div>
-            ` : ''}
+            <div class="bf-row-steps ${isNull ? 'disabled' : ''}" data-bf-steps="${id}">
+                ${SLIDER_LEVELS.map(lv => `
+                    <button class="bf-step ${value === lv ? 'active' : ''}" data-bf-value="${lv}">${lv}</button>
+                `).join('')}
+            </div>
         </div>
     `;
 }
 
-/**
- * lock 인디케이터 + (locked일 때) 되돌리기 버튼.
- * - locked=true: 🔒 내가 정한 값. 옆에 '↻' 버튼 노출 (도트가 만든 값으로 되돌리기)
- * - locked=false: 📊 도트가 만든 값
- * - 모르겠어요(isNull)는 아무 표시 안 함 (값 자체가 없으니 lock 의미 없음)
- */
-function lockBadgeHtml(locked, isNull) {
-    if (isNull) return '';
-    if (locked) {
-        return `
-            <span class="axis-lock-badge axis-locked" title="내가 직접 정한 값. 도트가 자동으로 바꾸지 않아요.">🔒 내가 정함</span>
-            <button type="button" class="axis-unlock-btn" data-action="unlock" title="도트가 만든 값으로 되돌리기">↻</button>
-        `;
-    }
-    return `<span class="axis-lock-badge axis-derived" title="이 값은 도트 만족도 누적에서 자동으로 만들어진 값이에요. 능력 그 자체가 아닌 '나에게 남은 인상'에 가깝습니다.">📊 도트가 만듦</span>`;
-}
-
 function bindLayer2Events(root) {
+    // 신규 카드일 때만 이벤트가 의미 있음. 기존 카드 모드에선 step row 자체가 없음.
     BIGFIVE_KEYS.forEach(({ k }) => {
         const id = `bf-${k}`;
         const stepsEl = root.querySelector(`[data-bf-steps="${id}"]`);
@@ -947,9 +882,6 @@ function bindLayer2Events(root) {
                     if (stepsEl.classList.contains('disabled')) return;
                     const v = Number(btn.dataset.bfValue);
                     _editingDraft.bigFive[k] = v;
-                    // 새 정책: 사용자가 직접 정한 축은 lock → 도트 자동 갱신 차단
-                    _editingDraft.bigFiveLocked = _editingDraft.bigFiveLocked || {};
-                    _editingDraft.bigFiveLocked[k] = true;
                     stepsEl.querySelectorAll('.bf-step').forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
                     if (unknownEl) unknownEl.checked = false;
@@ -959,13 +891,17 @@ function bindLayer2Events(root) {
         }
         if (unknownEl) {
             unknownEl.addEventListener('change', () => {
+                // 정책 v3: 모르겠어요 = 50으로 기본값 설정 (null이 아닌 50).
+                // 도트 평가가 그 50을 기준점으로 ±로 갱신.
                 if (unknownEl.checked) {
-                    _editingDraft.bigFive[k] = null;
-                    // lock도 풀어줌 — 다시 도트 derived가 들어올 자리 마련
-                    if (_editingDraft.bigFiveLocked) delete _editingDraft.bigFiveLocked[k];
+                    _editingDraft.bigFive[k] = 50;
+                    stepsEl?.classList.add('disabled');
+                    stepsEl?.querySelectorAll('.bf-step').forEach(b => {
+                        b.classList.toggle('active', Number(b.dataset.bfValue) === 50);
+                    });
+                } else {
+                    stepsEl?.classList.remove('disabled');
                 }
-                // isNull 변화로 step row 자체의 표시 여부가 바뀜 → 레이어 다시 그림
-                rerenderAffectedLayer(root, 'bigFive');
                 updateRadar();
             });
         }
@@ -1000,15 +936,33 @@ function layer3Html(p) {
 
 function compRowHtml(key, label, value, isCustom) {
     const v = (value == null) ? null : Number(value);
-    const locked = !!((_editingDraft?.competenciesLocked || {})[key]);
+    const firstV = (_editingDraft?.firstImpression?.competencies || {})[key];
+    const first = (firstV == null) ? null : Math.round(firstV);
+    const isNewCard = !_editingId;
+
+    if (!isNewCard) {
+        // 기존 카드: 읽기 전용 + 첫인상 비교
+        const cur = v == null ? '–' : Math.round(v);
+        const delta = (first != null && v != null) ? (Math.round(v) - first) : null;
+        const deltaText = delta == null ? '' : (delta === 0 ? '·' : (delta > 0 ? `▲${delta}` : `▼${Math.abs(delta)}`));
+        return `
+            <div class="comp-row comp-row-readonly ${v == null ? 'is-null' : ''}" data-comp-key="${escapeAttr(key)}">
+                <span class="comp-label">${escapeHtml(label)}</span>
+                <span class="comp-readonly-bar"><span class="comp-readonly-fill" style="width:${v == null ? 0 : v}%"></span></span>
+                <span class="comp-value">${cur}</span>
+                ${first != null ? `<span class="bf-first" title="첫인상">첫 ${first}</span>` : ''}
+                ${delta != null ? `<span class="bf-delta ${delta > 0 ? 'up' : delta < 0 ? 'down' : ''}">${deltaText}</span>` : ''}
+            </div>
+        `;
+    }
+    // 신규 카드 — 슬라이더 + 비우기/삭제
     return `
-        <div class="comp-row ${v == null ? 'is-null' : ''}" data-comp-key="${escapeAttr(key)}" data-axis="${escapeAttr(key)}" data-axis-kind="competencies">
+        <div class="comp-row ${v == null ? 'is-null' : ''}" data-comp-key="${escapeAttr(key)}">
             <span class="comp-label">${escapeHtml(label)}</span>
             <input class="comp-slider" type="range" min="0" max="100" step="10"
-                   value="${v == null ? 0 : v}" />
+                   value="${v == null ? 50 : v}" />
             <span class="comp-value">${v == null ? '–' : v}</span>
-            ${lockBadgeHtml(locked, v == null)}
-            <button class="comp-clear" title="모름으로 비우기">✕</button>
+            <button class="comp-clear" title="모름으로 비우기 (50으로 시작)">✕</button>
             ${isCustom ? '<button class="comp-remove" title="이 항목 제거">🗑</button>' : ''}
         </div>
     `;
@@ -1041,6 +995,7 @@ function bindLayer3Events(root) {
 
 function attachCompRowEvents(listEl) {
     listEl.querySelectorAll('.comp-row').forEach(row => {
+        if (row.classList.contains('comp-row-readonly')) return; // 기존 카드는 읽기 전용
         const key = row.dataset.compKey;
         const slider = row.querySelector('.comp-slider');
         const valueEl = row.querySelector('.comp-value');
@@ -1050,16 +1005,15 @@ function attachCompRowEvents(listEl) {
         slider?.addEventListener('input', () => {
             const v = Number(slider.value);
             _editingDraft.competencies[key] = v;
-            _editingDraft.competenciesLocked = _editingDraft.competenciesLocked || {};
-            _editingDraft.competenciesLocked[key] = true;
             valueEl.textContent = String(v);
             row.classList.remove('is-null');
         });
         clearBtn?.addEventListener('click', () => {
-            _editingDraft.competencies[key] = null;
-            slider.value = 0;
-            valueEl.textContent = '–';
-            row.classList.add('is-null');
+            // 정책 v3: 모름 → 50으로 기본값 설정 (도트 평가의 기준점)
+            _editingDraft.competencies[key] = 50;
+            slider.value = 50;
+            valueEl.textContent = '50';
+            row.classList.remove('is-null');
         });
         removeBtn?.addEventListener('click', () => {
             delete _editingDraft.competencies[key];
@@ -1084,16 +1038,32 @@ function layer4Html(p) {
 
 function rel5Row(key, label, value) {
     const v = value == null ? null : Number(value);
-    const locked = !!((_editingDraft?.relationshipLocked || {})[key]);
+    const firstV = (_editingDraft?.firstImpression?.relationship || {})[key];
+    const first = (firstV == null) ? null : Math.round(firstV);
+    const isNewCard = !_editingId;
+
+    if (!isNewCard) {
+        // 기존 카드: 읽기 전용 별 + 첫인상
+        return `
+            <div class="rel-row rel-row-readonly" data-rel-key="${key}">
+                <span class="rel-label">${label}</span>
+                <div class="rel-stars">
+                    ${[1,2,3,4,5].map(n => `
+                        <span class="rel-star ${v != null && n <= v ? 'active' : ''}">★</span>
+                    `).join('')}
+                    ${first != null ? `<span class="bf-first" title="첫인상">첫 ${first}</span>` : ''}
+                </div>
+            </div>
+        `;
+    }
     return `
-        <div class="rel-row" data-rel-key="${key}" data-axis="${escapeAttr(key)}" data-axis-kind="relationship">
+        <div class="rel-row" data-rel-key="${key}">
             <span class="rel-label">${label}</span>
             <div class="rel-stars">
                 ${[1,2,3,4,5].map(n => `
                     <button class="rel-star ${v != null && n <= v ? 'active' : ''}" data-rel-value="${n}">★</button>
                 `).join('')}
-                <button class="rel-clear" title="비우기">✕</button>
-                ${lockBadgeHtml(locked, v == null)}
+                <button class="rel-clear" title="모름 (3으로 시작)">✕</button>
             </div>
         </div>
     `;
@@ -1101,13 +1071,12 @@ function rel5Row(key, label, value) {
 
 function bindLayer4Events(root) {
     root.querySelectorAll('.rel-row').forEach(row => {
+        if (row.classList.contains('rel-row-readonly')) return;
         const key = row.dataset.relKey;
         row.querySelectorAll('.rel-star').forEach(btn => {
             btn.addEventListener('click', () => {
                 const v = Number(btn.dataset.relValue);
                 _editingDraft.relationship[key] = v;
-                _editingDraft.relationshipLocked = _editingDraft.relationshipLocked || {};
-                _editingDraft.relationshipLocked[key] = true;
                 row.querySelectorAll('.rel-star').forEach(s => {
                     const n = Number(s.dataset.relValue);
                     s.classList.toggle('active', n <= v);
@@ -1115,8 +1084,12 @@ function bindLayer4Events(root) {
             });
         });
         row.querySelector('.rel-clear')?.addEventListener('click', () => {
-            _editingDraft.relationship[key] = null;
-            row.querySelectorAll('.rel-star').forEach(s => s.classList.remove('active'));
+            // 정책 v3: 모름 → 3(중립)으로 기본값
+            _editingDraft.relationship[key] = 3;
+            row.querySelectorAll('.rel-star').forEach(s => {
+                const n = Number(s.dataset.relValue);
+                s.classList.toggle('active', n <= 3);
+            });
         });
     });
 }
@@ -1222,6 +1195,33 @@ async function onSave() {
             if (draft.competencies[k] === undefined) delete draft.competencies[k];
         });
     }
+
+    // 정책 v3: 신규 카드일 때 1회만 firstImpression 보존. null 값은 50으로 채워서 시작점 마련.
+    const isNewCard = !_editingId;
+    if (isNewCard) {
+        const bf = { ...(draft.bigFive || {}) };
+        ['O','C','E','A','N'].forEach(k => { if (bf[k] == null) bf[k] = 50; });
+        const comp = { ...(draft.competencies || {}) };
+        // 누락된 표준 능력은 50으로 채움 (도트 평가의 기준점)
+        ['analysis','execution','creativity','communication','leadership','empathy','expertise','stamina']
+            .forEach(k => { if (comp[k] == null) comp[k] = 50; });
+        const rel = { ...(draft.relationship || {}) };
+        ['closeness','trust','friendliness','importance'].forEach(k => { if (rel[k] == null) rel[k] = 3; });
+
+        draft.bigFive = bf;
+        draft.competencies = comp;
+        draft.relationship = rel;
+        draft.firstImpression = {
+            bigFive: { ...bf },
+            competencies: { ...comp },
+            relationship: { ...rel },
+            createdAt: new Date().toISOString(),
+        };
+    }
+    // 구 lock 플래그 정리 (v3에서 의미 없음, 데이터에서도 제거)
+    delete draft.bigFiveLocked;
+    delete draft.competenciesLocked;
+    delete draft.relationshipLocked;
 
     try {
         await savePerson(dek, _userId, draft);

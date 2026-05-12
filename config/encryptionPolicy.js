@@ -157,7 +157,9 @@ export const POLICY = {
             'knownFacts', 'sensitivities',
             'notes', 'strengths', 'tendencies',
             // 친한 사람 한정 기념일/생일 — 사적 정보로 암호화
-            'birthday', 'anniversaries'
+            'birthday', 'anniversaries',
+            // (v3 2026-05-12) 첫 평가 1회 보존 — 첫인상 비교용
+            'firstImpression'
         ]
     },
     organizations: {
@@ -167,7 +169,8 @@ export const POLICY = {
         ],
         encrypted: [
             'name', 'memberPersonIds', 'meaningfulVerse', 'notes', 'stanceHistory',
-            'foundedDate', 'anniversaries'
+            'foundedDate', 'anniversaries',
+            'firstImpression' // (v3 2026-05-12) 첫 평가 1회 보존
         ]
     },
     interactions: {

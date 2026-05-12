@@ -3102,6 +3102,95 @@ svg.person-radar { display: block; }
     font-size: 12px; list-style: none; margin-left: -18px;
 }
 
+/* 도트 평가 모달 — 인물 칩 wrap + 카테고리별 5축 평가 라벨 (정책 v3) */
+.qr-link-chip-wrap {
+    display: flex; flex-direction: column;
+    gap: 4px;
+}
+.qr-chip-rating-labels {
+    display: flex; flex-wrap: wrap; gap: 4px;
+    padding-left: 8px;
+}
+.qr-rating-label-chip {
+    padding: 3px 9px;
+    font-size: 11px; line-height: 1.3;
+    border-radius: 999px;
+    border: 1px solid var(--border, var(--line));
+    background: var(--bg-card, var(--surface-card));
+    color: var(--text-secondary, var(--ink-secondary));
+    cursor: pointer;
+    transition: all 160ms ease;
+}
+.qr-rating-label-chip:hover {
+    color: var(--text-primary, var(--ink-primary));
+    border-color: var(--brand-primary, var(--accent));
+}
+.qr-rating-label-chip.selected {
+    background: var(--brand-primary, var(--accent));
+    color: #fff;
+    border-color: var(--brand-primary, var(--accent));
+}
+
+/* 첫인상 비교 표기 (정책 v3) */
+.bf-current {
+    display: inline-block;
+    min-width: 28px; text-align: right;
+    font-size: 13px; font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-primary, var(--ink-primary));
+}
+.bf-first {
+    font-size: 11px; color: var(--text-secondary, var(--ink-secondary));
+    background: var(--bg-elev, var(--surface-elevated));
+    padding: 1px 6px; border-radius: 999px;
+    margin-left: 4px;
+}
+.bf-delta {
+    font-size: 11px; margin-left: 4px;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-tertiary, var(--ink-tertiary));
+}
+.bf-delta.up   { color: var(--dot-green); }
+.bf-delta.down { color: var(--dot-orange); }
+
+/* 능력 행 읽기 전용 (정책 v3) */
+.comp-row-readonly {
+    display: grid;
+    grid-template-columns: 70px 1fr 36px auto auto;
+    gap: 8px; align-items: center;
+    padding: 4px 0;
+}
+.comp-readonly-bar {
+    height: 6px;
+    background: var(--bg-elev, var(--surface-elevated));
+    border-radius: 999px; overflow: hidden;
+    border: 1px solid var(--border, var(--line));
+}
+.comp-readonly-fill {
+    display: block; height: 100%;
+    background: var(--brand-primary, var(--accent));
+    border-radius: 999px;
+    transition: width 300ms ease;
+}
+
+/* 관계 별 읽기 전용 */
+.rel-row-readonly .rel-star {
+    background: transparent; border: none; padding: 0;
+    color: var(--ink-tertiary, #C0BFB7);
+    font-size: 16px;
+}
+.rel-row-readonly .rel-star.active {
+    color: var(--brand-primary, var(--accent));
+}
+
+/* 위험도 chips 읽기 전용 */
+.risk-chips.is-readonly .risk-chip {
+    cursor: default; opacity: 0.6;
+}
+.risk-chips.is-readonly .risk-chip.active {
+    opacity: 1;
+}
+
 /* 도트 평가 마이크로 confirm (26번 — 새 멤버 연결 묻기) */
 .qr-mini-confirm-overlay {
     position: fixed; inset: 0; z-index: 1100;
