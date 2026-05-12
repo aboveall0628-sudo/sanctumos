@@ -618,7 +618,7 @@ function layer1Html(o) {
     const guide = TYPE_GUIDE[o.type] || TYPE_GUIDE.other;
     return `
         <section class="org-layer">
-            <h4 class="org-layer-title">Layer 1 · 정체성</h4>
+            <h4 class="org-layer-title">정체성</h4>
             <p class="org-layer-hint">조직이라기보단 "함께 시간을 보내는 단위"예요. 동네 수영장처럼 사람 단위가 아닌 장소도 여기 넣어두면 도트가 흔적을 모아줘요.</p>
             <div class="org-row">
                 <label>이름</label>
@@ -657,7 +657,7 @@ function bindLayer1Events(root) {
 function layer2Html(o) {
     return `
         <section class="org-layer" id="org-layer-2">
-            <h4 class="org-layer-title">Layer 2 · 관계</h4>
+            <h4 class="org-layer-title">관계</h4>
             <p class="org-layer-hint">
                 "지금 내 눈에 이렇게 보인다"의 거울일 뿐이에요.<br>
                 🔒 내가 정한 값 · 📊 도트가 만든 값 — 표시 옆 작은 마크로 알 수 있어요.
@@ -726,7 +726,7 @@ function layer3Html(o) {
     return `
         <section class="org-layer" id="org-layer-3" data-axis="riskLevel" data-axis-kind="orgRel">
             <h4 class="org-layer-title">
-                Layer 3 · 위험도
+                위험도
                 <span class="risk-lock-slot">${orgLockBadgeHtml(locked, cur == null)}</span>
             </h4>
             <p class="org-layer-hint">조직 자체가 "위험"한 게 아니라, 지금 나의 영적 상태에서 주의가 필요한 정도예요.</p>
@@ -765,7 +765,7 @@ function layer4Html(o) {
     const ids = o.memberPersonIds || [];
     return `
         <section class="org-layer" id="org-layer-4">
-            <h4 class="org-layer-title">Layer 4 · 멤버</h4>
+            <h4 class="org-layer-title">멤버</h4>
             <p class="org-layer-hint">이 조직에 속한 사람들을 인물 카드와 연결해 두면, 만남이 일어날 때 자연히 떠올라요.</p>
             <div class="member-add-row qr-ac-wrap">
                 <input id="member-add-input" type="text" autocomplete="off"

@@ -581,7 +581,7 @@ function bindStanceChangeEvents(root) {
 function layer1Html(p, isFallback) {
     return `
         <section class="person-layer">
-            <h4 class="person-layer-title">Layer 1 · 정체성</h4>
+            <h4 class="person-layer-title">정체성</h4>
             <div class="person-row">
                 <label>이름</label>
                 <input id="p-name" type="text" value="${escapeAttr(p.name || '')}"
@@ -802,7 +802,7 @@ function layer2Html(p) {
     const locks = p.bigFiveLocked || {};
     return `
         <section class="person-layer">
-            <h4 class="person-layer-title">Layer 2 · 성격 (Big Five)</h4>
+            <h4 class="person-layer-title">성격 (Big Five)</h4>
             <p class="person-layer-hint">
                 ❗ 라벨이 사람을 가두지 않습니다. "지금 내 눈에 이렇게 보인다"의 거울일 뿐.
                 <br>🔒 내가 정한 값 · 📊 도트가 만든 값 — 표시 옆 작은 마크로 알 수 있어요.
@@ -822,22 +822,29 @@ function layer2Html(p) {
 
 function fiveStepRow({ id, axis, axisKind, label, hint, value, locked }) {
     const isNull = (value == null);
+    // 정책(2026-05-12): 첫 평가(isNull)거나 내가 직접 정한 값(locked)일 때만 클릭 버튼 노출.
+    // 도트가 만든 값(derived)일 땐 버튼 숨기고 숫자만 보여줘 화면을 조용히.
+    // 다시 수동으로 바꾸고 싶으면 '모르겠어요'를 켰다 끄면 isNull로 돌아와 클릭 가능.
+    const showSteps = isNull || locked;
     return `
         <div class="bf-row" data-axis="${escapeAttr(axis || '')}" data-axis-kind="${escapeAttr(axisKind || '')}">
             <div class="bf-row-head">
                 <span class="bf-row-label">${label}</span>
                 <span class="bf-row-hint">${hint || ''}</span>
+                ${!showSteps ? `<span class="bf-derived-value">${value}</span>` : ''}
                 ${lockBadgeHtml(locked, isNull)}
                 <label class="bf-row-unknown">
                     <input type="checkbox" data-bf-unknown="${id}" ${isNull ? 'checked' : ''} />
                     모르겠어요
                 </label>
             </div>
-            <div class="bf-row-steps ${isNull ? 'disabled' : ''}" data-bf-steps="${id}">
-                ${SLIDER_LEVELS.map(lv => `
-                    <button class="bf-step ${value === lv ? 'active' : ''}" data-bf-value="${lv}">${lv}</button>
-                `).join('')}
-            </div>
+            ${showSteps ? `
+                <div class="bf-row-steps ${isNull ? 'disabled' : ''}" data-bf-steps="${id}">
+                    ${SLIDER_LEVELS.map(lv => `
+                        <button class="bf-step ${value === lv ? 'active' : ''}" data-bf-value="${lv}">${lv}</button>
+                    `).join('')}
+                </div>
+            ` : ''}
         </div>
     `;
 }
@@ -884,12 +891,11 @@ function bindLayer2Events(root) {
             unknownEl.addEventListener('change', () => {
                 if (unknownEl.checked) {
                     _editingDraft.bigFive[k] = null;
-                    stepsEl?.classList.add('disabled');
-                    stepsEl?.querySelectorAll('.bf-step').forEach(b => b.classList.remove('active'));
-                } else {
-                    stepsEl?.classList.remove('disabled');
-                    // 명시적으로 누를 때까지 null 유지 (라벨링 강요 금지)
+                    // lock도 풀어줌 — 다시 도트 derived가 들어올 자리 마련
+                    if (_editingDraft.bigFiveLocked) delete _editingDraft.bigFiveLocked[k];
                 }
+                // isNull 변화로 step row 자체의 표시 여부가 바뀜 → 레이어 다시 그림
+                rerenderAffectedLayer(root, 'bigFive');
                 updateRadar();
             });
         }
@@ -908,7 +914,7 @@ function layer3Html(p) {
     const customKeys = Object.keys(comp).filter(k => !COMPETENCY_KEYS.some(([std]) => std === k));
     return `
         <section class="person-layer" id="layer-3-section">
-            <h4 class="person-layer-title">Layer 3 · 능력 스탯</h4>
+            <h4 class="person-layer-title">능력 스탯</h4>
             <p class="person-layer-hint">0~100. 모르는 항목은 ✕로 비우면 회색 막대로 표시돼요.</p>
             <div class="comp-list" id="comp-list">
                 ${COMPETENCY_KEYS.map(([k, l]) => compRowHtml(k, l, comp[k], false)).join('')}
@@ -997,7 +1003,7 @@ function layer4Html(p) {
     const r = p.relationship || {};
     return `
         <section class="person-layer">
-            <h4 class="person-layer-title">Layer 4 · 관계</h4>
+            <h4 class="person-layer-title">관계</h4>
             ${rel5Row('closeness',    '친밀도', r.closeness)}
             ${rel5Row('trust',        '신뢰',   r.trust)}
             ${rel5Row('friendliness', '우호도', r.friendliness)}
