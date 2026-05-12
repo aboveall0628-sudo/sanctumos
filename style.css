@@ -3172,6 +3172,119 @@ svg.person-radar { display: block; }
 /* 조직 위험도 헤더 안 lock 슬롯 — 제목 옆에 inline */
 .risk-lock-slot { display: inline-flex; align-items: center; gap: 4px; }
 
+/* ═══════════════════════════════════════════════════════════════
+   인물 프로필 좌측 — 능력 미니 막대 (3번)
+   ═══════════════════════════════════════════════════════════════ */
+.profile-comp-mini {
+    width: 100%;
+    background: var(--bg-elev, var(--surface-elevated));
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: flex; flex-direction: column; gap: 5px;
+}
+.profile-comp-mini-title {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.02em;
+    color: var(--text-secondary, var(--ink-secondary));
+    margin-bottom: 3px;
+}
+.profile-comp-mini-row {
+    display: grid;
+    grid-template-columns: 42px 1fr 28px;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+}
+.profile-comp-mini-label {
+    color: var(--text-secondary, var(--ink-secondary));
+}
+.profile-comp-mini-bar {
+    height: 4px; background: var(--bg-card, var(--surface-card));
+    border-radius: 999px; overflow: hidden;
+    border: 1px solid var(--border, var(--line));
+}
+.profile-comp-mini-fill {
+    display: block; height: 100%;
+    background: var(--brand-primary, var(--accent));
+    transition: width 300ms ease;
+}
+.profile-comp-mini-value {
+    text-align: right;
+    color: var(--text-primary, var(--ink-primary));
+    font-variant-numeric: tabular-nums;
+    font-size: 11px;
+}
+.profile-comp-mini-row.is-null .profile-comp-mini-fill {
+    background: var(--ink-tertiary, #C0BFB7);
+}
+.profile-comp-mini-row.is-null .profile-comp-mini-value {
+    color: var(--text-tertiary, var(--ink-tertiary));
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   함께한 흔적 — 레벨 / XP (4번)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* 좌측 프로필 영역의 작은 게이지 */
+.rel-level-mini {
+    width: 100%;
+    background: var(--bg-elev, var(--surface-elevated));
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: flex; flex-direction: column; gap: 6px;
+}
+.rel-level-mini-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 12px;
+}
+.rel-level-mini-lv {
+    font-weight: 700;
+    color: var(--brand-primary, var(--accent));
+    font-size: 14px;
+}
+.rel-level-mini-xp {
+    color: var(--text-secondary, var(--ink-secondary));
+    font-variant-numeric: tabular-nums;
+    font-size: 11px;
+}
+
+/* 흔적 카드 안에 박힌 더 큰 블록 */
+.rel-level-block {
+    margin: 10px 0;
+    padding: 10px 12px;
+    background: var(--bg-card, var(--surface-card));
+    border: 1px solid var(--border, var(--line));
+    border-radius: 10px;
+    display: flex; flex-direction: column; gap: 6px;
+}
+.rel-level-block-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 12px;
+}
+.rel-level-block-lv {
+    font-weight: 700;
+    color: var(--brand-primary, var(--accent));
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+}
+.rel-level-block-total {
+    color: var(--text-secondary, var(--ink-secondary));
+    font-size: 11px;
+}
+
+.rel-level-bar {
+    height: 6px;
+    background: var(--bg-elev, var(--surface-elevated));
+    border-radius: 999px;
+    overflow: hidden;
+    border: 1px solid var(--border, var(--line));
+}
+.rel-level-bar-fill {
+    display: block; height: 100%;
+    background: var(--brand-primary, var(--accent));
+    border-radius: 999px;
+    transition: width 400ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
 /* Big5 — derived 상태일 때 클릭 버튼 대신 숫자만 톤 다운으로 노출 */
 .bf-derived-value {
     display: inline-flex; align-items: center;

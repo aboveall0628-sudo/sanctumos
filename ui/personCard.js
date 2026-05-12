@@ -27,6 +27,7 @@ import { getDEK } from './lockScreen.js';
 import { showToast } from './quickReview.js';
 import { openStanceGate } from './stanceGate.js';
 import { personDisplayHtml } from './personNameFormat.js';
+import { computeRelLevel } from '../data/relLevel.js';
 
 // 조직 type 메타 (소속 조직 칩 표시용)
 const ORG_TYPE_ICONS = {
@@ -387,8 +388,10 @@ function renderModal() {
                 </div>` : ''}
                 <div class="person-modal-body">
                     <aside class="person-detail-left">
+                        ${profileLevelHtml(p)}
                         <div class="person-radar-wrap">${bigFiveRadarSvg(p.bigFive)}</div>
                         <div class="person-radar-caption">Big Five 레이더</div>
+                        ${profileCompetencyBarsHtml(p)}
                         <div class="person-stance-display">
                             <div class="person-stance-pill big" style="background:${stance.color}1A;color:${stance.color}">
                                 <span>${stance.icon}</span><span>${stance.label}</span>
@@ -672,6 +675,70 @@ function bindAnnivEvents(root) {
 // ─── 함께한 흔적 (도트 통계) — "내가 본 사람" 옆에 두 면 나란히 ───
 // 정책: 자동 조정 금지. 통계는 표시만, 슬라이더 조정은 사용자가 직접.
 // memory/project_person_card_policy.md 참조.
+/**
+ * 좌측 프로필 영역의 미니 레벨 — 함께한 흔적 누적값을 Lv.N (xp/next XP) 형태로.
+ * 통계가 없거나 0이면 Lv.1 0/100 으로 자연스럽게 시작.
+ */
+function profileLevelHtml(p) {
+    const stats = _editingId ? _statsMap.get(_editingId) : null;
+    const level = computeRelLevel(stats);
+    return relLevelBarHtml(level, 'compact');
+}
+
+/**
+ * 좌측 프로필 영역의 능력 8축 미니 가로 막대.
+ * Big5는 형태(레이더), 능력은 항목(가로 막대)로 시각 언어를 다르게 해 비교 톤 ↓.
+ */
+function profileCompetencyBarsHtml(p) {
+    const comp = p.competencies || {};
+    return `
+        <div class="profile-comp-mini" aria-label="능력 미니 막대">
+            <div class="profile-comp-mini-title">능력 스탯</div>
+            ${COMPETENCY_KEYS.map(([k, label]) => {
+                const v = comp[k];
+                const has = (v != null && !isNaN(v));
+                const pct = has ? Math.max(0, Math.min(100, Number(v))) : 0;
+                return `
+                    <div class="profile-comp-mini-row ${has ? '' : 'is-null'}">
+                        <span class="profile-comp-mini-label">${label}</span>
+                        <span class="profile-comp-mini-bar">
+                            <span class="profile-comp-mini-fill" style="width:${pct}%"></span>
+                        </span>
+                        <span class="profile-comp-mini-value">${has ? pct : '–'}</span>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
+}
+
+/**
+ * 레벨 막대 — variant: 'compact'(좌측 프로필) | 'expanded'(흔적 카드 안)
+ */
+function relLevelBarHtml(level, variant) {
+    const pct = Math.round(level.progressRatio * 100);
+    if (variant === 'compact') {
+        return `
+            <div class="rel-level-mini">
+                <div class="rel-level-mini-head">
+                    <span class="rel-level-mini-lv">Lv.${level.level}</span>
+                    <span class="rel-level-mini-xp">${level.currentXp}/${level.nextLevelXp} XP</span>
+                </div>
+                <div class="rel-level-bar"><div class="rel-level-bar-fill" style="width:${pct}%"></div></div>
+            </div>
+        `;
+    }
+    return `
+        <div class="rel-level-block">
+            <div class="rel-level-block-head">
+                <span class="rel-level-block-lv">${level.label}</span>
+                <span class="rel-level-block-total">누적 ${level.totalXp} XP</span>
+            </div>
+            <div class="rel-level-bar"><div class="rel-level-bar-fill" style="width:${pct}%"></div></div>
+        </div>
+    `;
+}
+
 function footprintHtml(p) {
     const stats = _editingId ? _statsMap.get(_editingId) : null;
     if (!stats || stats.meetingCount === 0) {
@@ -709,6 +776,8 @@ function footprintHtml(p) {
     // 임계값: recent vs prev 차이 |delta| >= 1.0 + 표본 충분 (각 면 2회 이상)
     const stanceHint = buildStanceHint(p, stats);
 
+    const level = computeRelLevel(stats);
+
     return `
         <section class="person-layer footprint-section">
             <h4 class="person-layer-title">함께한 흔적</h4>
@@ -716,6 +785,7 @@ function footprintHtml(p) {
                 도트가 만들어낸 누적이에요. 내가 본 점수와 함께한 흔적이 다르다면, 그 차이가 묵상의 재료예요.
             </p>
             ${stanceHint}
+            ${relLevelBarHtml(level, 'expanded')}
             <div class="footprint-grid">
                 <div class="footprint-cell">
                     <div class="footprint-cell-label">만남</div>

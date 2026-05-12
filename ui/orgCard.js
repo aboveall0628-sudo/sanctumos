@@ -34,6 +34,7 @@ import { getDEK } from './lockScreen.js';
 import { showToast } from './quickReview.js';
 import { openStanceGate } from './stanceGate.js';
 import { personDisplayHtml } from './personNameFormat.js';
+import { computeRelLevel } from '../data/relLevel.js';
 
 // ─── 상수 ───
 const STANCE_META = {
@@ -366,6 +367,8 @@ function footprintHtml(o) {
     // 간결한 한 줄 요약 + 토글로 펼쳐 보는 최근 만남 리스트. 큰 칸을 4개 깔던
     // 기존 그리드는 정보 밀도에 비해 자리만 크게 차지해서 정리.
     const avgText = avg != null ? `${avg.toFixed(1)}` : '미평가';
+    const level = computeRelLevel(stats);
+    const levelPct = Math.round(level.progressRatio * 100);
     return `
         <section class="org-layer footprint-section footprint-quiet">
             <div class="footprint-summary">
@@ -377,6 +380,13 @@ function footprintHtml(o) {
                     <span class="footprint-stat-divider">·</span>
                     <span class="footprint-stat"><span class="footprint-stat-num">${formatMinutes(stats.totalMinutes)}</span></span>
                 </div>
+            </div>
+            <div class="rel-level-block">
+                <div class="rel-level-block-head">
+                    <span class="rel-level-block-lv">${level.label}</span>
+                    <span class="rel-level-block-total">누적 ${level.totalXp} XP</span>
+                </div>
+                <div class="rel-level-bar"><div class="rel-level-bar-fill" style="width:${levelPct}%"></div></div>
             </div>
             <p class="footprint-trend-line">${escapeHtml(trendNote)}</p>
             ${stats.recentDots.length > 0 ? `
