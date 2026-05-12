@@ -709,7 +709,9 @@ async function addOrgFromInput() {
         if (!dek) { showToast('잠시 잠겨 있어요'); return; }
         const stub = {
             name: name,
-            type: 'other',
+            // v4 — 인라인 stub은 기본 '방문'으로. 사용자가 카드 들어가서 정확히 옮김.
+            type: 'visit',
+            activityType: 'none',
             stance: 'neutral',
             friendliness: 3, trust: 3, importance: 3, riskLevel: 1,
             memberPersonIds: [],

@@ -3,7 +3,14 @@
  *
  * 저장 위치: users/{uid}/organizations/{orgId}
  *
- * type: company | church | team | community | family | other
+ * type (v4 2026-05-12): people | membership | regular | visit | other
+ *   - people: 회사·팀·학교·교회·커뮤니티·가족 (subType으로 세분)
+ *   - membership: 헬스장·코스트코·도서관 회원증 (등록된 곳)
+ *   - regular: 단골 (자주 가서 안면 있는 곳)
+ *   - visit: 한 번씩 or 새로 가본 곳
+ * subType: people 타입의 세부 — company | team | school | church | community | family
+ * activityType: 장소형(membership/regular/visit) 의 활동 영역 — restaurant | shop | bigStore | medical | beauty | culture | leisure | workout
+ *
  * stance: ally | neutral | caution | adversary
  *
  * 영적 안전장치는 personRepo와 동일 (stance 변경 시 기도 게이트, 민감 모드 마스킹).
@@ -13,6 +20,35 @@ import { db, doc, deleteDoc } from './firebase.js';
 import { saveRecord, getRecord, queryRecords, subPath } from './baseRepo.js';
 
 const SUB = 'organizations';
+
+// 이전 분류(v3)에서 새 분류(v4)로의 자동 매핑.
+// 카드 로드 시점에 in-memory로 적용 — 사용자가 저장하면 자연 마이그레이션.
+const TYPE_MIGRATION = {
+    company:    { type: 'people',     subType: 'company' },
+    team:       { type: 'people',     subType: 'team' },
+    school:     { type: 'people',     subType: 'school' },
+    church:     { type: 'people',     subType: 'church' },
+    community:  { type: 'people',     subType: 'community' },
+    family:     { type: 'people',     subType: 'family' },
+    restaurant: { type: 'visit',      activityType: 'restaurant' },
+    shop:       { type: 'visit',      activityType: 'shop' },
+    bigStore:   { type: 'visit',      activityType: 'bigStore' },
+    medical:    { type: 'visit',      activityType: 'medical' },
+    beauty:     { type: 'regular',    activityType: 'beauty' },
+    culture:    { type: 'visit',      activityType: 'culture' },
+    leisure:    { type: 'visit',      activityType: 'leisure' },
+    place:      { type: 'membership', activityType: 'workout' },
+    visit:      { type: 'visit',      activityType: 'none' },
+};
+
+const NEW_TYPES = new Set(['people', 'membership', 'regular', 'visit', 'other']);
+
+function migrateLegacyType(o) {
+    if (!o || NEW_TYPES.has(o.type)) return o;
+    const mapped = TYPE_MIGRATION[o.type];
+    if (!mapped) return { ...o, type: 'other' };
+    return { ...o, ...mapped };
+}
 
 /**
  * 조직 카드 저장(생성/수정)
@@ -25,18 +61,21 @@ export async function saveOrganization(dek, userId, data) {
 }
 
 /**
- * 단일 조직 조회
+ * 단일 조직 조회. 옛 type 자동 매핑.
  */
 export async function getOrganization(dek, userId, orgId) {
-    return getRecord(dek, subPath(userId, SUB), orgId);
+    const o = await getRecord(dek, subPath(userId, SUB), orgId);
+    return migrateLegacyType(o);
 }
 
 /**
- * 사용자의 모든 조직 (이름 정렬)
+ * 사용자의 모든 조직 (이름 정렬). 로드 시 옛 type을 새 분류(v4)로 자동 매핑.
  */
 export async function getAllOrganizations(dek, userId) {
     const orgs = await queryRecords(dek, subPath(userId, SUB));
-    return orgs.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    return orgs
+        .map(migrateLegacyType)
+        .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 }
 
 /**

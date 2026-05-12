@@ -3437,6 +3437,18 @@ svg.person-radar { display: block; }
     font-size: 12px; list-style: none; margin-left: -18px;
 }
 
+/* 조직 카드 v4 — 2차 분류 칩 + 모달 select 행 숨김 */
+.org-secondary-chip {
+    display: inline-flex; align-items: center;
+    padding: 1px 8px;
+    font-size: 11px;
+    border-radius: 999px;
+    background: var(--bg-elev, var(--surface-elevated));
+    color: var(--text-secondary, var(--ink-secondary));
+    margin-left: 4px;
+}
+.org-row.hidden { display: none; }
+
 /* 인물 모달 자동 분석 섹션 (정책 v3 / 5번) */
 .person-ai-analysis {
     border-left: 3px solid var(--brand-primary, var(--accent));

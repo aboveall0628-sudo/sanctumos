@@ -52,48 +52,48 @@ const STANCE_FILTERS = [
     { key: 'adversary', label: '⚡ 적대' },
 ];
 
+// 1차 분류 — 이 곳이 나에게 어떤 곳인가
 const TYPE_OPTIONS = [
-    // ── 사람 단위 ──
-    ['company',    '회사',          '🏢'],
-    ['team',       '팀',            '👥'],
-    ['school',     '학교/학원',     '🏫'],
-    ['church',     '교회',          '⛪'],
-    ['community',  '커뮤니티/모임', '🌐'],
-    ['family',     '가족',          '👨‍👩‍👧'],
-    // ── 장소 단위 (다음 라운드에 카드 UI 분기 예정) ──
-    ['restaurant', '식당·카페',     '🍽️'],
-    ['shop',       '가게·상점',     '🛒'],
-    ['bigStore',   '대형 매장',     '🛍️'],
-    ['medical',    '의료',          '🏥'],
-    ['beauty',     '미용·관리',     '💈'],
-    ['culture',    '문화',          '🎭'],
-    ['leisure',    '여가·자연',     '🌳'],
-    ['place',      '운동·시설',     '🏋️'],
-    // ── 호환 유지 (이전 빌드에서 만든 카드) ──
-    ['visit',      '(이전) 가끔 가는 곳', '💠'],
-    // ── 기타 ──
-    ['other',      '기타',          '📦'],
+    ['people',     '사람 모임', '👥'],
+    ['membership', '멤버십',    '🎫'],
+    ['regular',    '단골',      '☕'],
+    ['visit',      '방문',      '📍'],
+    ['other',      '기타',      '📦'],
 ];
 
-// 종류 선택 시 어떤 조직이 이쪽인지 한 줄로 안내. select 옆 hint로 노출.
 const TYPE_GUIDE = {
-    company:    '직장·아르바이트처럼 일로 엮인 곳',
-    team:       '프로젝트팀·동아리·스터디처럼 함께 일하는 사람들',
-    school:     '학교·학원·교습 기관',
-    church:     '예배·신앙 공동체',
-    community:  '교제 중심 모임·동호회·소그룹',
-    family:     '가족·친척 단위',
-    restaurant: '식당·카페처럼 끼니를 챙기거나 사람과 만나는 곳',
-    shop:       '다이소·서점·문구점·동네 작은 가게',
-    bigStore:   '이마트·코스트코·홈플러스·이케아·백화점·스타필드 같은 큰 매장',
-    medical:    '병원·약국·치과·한의원',
-    beauty:     '미용실·네일숍·마사지·관리실',
-    culture:    '박물관·미술관·영화관·극장·공연장·노래방·도서관·목욕탕',
-    leisure:    '공원·놀이동산·캠핑·하이킹',
-    place:      '수영장·헬스장처럼 자주 다니는 운동·시설',
-    visit:      '이전 빌드의 임시 분류 — 미용은 \'미용·관리\', 병원은 \'의료\', 미술관은 \'문화\'로 옮겨주세요.',
+    people:     '회사·팀·학교·교회·커뮤니티·가족 — 사람이 중심',
+    membership: '헬스장·코스트코·도서관 회원증·등록 학원처럼 등록된 곳',
+    regular:    '자주 가서 안면 있는 곳 — 단골 미용실·동네 카페·단골 식당',
+    visit:      '한 번씩만 / 새로 가본 곳 — 낯선 식당·미술관·관광지',
     other:      '어디에도 안 맞으면 여기로',
 };
+
+// 사람 모임(people)일 때만 쓰는 세부 분류
+const SUB_TYPE_OPTIONS = [
+    ['company',   '회사',         '🏢'],
+    ['team',      '팀',           '👥'],
+    ['school',    '학교/학원',    '🏫'],
+    ['church',    '교회',         '⛪'],
+    ['community', '커뮤니티/모임','🌐'],
+    ['family',    '가족',         '👨‍👩‍👧'],
+    ['other',     '기타',         '📦'],
+];
+
+// 장소형(membership/regular/visit)일 때만 쓰는 활동 메타. 분석·요약용.
+const ACTIVITY_OPTIONS = [
+    ['restaurant', '식당·카페', '🍽️'],
+    ['shop',       '가게·상점', '🛒'],
+    ['bigStore',   '대형 매장', '🛍️'],
+    ['medical',    '의료',      '🏥'],
+    ['beauty',     '미용·관리', '💈'],
+    ['culture',    '문화',      '🎭'],
+    ['leisure',    '여가·자연', '🌳'],
+    ['workout',    '운동·시설', '🏋️'],
+    ['none',       '없음/기타', '📦'],
+];
+
+function isPlaceType(t) { return t === 'membership' || t === 'regular' || t === 'visit'; }
 
 const RISK_OPTIONS = [
     { key: 'safe',    label: '안전', icon: '✅', color: 'var(--dot-green)' },
@@ -262,6 +262,12 @@ function orgCardHtml(o) {
     const typeMeta = typeOf(o.type);
     const memberCount = (o.memberPersonIds || []).length;
     const stats = _statsMap.get(o.id);
+    // v4: 2차 분류(사람 모임 세부 / 활동 영역)을 작은 칩으로 같이 노출
+    const sub = (o.type === 'people') ? subTypeMeta(o.subType) : null;
+    const act = isPlaceType(o.type) ? activityMeta(o.activityType) : null;
+    const secondaryChip = sub
+        ? `<span class="org-secondary-chip" title="${sub.label}">${sub.icon} ${sub.label}</span>`
+        : (act && act.value !== 'none' ? `<span class="org-secondary-chip" title="${act.label}">${act.icon} ${act.label}</span>` : '');
     return `
         <div class="org-card" data-org-id="${o.id}">
             <div class="org-card-head">
@@ -270,6 +276,7 @@ function orgCardHtml(o) {
                     <div class="org-card-name">${escapeHtml(o.name || '이름 없음')}</div>
                     <div class="org-card-sub">
                         <span class="org-type-label">${typeMeta.label}</span>
+                        ${secondaryChip}
                         <span class="org-member-count">👥 ${memberCount}</span>
                     </div>
                 </div>
@@ -348,6 +355,15 @@ function typeOf(t) {
     const found = TYPE_OPTIONS.find(([v]) => v === t);
     if (found) return { value: found[0], label: found[1], icon: found[2] };
     return { value: 'other', label: '기타', icon: '📦' };
+}
+
+function subTypeMeta(t) {
+    const found = SUB_TYPE_OPTIONS.find(([v]) => v === t);
+    return found ? { value: found[0], label: found[1], icon: found[2] } : null;
+}
+function activityMeta(t) {
+    const found = ACTIVITY_OPTIONS.find(([v]) => v === t);
+    return found ? { value: found[0], label: found[1], icon: found[2] } : null;
 }
 
 // ─── 함께한 흔적 (도트 통계) — 인물 카드와 같은 정책 ───
@@ -440,7 +456,10 @@ function openModal(orgId) {
 function newOrgDraft() {
     return {
         name: '',
-        type: 'company',
+        // v4(2026-05-12) 2축 분류
+        type: 'people',            // people | membership | regular | visit | other
+        subType: 'community',      // people 일 때 세부
+        activityType: 'none',      // 장소형(membership/regular/visit) 일 때 활동 메타
         stance: 'neutral',
         friendliness: null,
         trust: null,
@@ -449,9 +468,8 @@ function newOrgDraft() {
         memberPersonIds: [],
         meaningfulVerse: '',
         notes: '',
-        foundedDate: '',     // 설립일/시작일 (선택)
-        anniversaries: [],   // [{ date, label }]
-        // v3(2026-05-12): 첫 평가 1회 보존
+        foundedDate: '',
+        anniversaries: [],
         firstImpression: null,
     };
 }
@@ -609,10 +627,12 @@ function bindStanceChangeEvents(root) {
 // ─── Layer 1 정체성 ───
 function layer1Html(o) {
     const guide = TYPE_GUIDE[o.type] || TYPE_GUIDE.other;
+    const isPeople = o.type === 'people';
+    const isPlace = isPlaceType(o.type);
     return `
         <section class="org-layer">
             <h4 class="org-layer-title">정체성</h4>
-            <p class="org-layer-hint">조직이라기보단 "함께 시간을 보내는 단위"예요. 동네 수영장처럼 사람 단위가 아닌 장소도 여기 넣어두면 도트가 흔적을 모아줘요.</p>
+            <p class="org-layer-hint">"이 곳이 나에게 어떤 곳인가"를 먼저 골라요. 회사·교회는 사람 모임, 등록된 헬스장은 멤버십, 단골 미용실은 단골, 가끔 가는 식당은 방문이에요.</p>
             <div class="org-row">
                 <label>이름</label>
                 <input id="o-name" type="text" value="${escapeAttr(o.name || '')}" placeholder="조직 이름" />
@@ -626,6 +646,24 @@ function layer1Html(o) {
                 </select>
             </div>
             <p class="org-type-guide" id="o-type-guide">${escapeHtml(guide)}</p>
+
+            <div class="org-row org-sub-row ${isPeople ? '' : 'hidden'}" id="o-sub-row">
+                <label>사람 모임 세부</label>
+                <select id="o-subtype">
+                    ${SUB_TYPE_OPTIONS.map(([v, l, icon]) => `
+                        <option value="${v}" ${o.subType === v ? 'selected' : ''}>${icon} ${l}</option>
+                    `).join('')}
+                </select>
+            </div>
+
+            <div class="org-row org-activity-row ${isPlace ? '' : 'hidden'}" id="o-activity-row">
+                <label>활동 영역</label>
+                <select id="o-activity">
+                    ${ACTIVITY_OPTIONS.map(([v, l, icon]) => `
+                        <option value="${v}" ${o.activityType === v ? 'selected' : ''}>${icon} ${l}</option>
+                    `).join('')}
+                </select>
+            </div>
         </section>
     `;
 }
@@ -643,6 +681,17 @@ function bindLayer1Events(root) {
         if (labelEl) labelEl.textContent = meta.label;
         const guideEl = root.querySelector('#o-type-guide');
         if (guideEl) guideEl.textContent = TYPE_GUIDE[e.target.value] || TYPE_GUIDE.other;
+        // 1차 분류 바꿀 때 2차 select row 토글
+        const subRow = root.querySelector('#o-sub-row');
+        const actRow = root.querySelector('#o-activity-row');
+        if (subRow) subRow.classList.toggle('hidden', e.target.value !== 'people');
+        if (actRow) actRow.classList.toggle('hidden', !isPlaceType(e.target.value));
+    });
+    root.querySelector('#o-subtype')?.addEventListener('change', e => {
+        _editingDraft.subType = e.target.value;
+    });
+    root.querySelector('#o-activity')?.addEventListener('change', e => {
+        _editingDraft.activityType = e.target.value;
     });
 }
 
@@ -1040,6 +1089,21 @@ async function onSave() {
         };
     }
     delete draft.locked;
+
+    // v4: 2축 분류 보정 — type에 맞지 않는 2차 필드 정리
+    if (draft.type === 'people') {
+        if (!draft.subType) draft.subType = 'community';
+        // 사람 모임엔 activityType 의미 없음
+        if (draft.activityType) draft.activityType = 'none';
+    } else if (isPlaceType(draft.type)) {
+        if (!draft.activityType) draft.activityType = 'none';
+        // 장소엔 subType 의미 없음
+        delete draft.subType;
+    } else {
+        // other — 둘 다 비움
+        delete draft.subType;
+        if (!draft.activityType) draft.activityType = 'none';
+    }
 
     try {
         await saveOrganization(dek, _userId, draft);
