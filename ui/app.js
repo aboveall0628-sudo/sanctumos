@@ -35,6 +35,7 @@ import { renderPersonsView } from './personCard.js';
 import { renderOrganizationsView } from './orgCard.js';
 import { renderEconomyView, getTodaysTxSummary } from './economy.js';
 import { openQuickAdd as openEconomyQuickAdd } from './economyQuickAdd.js';
+import { bucketLabel as economyBucketLabel, categoryLabel as economyCategoryLabel } from '../config/economyBuckets.js';
 // Phase E-7: 우측 상단 알람 종 + 자동 알람 생성기
 import { initRemindersUI, refreshRemindersUI } from './reminders.js';
 import { generateAllAutoReminders } from '../data/reminderGenerator.js';
@@ -412,8 +413,8 @@ async function refreshTodayEconomyCard() {
             const cat = t.category || '';
             const desc = t.description || '';
             return `<div class="today-tx-row ${dirClass}" data-tx-id="${t.id}">
-                <span class="today-tx-bucket econ-bucket-${t.amountBucket}">${t.amountBucket}</span>
-                <span class="today-tx-cat">${cat}</span>
+                <span class="today-tx-bucket econ-bucket-${t.amountBucket}">${economyBucketLabel(t.amountBucket) || ''}</span>
+                <span class="today-tx-cat">${economyCategoryLabel(cat) || ''}</span>
                 <span class="today-tx-desc">${desc}</span>
                 <span class="today-tx-exact">${exact}</span>
                 <button type="button" class="today-tx-del-btn text-btn" data-id="${t.id}" title="지우기" aria-label="거래 지우기">×</button>

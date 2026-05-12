@@ -22,6 +22,8 @@ import { computeAllPersonStats, computeAllOrgStats } from '../data/cardStats.js'
 import { applyDerivedToPerson, applyDerivedToOrg } from '../data/derivedScores.js';
 import { getAllCategories, getRecentCategories, pushRecentCategory, addUserCategory, findCategory } from '../data/dotCategories.js';
 import { getRatingAxesForCategory, applyRatingLabelsToPerson } from '../data/categoryRatingMap.js';
+// Phase F: 거래 라벨 한국어 표시
+import { bucketLabel as economyBucketLabel, categoryLabel as economyCategoryLabel } from '../config/economyBuckets.js';
 
 let _currentSlot = null;
 let _currentCells = [];
@@ -950,8 +952,8 @@ function renderAddedTransactions() {
             : '';
         return `
             <li class="qr-tx-item">
-                <span class="qr-tx-bucket econ-bucket-${escapeAttr(t.amountBucket || 'small')}">${escapeHtml(t.amountBucket || '')}</span>
-                <span class="qr-tx-cat">${escapeHtml(t.category || '')}</span>
+                <span class="qr-tx-bucket econ-bucket-${escapeAttr(t.amountBucket || 'small')}">${escapeHtml(economyBucketLabel(t.amountBucket) || '')}</span>
+                <span class="qr-tx-cat">${escapeHtml(economyCategoryLabel(t.category) || '')}</span>
                 <span class="qr-tx-desc">${escapeHtml(t.description || '')}</span>
                 ${exact}
                 <button type="button" class="qr-tx-del-btn text-btn" data-id="${escapeAttr(t.id)}" title="지우기" aria-label="거래 지우기">×</button>
