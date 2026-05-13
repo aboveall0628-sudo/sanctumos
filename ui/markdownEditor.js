@@ -73,6 +73,14 @@ export function setMarkdown(editor, md) {
 // ═══════════════════════════════════════════════════════════════════════
 
 function handleKeydown(e, editor, onChange) {
+    // (2026-05-14 #23 2차) Enter 자동 이어쓰기 — 리스트 안에서 Enter
+    if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (handleListEnter(editor, onChange)) {
+            e.preventDefault();
+            return;
+        }
+    }
+
     const cmdKey = e.ctrlKey || e.metaKey;
     if (!cmdKey) return;
     const k = (e.key || '').toLowerCase();
@@ -86,6 +94,19 @@ function handleKeydown(e, editor, onChange) {
         return;
     }
 
+    // (2026-05-14 #23 2차) 노션 표준 단축키 — Ctrl+Shift+7 번호, Ctrl+Shift+8 점
+    if (e.shiftKey && k === '7') {
+        e.preventDefault();
+        toggleList(editor, 'OL');
+        onChange(getMarkdown(editor));
+        return;
+    }
+    if (e.shiftKey && k === '8') {
+        e.preventDefault();
+        toggleList(editor, 'UL');
+        onChange(getMarkdown(editor));
+        return;
+    }
     // Ctrl+Shift+S = 취소선
     if (e.shiftKey && k === 's') {
         e.preventDefault();
@@ -106,6 +127,74 @@ function handleKeydown(e, editor, onChange) {
         onChange(getMarkdown(editor));
         return;
     }
+}
+
+// (2026-05-14 #23 2차) Enter — 빈 li 에서 누르면 리스트 종료. 그 외는 기본 동작.
+function handleListEnter(editor, onChange) {
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return false;
+    let node = sel.getRangeAt(0).startContainer;
+    if (node.nodeType === 3) node = node.parentElement;
+    // 가장 가까운 LI
+    let li = node;
+    while (li && li !== editor && li.tagName !== 'LI') li = li.parentElement;
+    if (!li || li === editor) return false;
+    const text = (li.textContent || '').trim();
+    if (text !== '') return false; // 내용 있으면 기본 동작 (새 li)
+    // 빈 li — 리스트 종료
+    const list = li.parentElement; // UL/OL
+    if (!list || !/^(UL|OL)$/.test(list.tagName)) return false;
+    const empty = document.createElement('div');
+    empty.innerHTML = '<br>';
+    list.parentNode.insertBefore(empty, list.nextSibling);
+    li.remove();
+    // 빈 li 만 있던 리스트면 리스트 자체 제거
+    if (list.querySelectorAll(':scope > li').length === 0) list.remove();
+    const sel2 = window.getSelection();
+    const r = document.createRange();
+    r.selectNodeContents(empty);
+    r.collapse(true);
+    sel2.removeAllRanges();
+    sel2.addRange(r);
+    onChange(getMarkdown(editor));
+    return true;
+}
+
+// (2026-05-14 #23 2차) 단축키로 리스트 토글 — 현재 블록을 UL/OL 로 변환
+function toggleList(editor, listTag) {
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return;
+    let node = sel.getRangeAt(0).startContainer;
+    if (node.nodeType === 3) node = node.parentElement;
+    // 이미 같은 list 안이면 li 만 풀어 div 로
+    let li = node;
+    while (li && li !== editor && li.tagName !== 'LI') li = li.parentElement;
+    if (li && li !== editor) {
+        const list = li.parentElement;
+        if (list && list.tagName === listTag) {
+            // 풀기 — li 내용을 div 로 추출 후 li 제거
+            const div = document.createElement('div');
+            while (li.firstChild) div.appendChild(li.firstChild);
+            list.parentNode.insertBefore(div, list.nextSibling);
+            li.remove();
+            if (list.querySelectorAll(':scope > li').length === 0) list.remove();
+            moveCaretToEnd(sel, div);
+            return;
+        }
+    }
+    // 현재 블록을 li 로 wrap
+    let block = node;
+    while (block && block !== editor && !/^(H1|H2|H3|DIV|P|LI)$/.test(block.tagName)) {
+        block = block.parentElement;
+    }
+    if (!block || block === editor) return;
+    const text = block.textContent || '';
+    const list = document.createElement(listTag.toLowerCase());
+    const newLi = document.createElement('li');
+    newLi.textContent = text;
+    list.appendChild(newLi);
+    block.parentNode.replaceChild(list, block);
+    moveCaretToEnd(sel, newLi);
 }
 
 // 현재 caret 이 들어있는 블록 element 를 새 tag 로 교체
@@ -145,49 +234,92 @@ function setBlockTag(editor, tag) {
 //  마크다운 자동 변환 (입력 중)
 // ═══════════════════════════════════════════════════════════════════════
 
-// 줄 시작 `# ` / `## ` / `### ` / `---` 처리
+// 줄 시작 `# ` / `## ` / `### ` / `---` / `- ` / `1. ` / `> ` 처리
 function runBlockMarkdownTransforms(editor) {
     const sel = window.getSelection();
     if (!sel || !sel.rangeCount) return;
     const node = sel.getRangeAt(0).startContainer;
-    if (node.nodeType !== 3) return; // 텍스트 노드만
+    if (node.nodeType !== 3) return;
     const block = findBlockAncestor(node, editor);
     if (!block || block === editor) return;
     const text = block.textContent || '';
 
-    // 헤딩 변환 — 줄 시작에 # / ## / ### + 공백
+    // 헤딩 — 줄 시작 # / ## / ### + 공백
     const headingMatch = text.match(/^(#{1,3})\s(.*)$/);
     if (headingMatch && /^(DIV|P)$/.test(block.tagName)) {
         const level = headingMatch[1].length;
-        const rest = headingMatch[2];
         const h = document.createElement('h' + level);
-        h.textContent = rest;
+        h.textContent = headingMatch[2];
         block.parentNode.replaceChild(h, block);
-        // caret 끝으로
-        try {
-            const r = document.createRange();
-            r.selectNodeContents(h);
-            r.collapse(false);
-            sel.removeAllRanges();
-            sel.addRange(r);
-        } catch {}
+        moveCaretToEnd(sel, h);
         return;
     }
-    // 가로줄 — 줄이 정확히 `---` 일 때 hr 로 교체
+    // 가로줄 — `---`
     if (text === '---' && /^(DIV|P)$/.test(block.tagName)) {
         const hr = document.createElement('hr');
         const after = document.createElement('div');
         after.innerHTML = '<br>';
         block.parentNode.replaceChild(hr, block);
         hr.parentNode.insertBefore(after, hr.nextSibling);
-        try {
-            const r = document.createRange();
-            r.selectNodeContents(after);
-            r.collapse(true);
-            sel.removeAllRanges();
-            sel.addRange(r);
-        } catch {}
+        moveCaretToStart(sel, after);
+        return;
     }
+    // (2026-05-14 #23 2차) 점 리스트 — `- ` 또는 `* `
+    const ulMatch = text.match(/^[-*]\s(.*)$/);
+    if (ulMatch && /^(DIV|P)$/.test(block.tagName)) {
+        const ul = document.createElement('ul');
+        const li = document.createElement('li');
+        li.textContent = ulMatch[1];
+        ul.appendChild(li);
+        block.parentNode.replaceChild(ul, block);
+        moveCaretToEnd(sel, li);
+        return;
+    }
+    // 번호 리스트 — `1. `
+    const olMatch = text.match(/^(\d+)\.\s(.*)$/);
+    if (olMatch && /^(DIV|P)$/.test(block.tagName)) {
+        const ol = document.createElement('ol');
+        const li = document.createElement('li');
+        li.textContent = olMatch[2];
+        // 시작 번호 보존 (1 이 아니면)
+        const startNum = parseInt(olMatch[1], 10);
+        if (!isNaN(startNum) && startNum !== 1) ol.setAttribute('start', String(startNum));
+        ol.appendChild(li);
+        block.parentNode.replaceChild(ol, block);
+        moveCaretToEnd(sel, li);
+        return;
+    }
+    // 토글 — `> ` 줄 시작
+    const tgMatch = text.match(/^>\s(.*)$/);
+    if (tgMatch && /^(DIV|P)$/.test(block.tagName)) {
+        const details = document.createElement('details');
+        details.open = true;
+        const summary = document.createElement('summary');
+        summary.textContent = tgMatch[1];
+        details.appendChild(summary);
+        block.parentNode.replaceChild(details, block);
+        moveCaretToEnd(sel, summary);
+        return;
+    }
+}
+
+function moveCaretToEnd(sel, el) {
+    try {
+        const r = document.createRange();
+        r.selectNodeContents(el);
+        r.collapse(false);
+        sel.removeAllRanges();
+        sel.addRange(r);
+    } catch {}
+}
+function moveCaretToStart(sel, el) {
+    try {
+        const r = document.createRange();
+        r.selectNodeContents(el);
+        r.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(r);
+    } catch {}
 }
 
 // 인라인 `**X**` / `*X*` / `~~X~~` 자동 변환 — caret 직전 패턴만 체크
@@ -270,6 +402,10 @@ function handleContextMenu(e, editor, onChange) {
         <button type="button" data-block="H3">          <span class="md-mi-icon">H3</span>제목 3      <kbd>Ctrl+Alt+3</kbd></button>
         <button type="button" data-block="DIV">         <span class="md-mi-icon">¶</span>일반 문단   <kbd>Ctrl+Alt+0</kbd></button>
         <div class="md-menu-sep"></div>
+        <button type="button" data-list="UL">           <span class="md-mi-icon">•</span>점 리스트   <kbd>Ctrl+Shift+8</kbd></button>
+        <button type="button" data-list="OL">           <span class="md-mi-icon">1.</span>번호 리스트 <kbd>Ctrl+Shift+7</kbd></button>
+        <button type="button" data-action="toggle">     <span class="md-mi-icon">▸</span>토글 블록</button>
+        <div class="md-menu-sep"></div>
         <button type="button" data-action="hr">         <span class="md-mi-icon">─</span>가로줄 넣기</button>
     `;
     document.body.appendChild(menu);
@@ -288,11 +424,14 @@ function handleContextMenu(e, editor, onChange) {
         btn.addEventListener('click', () => {
             const cmd = btn.dataset.cmd;
             const block = btn.dataset.block;
+            const list = btn.dataset.list;
             const action = btn.dataset.action;
             editor.focus();
             if (cmd)   document.execCommand(cmd);
             if (block) setBlockTag(editor, block);
+            if (list)  toggleList(editor, list);
             if (action === 'hr') insertHr(editor);
+            if (action === 'toggle') insertToggle(editor);
             onChange(getMarkdown(editor));
             closeContextMenu();
         });
@@ -318,6 +457,21 @@ function closeContextMenu() {
         document.removeEventListener('mousedown', closeOnOutside, true);
         document.removeEventListener('keydown', closeOnEsc, true);
     }
+}
+
+// (2026-05-14 #23 2차) 토글 블록 삽입 — <details><summary>제목</summary></details>
+function insertToggle(editor) {
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return;
+    const range = sel.getRangeAt(0);
+    const details = document.createElement('details');
+    details.open = true;
+    const summary = document.createElement('summary');
+    summary.textContent = '제목';
+    details.appendChild(summary);
+    range.deleteContents();
+    range.insertNode(details);
+    moveCaretToEnd(sel, summary);
 }
 
 function insertHr(editor) {
@@ -369,6 +523,27 @@ function walkNode(node) {
             out += '{{scripture}}';
             continue;
         }
+        // (2026-05-14 #23 2차) 리스트·토글
+        if (tag === 'UL') { out += '\n' + walkListItems(child, '- ') + '\n'; continue; }
+        if (tag === 'OL') { out += '\n' + walkListItems(child, null) + '\n'; continue; }
+        if (tag === 'DETAILS') {
+            const summary = child.querySelector(':scope > summary');
+            const summaryText = summary ? walkNode(summary).trim() : '';
+            // summary 제외한 나머지 children
+            let body = '';
+            for (const c of Array.from(child.childNodes)) {
+                if (c === summary) continue;
+                if (c.nodeType === 3) body += c.nodeValue || '';
+                else if (c.nodeType === 1) body += walkNode(c);
+            }
+            // 토글 본문 줄마다 '> ' prefix (간단 모델 — 1차)
+            const bodyLines = body.split('\n').filter(l => l.trim() !== '');
+            const prefixed = bodyLines.length > 0
+                ? '\n' + bodyLines.map(l => '> ' + l).join('\n')
+                : '';
+            out += `\n> ${summaryText}${prefixed}\n`;
+            continue;
+        }
         const inner = walkNode(child);
         switch (tag) {
             case 'STRONG': case 'B': out += '**' + inner + '**'; break;
@@ -382,11 +557,25 @@ function walkNode(node) {
             case 'DIV': case 'P':
                 out += (out && !out.endsWith('\n') ? '\n' : '') + inner + '\n';
                 break;
+            case 'SUMMARY': case 'LI':
+                // DETAILS / UL/OL 경로에서 처리. 단독 들어오면 텍스트로
+                out += inner;
+                break;
             default:
                 out += inner;
         }
     }
     return out;
+}
+
+// ul/ol 안의 li 들을 마크다운 줄로
+function walkListItems(listEl, bulletPrefix) {
+    const items = Array.from(listEl.querySelectorAll(':scope > li'));
+    return items.map((li, i) => {
+        const inner = walkNode(li).trim();
+        const prefix = bulletPrefix !== null ? bulletPrefix : `${i + 1}. `;
+        return prefix + inner;
+    }).join('\n');
 }
 
 /**
@@ -396,25 +585,83 @@ function walkNode(node) {
  */
 export function markdownToHtml(md) {
     if (!md) return '';
-    // 인라인 변환을 위해 escape 먼저
     const escape = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const lines = md.split('\n');
     const out = [];
-    for (let raw of lines) {
+
+    // (2026-05-14 #23 2차) 연속 리스트·토글 그룹화
+    let i = 0;
+    while (i < lines.length) {
+        const raw = lines[i];
         const line = raw;
-        // 줄 단위 블록 패턴
-        if (/^---\s*$/.test(line)) { out.push('<hr>'); continue; }
+
+        // hr
+        if (/^---\s*$/.test(line)) { out.push('<hr>'); i++; continue; }
+
+        // heading
         const h = line.match(/^(#{1,3})\s+(.*)$/);
         if (h) {
             const level = h[1].length;
             out.push(`<h${level}>${inlineMd(escape(h[2]))}</h${level}>`);
+            i++; continue;
+        }
+
+        // 토글(>) — 한 묶음 (시작 줄 + 그 다음 '> ' 로 시작하는 줄들이 본문)
+        const tg = line.match(/^>\s+(.*)$/);
+        if (tg) {
+            const summary = tg[1];
+            const bodyLines = [];
+            let j = i + 1;
+            while (j < lines.length) {
+                const next = lines[j];
+                const m = next.match(/^>\s+(.*)$/);
+                if (m && j === i + 1) {
+                    // 첫 후속 '>' 가 같은 토글의 본문 (1차 단순 모델)
+                    bodyLines.push(m[1]);
+                    j++;
+                } else { break; }
+            }
+            const bodyHtml = bodyLines.map(b => `<div>${inlineMd(escape(b))}</div>`).join('');
+            out.push(`<details><summary>${inlineMd(escape(summary))}</summary>${bodyHtml}</details>`);
+            i = j;
             continue;
         }
+
+        // 번호 리스트(1. 2. 3. ...)
+        const ol = line.match(/^(\d+)\.\s+(.*)$/);
+        if (ol) {
+            const items = [];
+            while (i < lines.length) {
+                const m = lines[i].match(/^(\d+)\.\s+(.*)$/);
+                if (!m) break;
+                items.push(`<li>${inlineMd(escape(m[2]))}</li>`);
+                i++;
+            }
+            out.push(`<ol>${items.join('')}</ol>`);
+            continue;
+        }
+
+        // 점 리스트(- · *)
+        const ul = line.match(/^[-*]\s+(.*)$/);
+        if (ul) {
+            const items = [];
+            while (i < lines.length) {
+                const m = lines[i].match(/^[-*]\s+(.*)$/);
+                if (!m) break;
+                items.push(`<li>${inlineMd(escape(m[1]))}</li>`);
+                i++;
+            }
+            out.push(`<ul>${items.join('')}</ul>`);
+            continue;
+        }
+
+        // 일반 줄
         if (line.trim() === '') {
             out.push('<div><br></div>');
         } else {
             out.push(`<div>${inlineMd(escape(line))}</div>`);
         }
+        i++;
     }
     return out.join('');
 }

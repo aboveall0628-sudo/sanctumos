@@ -6372,3 +6372,51 @@ body.dg-open { overflow: hidden; }
     color: var(--ink-secondary, var(--text-secondary, #5d5a52));
     pointer-events: none;
 }
+
+/* (2026-05-14 #23 2차) 노트 본문 — 리스트·토글 */
+.note-editor ul,
+.note-editor ol {
+    margin: var(--sp-2, 8px) 0;
+    padding-left: 1.6em;
+    line-height: 1.7;
+}
+.note-editor ul { list-style: disc; }
+.note-editor ol { list-style: decimal; }
+.note-editor li {
+    margin: 2px 0;
+    padding-left: 4px;
+}
+.note-editor li::marker {
+    color: var(--ink-secondary, var(--text-secondary, #5d5a52));
+}
+/* 토글 — <details> */
+.note-editor details {
+    margin: var(--sp-2, 8px) 0;
+    padding: 8px 12px;
+    background: var(--bg-secondary, rgba(0, 0, 0, 0.02));
+    border-left: 3px solid var(--border, #d8d3c8);
+    border-radius: 4px;
+}
+.note-editor details > summary {
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--ink-primary, var(--text-primary, #1a1814));
+    list-style: none;
+    padding: 2px 0;
+    user-select: none;
+}
+.note-editor details > summary::-webkit-details-marker { display: none; }
+.note-editor details > summary::before {
+    content: '▸';
+    display: inline-block;
+    margin-right: 6px;
+    color: var(--ink-secondary, var(--text-secondary, #5d5a52));
+    transition: transform 150ms;
+}
+.note-editor details[open] > summary::before {
+    transform: rotate(90deg);
+}
+.note-editor details > *:not(summary) {
+    margin-top: 6px;
+    color: var(--ink-secondary, var(--text-secondary, #5d5a52));
+}
