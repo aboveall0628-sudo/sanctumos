@@ -30,6 +30,8 @@ import {
     FONT_SIZES, PRESETS, applyFontSizeToCSS,
 } from './scriptureSettings.js';
 import { BIBLE_METADATA, resolvePlanParts, seedManualPositionsFromCalendar } from './scripture.js';
+// (2026-05-14 #23 후속) 묵상 템플릿
+import { getMeditationTemplate, setMeditationTemplate, DEFAULT_TEMPLATE } from './meditationTemplate.js';
 
 let _userId = null;
 let _userEmail = null;
@@ -204,6 +206,43 @@ function injectExtraSections() {
     scriptureCard.className = 'card-section';
     scriptureCard.innerHTML = renderScriptureSettingsHTML();
     container.appendChild(scriptureCard);
+
+    // (2026-05-14 #23 후속) 묵상 템플릿 카드 — settings/spiritualLock 의 meditationTemplate 필드.
+    //   사용자가 자유 markdown 입력. {{scripture}} 마커 위치에 절 본문 삽입.
+    //   미설정 시 default '{{scripture}}' = 절 본문만 (현재 동작).
+    const templateCard = document.createElement('div');
+    templateCard.id = 'settings-meditation-template-card';
+    templateCard.className = 'card-section';
+    templateCard.innerHTML = `
+        <h3 class="section-title"><i class="section-icon" data-lucide="layout-template"></i> 묵상 템플릿</h3>
+        <p class="section-desc">
+            매일 묵상 노트가 처음 열릴 때 자동으로 깔리는 양식이에요. 마크다운 그대로 적으실 수 있어요.<br>
+            <code>{{scripture}}</code> 자리에 "오늘의 말씀"에서 골라 붙여넣은 절 본문이 들어가요. 마커를 두지 않으면 본문은 노트 끝에 붙어요.
+        </p>
+        <textarea id="meditation-template-input" rows="10" spellcheck="false"
+                  placeholder="예시:
+🌅 오늘의 호흡
+(여기 한 호흡)
+
+📖 오늘의 말씀
+{{scripture}}
+
+💭 묵상
+(깨달은 것)
+
+🙏 기도
+(드리는 기도)"
+                  style="width:100%;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text-primary);font-family:ui-monospace,'SF Mono',Consolas,monospace;font-size:13px;line-height:1.6;resize:vertical;"></textarea>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
+            <button id="btn-save-meditation-template" class="primary-btn">템플릿 저장</button>
+            <button id="btn-reset-meditation-template" class="text-btn">기본값으로</button>
+            <span id="meditation-template-status" style="font-size:12px;color:var(--text-secondary);"></span>
+        </div>
+        <p class="section-desc-foot" style="margin-top:12px;">
+            ※ "오늘의 말씀"에서 절 선택 → "묵상 노트에 붙여넣기" 누르시면 <code>{{scripture}}</code> 자리에 자동 삽입돼요. (마커 없으면 끝에 추가)
+        </p>
+    `;
+    container.appendChild(templateCard);
 
     // (2026-05-13 HC#1 N7) 매일 묵상 알람 카드 — 1개 시각, 인앱 종 빨간 점.
     // spiritualLock 도큐먼트의 dailyAlarmEnabled + dailyAlarmTime 사용.
@@ -514,6 +553,41 @@ function bindEvents() {
         btnOpenSelf.addEventListener('click', () => {
             if (typeof window.__sanctumNav === 'function') window.__sanctumNav('self-profile');
             else if (typeof window.__sanctumSwitchView === 'function') window.__sanctumSwitchView('self-profile');
+        });
+    }
+
+    // (2026-05-14 #23 후속) 묵상 템플릿 — prefill + 저장 + 기본값 복원
+    const tmplInput  = document.getElementById('meditation-template-input');
+    const tmplSave   = document.getElementById('btn-save-meditation-template');
+    const tmplReset  = document.getElementById('btn-reset-meditation-template');
+    const tmplStatus = document.getElementById('meditation-template-status');
+    if (tmplInput && _userId && _userId !== 'anonymous') {
+        getMeditationTemplate(_userId)
+            .then(t => { tmplInput.value = t || DEFAULT_TEMPLATE; })
+            .catch(() => { tmplInput.value = DEFAULT_TEMPLATE; });
+    }
+    if (tmplSave) {
+        tmplSave.addEventListener('click', async () => {
+            if (!_userId || _userId === 'anonymous') return;
+            const v = (tmplInput?.value || '').trim();
+            tmplSave.disabled = true;
+            if (tmplStatus) tmplStatus.textContent = '저장 중...';
+            try {
+                await setMeditationTemplate(_userId, v || DEFAULT_TEMPLATE);
+                if (tmplStatus) tmplStatus.textContent = '✓ 저장됐어요';
+                setTimeout(() => { if (tmplStatus) tmplStatus.textContent = ''; }, 2500);
+            } catch (e) {
+                console.warn('template save failed:', e);
+                if (tmplStatus) tmplStatus.textContent = '저장 중 잠깐 막혔어요';
+            } finally {
+                tmplSave.disabled = false;
+            }
+        });
+    }
+    if (tmplReset) {
+        tmplReset.addEventListener('click', () => {
+            if (tmplInput) tmplInput.value = DEFAULT_TEMPLATE;
+            if (tmplStatus) tmplStatus.textContent = '기본값으로 되돌렸어요. 저장 버튼을 눌러주세요.';
         });
     }
 

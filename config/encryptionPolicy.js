@@ -392,6 +392,9 @@ export const POLICY = {
             // (2026-05-13 HC#1 N7) 매일 묵상 알람 시각 — "HH:MM" 형식.
             // dailyAlarmEnabled 가 true 일 때만 reminderGenerator 가 발화.
             'dailyAlarmEnabled', 'dailyAlarmTime',
+            // (2026-05-14 #23 후속) 묵상 템플릿 — 사용자 정의 마크다운.
+            //   {{scripture}} 마커 위치에 절 본문이 삽입됨. 미설정 시 default = '{{scripture}}'.
+            'meditationTemplate',
             'updatedAt'
         ],
         encrypted: []

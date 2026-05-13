@@ -14,6 +14,8 @@ import { getDEK } from './lockScreen.js';
 import { showToast } from './quickReview.js';
 // 백로그 #23 (2026-05-13) — 묵상·기도 노트 마크다운 에디터 (인라인 + 헤딩 + hr)
 import { bindMarkdownEditor, getMarkdown, setMarkdown } from './markdownEditor.js';
+// 백로그 #23 후속 (2026-05-14) — 묵상 템플릿 첫 진입 자동 적용
+import { getMeditationTemplate, applyTemplateOnFirstEntry } from './meditationTemplate.js';
 // Phase B: 결단 → daily 목표 흡수. goalsRepo 가 단일 source of truth.
 // DOM ID(decisions-list 등)와 CSS 클래스는 점진 정리를 위해 일부 유지.
 import {
@@ -1142,6 +1144,23 @@ async function loadMeditationDoc(dek) {
     //   기존 plain text 노트도 그대로 호환 (마크다운 패턴 없으면 줄바꿈만 div 로).
     if (noteEditor)   setMarkdown(noteEditor,   _meditationCache.content);
     if (prayerEditor) setMarkdown(prayerEditor, _meditationCache.prayer);
+
+    // (2026-05-14 #23 후속) a2: 노트가 비어있고 사용자 템플릿이 default 아니면 자동 적용.
+    //   템플릿이 default('{{scripture}}') 이면 빈 노트 유지 — 사용자가 절 붙여넣기로 채움.
+    if (noteEditor && (!_meditationCache.content || _meditationCache.content.trim() === '')) {
+        try {
+            const template = await getMeditationTemplate(_userId);
+            const applied = applyTemplateOnFirstEntry(_meditationCache.content, template);
+            if (applied) {
+                setMarkdown(noteEditor, applied);
+                _meditationCache.content = applied;
+                // 자동 저장 (디바운스 없이 즉시) — 다음 진입 시 그대로
+                saveMeditationDoc().catch(() => {});
+            }
+        } catch (e) {
+            console.warn('meditation template apply failed:', e);
+        }
+    }
 }
 
 // ─── 저녁 배너 (묵상 Phase B 2026-05-13) ───

@@ -13,6 +13,9 @@ import {
     getPartLastRead, setPartLastRead, clearPartLastRead,
 } from './scriptureSettings.js';
 import { renderDailyBibleLink } from './suDaily.js';
+// (2026-05-14 #23 후속) 절 → 마크다운 변환 + 사용자 템플릿 적용
+import { formatScriptureBlocks, applyScriptureToNote, getMeditationTemplate } from './meditationTemplate.js';
+import { getMarkdown, setMarkdown } from './markdownEditor.js';
 
 const BIBLE_METADATA = {
     parts: [
@@ -626,48 +629,37 @@ function updateCopyButton() {
     btn.disabled = count === 0;
 }
 
-function copySelectedToNote(container) {
+// (2026-05-14 #23 후속) 절 → 마크다운 [### 책장 + --- + 절 본문] 형식 + 사용자 템플릿 적용.
+//   - 빈 노트 + 템플릿 마커 있음 → 마커 자리에 본문
+//   - 노트에 마커 있음 → 마커 replace
+//   - 그 외 → 끝에 append (caret 위치는 markdownEditor 가 잡음)
+async function copySelectedToNote(container) {
     const selected = container.querySelectorAll('.verse-item.selected');
     if (selected.length === 0) return;
 
-    // 선택된 구절을 (책 풀네임 + 장) 단위로 묶어 정리
-    // 형식:
-    //   이사야 17
-    //   12 슬프다 ...
-    //   13 열방이 ...
-    const grouped = new Map();   // key = "이사야 17"
-    const order = [];
-    selected.forEach(el => {
-        const full = el.dataset.full || el.dataset.abbr || '';
-        const chapter = el.dataset.chapter || '';
-        const num = parseInt(el.dataset.num || '0');
-        const text = el.querySelector('.verse-text')?.textContent || '';
-        const head = `${full} ${chapter}`;
-        if (!grouped.has(head)) {
-            grouped.set(head, []);
-            order.push(head);
-        }
-        grouped.get(head).push({ num, text });
-    });
+    const verses = Array.from(selected).map(el => ({
+        full:    el.dataset.full || el.dataset.abbr || '',
+        abbr:    el.dataset.abbr || '',
+        chapter: el.dataset.chapter || '',
+        num:     parseInt(el.dataset.num || '0'),
+        text:    el.querySelector('.verse-text')?.textContent || '',
+    }));
 
-    const lines = [];
-    order.forEach(head => {
-        lines.push(head);
-        grouped.get(head)
-            .sort((a, b) => a.num - b.num)
-            .forEach(v => lines.push(`${v.num} ${v.text}`));
-        lines.push('');
-    });
-
-    const noteText = lines.join('\n').replace(/\n+$/, '');
+    const scriptureMd = formatScriptureBlocks(verses);
 
     const editor = document.getElementById('meditation-note');
     if (!editor) return;
 
-    const existing = editor.innerText.replace(/\n+$/, '');
-    editor.innerText = existing
-        ? existing + '\n\n' + noteText + '\n'
-        : noteText + '\n';
+    // 사용자 ID 조회 — app.js 가 window.currentUserId 로 노출
+    const userId = (typeof window !== 'undefined' && window.currentUserId) || null;
+    let template = '{{scripture}}';
+    if (userId && userId !== 'anonymous') {
+        try { template = await getMeditationTemplate(userId); } catch {}
+    }
+
+    const cur = getMarkdown(editor);
+    const next = applyScriptureToNote(cur, scriptureMd, template);
+    setMarkdown(editor, next);
 
     // 자동 저장 디바운스 발동
     editor.dispatchEvent(new Event('input', { bubbles: true }));
