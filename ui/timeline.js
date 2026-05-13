@@ -897,16 +897,34 @@ function bindGlobalEvents() {
     });
     const push = document.getElementById('gcal-push-btn');
     if (push) push.addEventListener('click', async () => {
+        // (2026-05-13 #39) in-flight 락 — 중복 클릭/핸들러 누적으로 일정 2개씩 생기는 회귀 차단
+        if (push.dataset.inFlight === '1') return;
+        push.dataset.inFlight = '1';
         const placed = _decisions.filter(d => d.timeSlot != null);
         if (placed.length === 0) {
             showToast('시간표에 옮겨둔 목표가 아직 없어요. 목표 카드의 ⋮⋮를 잡고 시간표로 옮겨 보실래요?');
+            push.dataset.inFlight = '';
             return;
         }
+        // 같은 목표가 _decisions 안에 중복 들어있는 경우(레이스/캐시 갱신) 안전 디듀프
+        const seen = new Set();
+        const unique = placed.filter(d => {
+            const k = d.id || `${d.title}@${d.timeSlot}`;
+            if (seen.has(k)) return false;
+            seen.add(k);
+            return true;
+        });
         push.disabled = true;
         const orig = push.textContent;
         push.textContent = '📤 캘린더에 옮기는 중...';
+        // 무한 진행 보호 — 30초 후 강제 복원
+        const safetyTimer = setTimeout(() => {
+            push.disabled = false;
+            push.textContent = orig;
+            push.dataset.inFlight = '';
+        }, 30000);
         try {
-            const r = await pushDecisionsToGoogleCalendar(placed);
+            const r = await pushDecisionsToGoogleCalendar(unique);
             if (r.reason === 'no-token') {
                 showToast('Google 계정과 먼저 연결해 주실래요?');
             } else {
@@ -921,8 +939,10 @@ function bindGlobalEvents() {
             console.error('gcal push error:', e);
             showToast('옮기는 중에 잠깐 막혔어요. 한 번만 더 시도해 주실래요?');
         } finally {
+            clearTimeout(safetyTimer);
             push.disabled = false;
             push.textContent = orig;
+            push.dataset.inFlight = '';
         }
     });
 }

@@ -99,6 +99,8 @@
                 <img id="user-avatar" src="" alt="" style="display:none;width:32px;height:32px;border-radius:50%">
                 <span id="user-name" style="font-size:14px">로그인</span>
             </div>
+            <!-- (2026-05-13 #30) 현재 묵상 날짜 상시 표기 — 어느 화면에 있어도 보임. setCurrentDate 가 갱신. -->
+            <div id="sidebar-current-date" class="sidebar-current-date" title="지금 작업 중인 날짜"></div>
             <nav class="sidebar-nav">
                 <!-- 2026-05-13 v2: 사용자 명시 메뉴 순서 (HC#1 후 검증 피드백 #11).
                      Alt+1~9 단축키도 이 순서대로 매핑됨 (shortcuts/registry.js). -->
@@ -189,10 +191,9 @@
                 </section>
 
                 <!-- 핀 원칙 띠 (항상 노출) -->
-                <div id="pinned-principle-banner" class="pinned-banner hidden">
-                    <i class="pin-icon" data-lucide="pin"></i>
-                    <span id="pinned-principle-text"></span>
-                </div>
+                <!-- (2026-05-13 #7) 핀 원칙 띠 제거 — today-start-content 안에 같은 표시가 있어 중복.
+                     loadPinnedPrinciple 는 element 없으면 자연 no-op. -->
+
 
                 <!-- 날짜 -->
                 <header class="page-header">
@@ -221,7 +222,7 @@
                         <span id="meditation-save-status" style="font-size:11px;color:var(--ink-secondary)"></span>
                         <button class="collapsible-toggle" data-target="meditation-note">접기</button>
                     </div>
-                    <div id="meditation-note" class="note-editor collapsible-body" contenteditable="true" data-placeholder="한 호흡 머무는 자리. 말씀을 곱씹다 떠오른 생각을 적어 보세요."></div>
+                    <div id="meditation-note" class="note-editor collapsible-body" contenteditable="true" spellcheck="false" data-placeholder="한 호흡 머무는 자리. 말씀을 곱씹다 떠오른 생각을 적어 보세요."></div>
                 </section>
 
                 <!-- 기도 — 묵상 Phase B (2026-05-13): "말씀 → 묵상 → 기도" 흐름의 종착.
@@ -233,7 +234,7 @@
                         <span id="prayer-save-status" style="font-size:11px;color:var(--ink-secondary)"></span>
                         <button class="collapsible-toggle" data-target="prayer-note">접기</button>
                     </div>
-                    <div id="prayer-note" class="note-editor collapsible-body" contenteditable="true" data-placeholder="오늘 떠오른 기도를 자유롭게 적어 보세요. 비워둬도 괜찮아요."></div>
+                    <div id="prayer-note" class="note-editor collapsible-body" contenteditable="true" spellcheck="false" data-placeholder="오늘 떠오른 기도를 자유롭게 적어 보세요. 비워둬도 괜찮아요."></div>
                 </section>
 
                 <!-- 등산로(워크플로우) — 워크플로우 트랙 STEP 2 (2026-05-13) -->

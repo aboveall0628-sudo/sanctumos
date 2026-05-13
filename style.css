@@ -204,6 +204,23 @@ small { font-size: var(--fs-small); color: var(--ink-secondary); }
     margin-bottom: var(--sp-2);
     border-radius: var(--radius); transition: background var(--ease);
 }
+/* (2026-05-13 #30) 사이드바 상시 날짜 라벨 — 어느 화면에 있어도 현재 작업 날짜 식별 */
+.sidebar-current-date {
+    padding: 4px var(--sp-3);
+    margin: 0 var(--sp-2) var(--sp-3);
+    font-size: 12px;
+    color: var(--text-secondary);
+    background: var(--bg-secondary, transparent);
+    border-radius: 6px;
+    text-align: center;
+    border: 1px dashed var(--border);
+}
+.sidebar-current-date.is-other-day {
+    color: var(--dot-orange, #d97706);
+    border-style: solid;
+    border-color: var(--dot-orange, #d97706);
+    font-weight: 600;
+}
 .sidebar-profile:hover { background: var(--hover); }
 /* (2026-05-13) 하단 고정 묶음 — 설정 + boot-status */
 .sidebar-bottom {

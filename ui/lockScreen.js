@@ -194,6 +194,12 @@ export function showLockScreen() {
     el.style.display = 'flex';
     const input = document.getElementById('lock-password-input');
     if (input) { input.value = ''; input.focus(); }
+    // (2026-05-13 #55) 진입 시 "열기" 버튼 상태 강제 reset — 이전 세션의 "여는 중..." 잔존 차단
+    const btn = document.getElementById('lock-unlock-btn');
+    if (btn) {
+        btn.textContent = '열기';
+        btn.disabled = false;
+    }
     return true;
 }
 

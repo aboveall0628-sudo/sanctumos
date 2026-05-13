@@ -1128,7 +1128,11 @@ function closeModal() {
 function showToast(msg) {
     const toast = document.createElement('div');
     toast.className = 'sanctum-toast';
-    toast.textContent = msg;
+    // (2026-05-13 #24) 토스트 시작의 이모지·아이콘 제거 — 문구만 노출.
+    // 호출처가 많아 한 자리에서 정리. extended_pictographic + 자주 쓰는 prefix 기호 모두.
+    toast.textContent = String(msg ?? '')
+        .replace(/^(?:[\p{Extended_Pictographic}✀-➿☀-⛿✓×…]\s*)+/u, '')
+        .trim();
     document.body.appendChild(toast);
     setTimeout(() => toast.classList.add('show'), 10);
     setTimeout(() => {

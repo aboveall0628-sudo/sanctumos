@@ -16,6 +16,35 @@
 
 import { callReportQuestion } from './aiClient.js';
 import { saveReportQuestion, listQuestionsByReport, markQuestionSeen } from '../reports/reportQuestionsRepo.js';
+import { getAllPersons } from '../data/personRepo.js';
+import { getAllOrganizations } from '../data/orgRepo.js';
+
+// (2026-05-13 #4) Q&A 응답에 P_001/O_001 토큰 회귀 fix —
+//   reports.js bindDayQna 등이 `context: {}` 로 호출. pseudonymize 매핑이 비어
+//   LLM 의 P_001 토큰이 역가명화 못 되고 그대로 노출됨.
+//   mountReportQna 안에서 stats.connections 기반으로 자동 채움.
+async function buildContextFromStats(stats, dek, userId) {
+    try {
+        const personConns = stats?.connections?.persons || [];
+        const orgConns   = stats?.connections?.organizations || [];
+        if (personConns.length === 0 && orgConns.length === 0) return { persons: [], orgs: [] };
+        const [allPersons, allOrgs] = await Promise.all([
+            personConns.length > 0 ? getAllPersons(dek, userId).catch(() => []) : Promise.resolve([]),
+            orgConns.length > 0   ? getAllOrganizations(dek, userId).catch(() => []) : Promise.resolve([]),
+        ]);
+        const personNameById = new Map(allPersons.map(p => [p.id, p.name || '']));
+        const orgNameById    = new Map(allOrgs.map(o => [o.id, o.name || '']));
+        const persons = personConns
+            .map(c => personNameById.get(c.personId))
+            .filter(n => n && n.length > 0);
+        const orgs = orgConns
+            .map(c => orgNameById.get(c.orgId))
+            .filter(n => n && n.length > 0);
+        return { persons, orgs };
+    } catch {
+        return { persons: [], orgs: [] };
+    }
+}
 
 /**
  * 카드의 "여기까지가 데이터예요…" 푸터 바로 위에 Q&A 영역을 끼움.
@@ -72,11 +101,17 @@ export async function mountReportQna(anchorEl, cfg) {
         const tempCard = appendPendingCard(wrap.querySelector('.qna-history'), question);
 
         try {
+            // (2026-05-13 #4) cfg.context 비어 있으면 stats.connections 로 자동 채움 — P_001 회귀 fix
+            const explicitCtx = cfg.context || {};
+            const needAutoCtx = !explicitCtx.persons?.length && !explicitCtx.orgs?.length;
+            const autoCtx = needAutoCtx
+                ? await buildContextFromStats(cfg.stats, cfg.dek, cfg.userId)
+                : null;
             const res = await callReportQuestion({
                 question,
                 reportType: cfg.reportType,
                 stats:      cfg.stats || {},
-                context:    cfg.context || {},
+                context:    autoCtx || explicitCtx,
             });
 
             // 저장 — Firestore

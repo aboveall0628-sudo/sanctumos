@@ -127,11 +127,17 @@ const TOKEN_KEY = 'gcal_token';
  * 잠금 화면의 진짜 password input(#lock-password-input)은 건드리지 않음.
  */
 function disablePasswordManagerOnNonPasswordInputs() {
+    // (2026-05-13 #51) INPUT 뿐 아니라 TEXTAREA · [contenteditable] 까지 정리.
+    //   사용자가 원칙 본문 textarea 등에 비밀번호 매니저 자동완성 박스가 반복 노출되어 입력 막힘.
     const tag = (el) => {
-        if (!el || el.tagName !== 'INPUT') return;
-        const type = (el.type || 'text').toLowerCase();
-        if (type === 'password') return;            // 진짜 비번 input은 통과
-        if (el.id === 'lock-password-input') return; // 안전망
+        if (!el || el.nodeType !== 1) return;
+        const tn = el.tagName;
+        if (tn !== 'INPUT' && tn !== 'TEXTAREA' && !el.isContentEditable) return;
+        if (tn === 'INPUT') {
+            const type = (el.type || 'text').toLowerCase();
+            if (type === 'password') return;            // 진짜 비번 input은 통과
+        }
+        if (el.id === 'lock-password-input') return;    // 안전망
         if (el.dataset.pmOff === '1') return;
         el.setAttribute('autocomplete', 'off');
         el.setAttribute('autocorrect', 'off');
@@ -140,15 +146,21 @@ function disablePasswordManagerOnNonPasswordInputs() {
         el.setAttribute('data-1p-ignore', '');
         el.setAttribute('data-lpignore', 'true');
         el.setAttribute('data-bwignore', 'true');
+        // 브라우저 password manager 의 휴리스틱이 placeholder/name 에 'password'를 잡지 않게 name 비워두기
+        if (tn === 'INPUT' && /password|pw|pwd/i.test(el.name || el.id || '')) {
+            // 진짜 비번 인풋은 위에서 이미 return — 여기로 오면 false positive 후보
+            el.removeAttribute('name');
+        }
         el.dataset.pmOff = '1';
     };
 
-    document.querySelectorAll('input').forEach(tag);
+    const SELECTOR = 'input, textarea, [contenteditable]';
+    document.querySelectorAll(SELECTOR).forEach(tag);
     new MutationObserver(muts => {
         muts.forEach(m => m.addedNodes.forEach(n => {
             if (!n || n.nodeType !== 1) return;
-            if (n.tagName === 'INPUT') tag(n);
-            n.querySelectorAll && n.querySelectorAll('input').forEach(tag);
+            tag(n);
+            n.querySelectorAll && n.querySelectorAll(SELECTOR).forEach(tag);
         }));
     }).observe(document.body, { childList: true, subtree: true });
 }
@@ -743,7 +755,16 @@ window.__sanctumNav = switchView;
  * "내일 묵상 시작하기" — 오늘 뷰 하단 버튼이 호출.
  * currentDate를 다음 날로 옮기고 묵상 노트로 스크롤 + 포커스.
  */
+let _goToNextDayInFlight = false;
 window.__sanctumGoToNextDay = async function() {
+    // (2026-05-13 #5) 다중 클릭/핸들러 중복 누적으로 인한 +N 일 점프 방지
+    if (_goToNextDayInFlight) return;
+    _goToNextDayInFlight = true;
+    try { return await _goToNextDayImpl(); }
+    finally { setTimeout(() => { _goToNextDayInFlight = false; }, 800); }
+};
+
+async function _goToNextDayImpl() {
     const d = new Date(currentDate + 'T00:00:00');
     d.setDate(d.getDate() + 1);
     const next = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -806,11 +827,32 @@ export async function setCurrentDate(dateStr) {
 }
 
 function updateDateDisplay() {
-    const display = document.getElementById('current-date-display');
-    if (!display) return;
     const d = new Date(currentDate + 'T00:00:00');
     const days = ['일', '월', '화', '수', '목', '금', '토'];
-    display.textContent = `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 ${days[d.getDay()]}요일`;
+    const dayName = days[d.getDay()];
+    const long = `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 ${dayName}요일`;
+    const display = document.getElementById('current-date-display');
+    if (display) display.textContent = long;
+    // (2026-05-13 #30) 사이드바 상시 날짜 라벨 — 어느 view 에 있어도 보임.
+    //   오늘 날짜와 다르면 강조 표시(다른 날짜 작업 중임을 시각적으로 알림).
+    const sidebarDate = document.getElementById('sidebar-current-date');
+    if (sidebarDate) {
+        const today = (() => {
+            const t = new Date();
+            const y = t.getFullYear();
+            const m = String(t.getMonth() + 1).padStart(2, '0');
+            const dd = String(t.getDate()).padStart(2, '0');
+            return `${y}-${m}-${dd}`;
+        })();
+        const short = `${d.getMonth() + 1}월 ${d.getDate()}일 (${dayName})`;
+        if (currentDate === today) {
+            sidebarDate.textContent = `📅 ${short} · 오늘`;
+            sidebarDate.classList.remove('is-other-day');
+        } else {
+            sidebarDate.textContent = `📅 ${short}`;
+            sidebarDate.classList.add('is-other-day');
+        }
+    }
 }
 
 // ─── Google Auth (레거시 보존) ───

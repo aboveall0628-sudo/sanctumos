@@ -118,6 +118,9 @@ let _editingDraft = null;
 
 export async function renderOrganizationsView(userId) {
     _userId = userId;
+    // (2026-05-13 #36) view 진입 시 검색·필터 자동 초기화
+    _searchQuery = '';
+    _activeFilter = 'all';
     const container = document.getElementById('view-organizations');
     if (!container) return;
 

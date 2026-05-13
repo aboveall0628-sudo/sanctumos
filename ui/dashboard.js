@@ -760,9 +760,12 @@ function renderNextReviewsCard(dots) {
         return d;
     })();
     const nextQuarterEnd = (() => {
+        // (2026-05-13 #44) 루프 순서 버그 수정 — m 외부였을 때 m=3월일 때 y=2027 까지 시도하면
+        // 2027-03-27 이 먼저 매칭되어 6월(이번 분기) 을 건너뛰는 회귀. y 를 외부로 두어야 같은 해
+        // 안에서 m 을 다 훑은 뒤 다음 해로 넘어감.
         const quarters = [2, 5, 8, 11]; // 3월(2), 6월(5), 9월(8), 12월(11)
-        for (const m of quarters) {
-            for (let y = today.getFullYear(); y <= today.getFullYear() + 1; y++) {
+        for (let y = today.getFullYear(); y <= today.getFullYear() + 1; y++) {
+            for (const m of quarters) {
                 const d = new Date(y, m + 1, 0);
                 const diff = (d.getDay() - 6 + 7) % 7;
                 d.setDate(d.getDate() - diff);

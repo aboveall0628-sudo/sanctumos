@@ -146,10 +146,14 @@ function read() {
     }
 }
 
-function write(next) {
+function write(next, opts = {}) {
     _cache = next;
     try { localStorage.setItem(KEY, JSON.stringify(next)); } catch {}
-    window.dispatchEvent(new CustomEvent('sanctum:scripture-settings-changed', { detail: next }));
+    // (2026-05-13 #21) silent=true 면 listener 호출 X — "다 읽었어요" 도장만 박을 때 본문 재렌더로 인한
+    // verse-item.selected 상태 손실 방지. 본문 변경이 따르지 않는 변경은 silent.
+    if (!opts.silent) {
+        window.dispatchEvent(new CustomEvent('sanctum:scripture-settings-changed', { detail: next }));
+    }
 }
 
 /** enabledParts 배열 ↔ 가장 잘 맞는 프리셋 id (없으면 null) */
@@ -319,7 +323,8 @@ export function setPartLastRead(planId, partId, dateStr) {
             },
         },
     };
-    write(next);
+    // (2026-05-13 #21) 도장만 박는 변경 — 본문 재렌더 트리거 X (선택 verse 보존)
+    write(next, { silent: true });
 }
 
 export function clearPartLastRead(planId, partId) {

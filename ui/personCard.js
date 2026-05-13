@@ -110,6 +110,9 @@ let _editingDraft = null;  // 편집 중 사본
 
 export async function renderPersonsView(userId) {
     _userId = userId;
+    // (2026-05-13 #36) view 진입 시 검색·필터 자동 초기화
+    _searchQuery = '';
+    _activeFilter = 'all';
     const container = document.getElementById('view-persons');
     if (!container) return;
 
