@@ -1058,31 +1058,58 @@ function bindNoteEditor(editorId, field) {
     // 순수 텍스트만 받아 옴 → 노트 폰트(프리텐다드)와 테마 색상이 그대로 적용됨
     // (2026-05-13 #56) execCommand 회피 — 일부 브라우저에서 paste 이벤트 재진입으로 N배 복사 발생.
     //   range.insertNode 단일 경로로 통일하고 stopPropagation 으로 capture/bubble 중복 차단.
+    // (2026-05-14) paste 후 단축키 안 먹힘 회귀 fix:
+    //   - 줄바꿈(\n)을 새 div 로 분리해 줄 단위 블록 보장 (단축키·setBlockTag 정상 동작)
+    //   - paste 후 editor.focus() + caret 끝으로 보내 keydown 발화 보장
     editor.addEventListener('paste', (e) => {
         e.preventDefault();
         e.stopPropagation();
         const cd = e.clipboardData || window.clipboardData;
         const text = cd ? cd.getData('text/plain') : '';
         if (!text) return;
+
+        // 줄 단위 fragment 만들기 — 첫 줄은 caret 위치에 textNode, 나머지 줄은 새 div
+        const lines = text.split(/\r\n|\r|\n/);
+        const frag = document.createDocumentFragment();
+        lines.forEach((line, i) => {
+            if (i === 0) {
+                frag.appendChild(document.createTextNode(line));
+            } else {
+                const div = document.createElement('div');
+                div.textContent = line || ''; // 빈 줄도 빈 div 로
+                if (!line) div.appendChild(document.createElement('br'));
+                frag.appendChild(div);
+            }
+        });
+        // fragment 의 마지막 노드 기록 (caret 이동용)
+        const lastNode = frag.lastChild;
+
         const sel = window.getSelection();
-        if (!sel || !sel.rangeCount) {
-            // selection 없으면 끝에 추가
-            editor.appendChild(document.createTextNode(text));
+        const hasValidRange = sel && sel.rangeCount && editor.contains(sel.getRangeAt(0).commonAncestorContainer);
+        if (!hasValidRange) {
+            // selection 이 editor 밖이면 끝에 추가
+            editor.appendChild(frag);
         } else {
             const range = sel.getRangeAt(0);
-            // selection 이 editor 밖에 있으면(다른 곳 클릭한 상태) 끝에 추가
-            if (!editor.contains(range.commonAncestorContainer)) {
-                editor.appendChild(document.createTextNode(text));
-            } else {
-                range.deleteContents();
-                const node = document.createTextNode(text);
-                range.insertNode(node);
-                range.setStartAfter(node);
-                range.collapse(true);
-                sel.removeAllRanges();
-                sel.addRange(range);
-            }
+            range.deleteContents();
+            range.insertNode(frag);
         }
+
+        // caret 을 paste 한 마지막 노드 끝으로 + editor focus 보장 — 단축키 즉시 작동
+        if (lastNode) {
+            const r2 = document.createRange();
+            if (lastNode.nodeType === 3) {
+                r2.setStart(lastNode, lastNode.nodeValue ? lastNode.nodeValue.length : 0);
+            } else {
+                r2.selectNodeContents(lastNode);
+                r2.collapse(false);
+            }
+            const sel2 = window.getSelection();
+            sel2.removeAllRanges();
+            sel2.addRange(r2);
+        }
+        editor.focus();
+
         // 수동 input 이벤트 dispatch — autosave 트리거 (execCommand 없이도 저장 흐름 보장)
         editor.dispatchEvent(new Event('input', { bubbles: true }));
     });
