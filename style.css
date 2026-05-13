@@ -6239,3 +6239,93 @@ body.dg-open { overflow: hidden; }
     margin: var(--sp-2) 0 0;
 }
 
+
+/* ═══════════════════════════════════════════════════════════════
+   (2026-05-13 #23) 묵상·기도 노트 마크다운 에디터 — 갈래 C 1차
+   인라인 + 헤딩 + hr + 우클릭 컨텍스트 메뉴
+   ═══════════════════════════════════════════════════════════════ */
+
+/* 노트 본문 안 포맷 — meditation-note / prayer-note 의 contenteditable 결과물 */
+.note-editor h1,
+.note-editor h2,
+.note-editor h3 {
+    font-family: var(--font-serif, 'Noto Serif KR', serif);
+    font-weight: 600;
+    color: var(--ink-primary, var(--text-primary, #1a1814));
+    margin: var(--sp-3, 12px) 0 var(--sp-2, 8px);
+    line-height: 1.35;
+}
+.note-editor h1 { font-size: 22px; }
+.note-editor h2 { font-size: 18px; }
+.note-editor h3 { font-size: 16px; }
+.note-editor strong { font-weight: 700; color: var(--ink-primary, var(--text-primary, #1a1814)); }
+.note-editor em     { font-style: italic; }
+.note-editor s,
+.note-editor strike,
+.note-editor del    { text-decoration: line-through; color: var(--ink-secondary, var(--text-secondary, #5d5a52)); }
+.note-editor hr {
+    border: none;
+    border-top: 1px solid var(--border, #d8d3c8);
+    margin: var(--sp-4, 16px) 0;
+}
+.note-editor div  { line-height: 1.65; }
+.note-editor p    { margin: 0 0 var(--sp-2, 8px); line-height: 1.65; }
+
+/* 우클릭 컨텍스트 메뉴 */
+.md-context-menu {
+    position: fixed;
+    z-index: 9999;
+    background: var(--bg-card, var(--bg, #faf7f2));
+    border: 1px solid var(--border, #d8d3c8);
+    border-radius: 10px;
+    padding: 6px;
+    min-width: 200px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    font-size: 13px;
+    color: var(--ink-primary, var(--text-primary, #1a1814));
+    user-select: none;
+}
+.md-context-menu button {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 6px 10px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: left;
+    color: inherit;
+    font-size: inherit;
+    font-family: inherit;
+}
+.md-context-menu button:hover {
+    background: var(--hover, rgba(0, 0, 0, 0.04));
+}
+.md-context-menu .md-mi-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-secondary, var(--text-secondary, #5d5a52));
+    flex-shrink: 0;
+}
+.md-context-menu kbd {
+    margin-left: auto;
+    padding: 1px 6px;
+    font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+    font-size: 10px;
+    color: var(--ink-secondary, var(--text-secondary, #5d5a52));
+    background: var(--bg-secondary, transparent);
+    border: 1px solid var(--border, #d8d3c8);
+    border-radius: 4px;
+}
+.md-menu-sep {
+    height: 1px;
+    background: var(--border, #d8d3c8);
+    margin: 4px 6px;
+}

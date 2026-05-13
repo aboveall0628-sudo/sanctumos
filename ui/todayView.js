@@ -12,6 +12,8 @@ import { db, doc, setDoc, getDoc, collection, query, where, getDocs, serverTimes
 import { readDocument, prepareDocument } from '../crypto/cryptoService.js';
 import { getDEK } from './lockScreen.js';
 import { showToast } from './quickReview.js';
+// 백로그 #23 (2026-05-13) — 묵상·기도 노트 마크다운 에디터 (인라인 + 헤딩 + hr)
+import { bindMarkdownEditor, getMarkdown, setMarkdown } from './markdownEditor.js';
 // Phase B: 결단 → daily 목표 흡수. goalsRepo 가 단일 source of truth.
 // DOM ID(decisions-list 등)와 CSS 클래스는 점진 정리를 위해 일부 유지.
 import {
@@ -1040,10 +1042,14 @@ function bindNoteEditor(editorId, field) {
     if (editor.dataset.noteBound === '1') return;
     editor.dataset.noteBound = '1';
 
-    editor.addEventListener('input', () => {
-        _meditationCache[field] = editor.innerText;
-        clearTimeout(_saveTimer);
-        _saveTimer = setTimeout(saveMeditationDoc, 1000);
+    // (2026-05-13 #23) 마크다운 에디터 부착 — 단축키·자동 변환·우클릭 메뉴
+    //   onChange 는 markdown string 받음. 저장 모델 = Markdown (innerText X).
+    bindMarkdownEditor(editor, {
+        onChange: (md) => {
+            _meditationCache[field] = md;
+            clearTimeout(_saveTimer);
+            _saveTimer = setTimeout(saveMeditationDoc, 1000);
+        },
     });
 
     // 외부에서 복사해 온 텍스트는 폰트/배경/색상 인라인 스타일을 모두 떼고
@@ -1132,8 +1138,10 @@ async function loadMeditationDoc(dek) {
         _meditationCache = { content: '', prayer: '' };
     }
 
-    if (noteEditor)   noteEditor.innerText   = _meditationCache.content;
-    if (prayerEditor) prayerEditor.innerText = _meditationCache.prayer;
+    // (2026-05-13 #23) markdown string → HTML 렌더링.
+    //   기존 plain text 노트도 그대로 호환 (마크다운 패턴 없으면 줄바꿈만 div 로).
+    if (noteEditor)   setMarkdown(noteEditor,   _meditationCache.content);
+    if (prayerEditor) setMarkdown(prayerEditor, _meditationCache.prayer);
 }
 
 // ─── 저녁 배너 (묵상 Phase B 2026-05-13) ───
