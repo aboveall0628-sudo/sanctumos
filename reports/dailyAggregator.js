@@ -18,6 +18,8 @@ import { getDailyGoals } from '../data/goalsRepo.js';
 // Phase F: 거래 데이터를 일간 stats 에 합산 — LLM 이 도트 + 거래를 함께 보고 산문 작성.
 import { getTransactionsByDate } from '../data/economyRepo.js';
 import { isGivingCategory } from '../config/economyBuckets.js';
+// STEP D (2026-05-14): 5계층 공용 시간대 매트릭스 + 요일·조직 헬퍼.
+import { computeTimeBandMatrix } from './timeBands.js';
 
 const MIN_PER_SLOT = 15;  // 15분 단위 슬롯
 
@@ -94,36 +96,8 @@ function fmtSlotRange(startMin, endMin) {
     return `${fmt(startMin)}~${fmt(endMin)}`;
 }
 
-// ─── STEP A-1: 시간대 6구간 매트릭스 (17 — 시간대 다관점) ───
-// 새벽(0~6), 아침(6~9), 오전(9~12), 오후(12~18), 저녁(18~22), 밤(22~24)
-// 도트의 timeSlot 은 15분 단위(0~95). 6시는 slot 24, 9시는 36, 12시는 48, 18시는 72, 22시는 88.
-function computeTimeBandMatrix(dots) {
-    const bands = [
-        { id: 'dawn',    label: '새벽 (0~6시)',  startSlot: 0,  endSlot: 24 },
-        { id: 'morning', label: '아침 (6~9시)',  startSlot: 24, endSlot: 36 },
-        { id: 'late-morning', label: '오전 (9~12시)', startSlot: 36, endSlot: 48 },
-        { id: 'afternoon', label: '오후 (12~18시)', startSlot: 48, endSlot: 72 },
-        { id: 'evening', label: '저녁 (18~22시)', startSlot: 72, endSlot: 88 },
-        { id: 'night',   label: '밤 (22~24시)',  startSlot: 88, endSlot: 96 },
-    ];
-    return bands.map(b => {
-        const inBand = dots.filter(d =>
-            typeof d.timeSlot === 'number' && d.timeSlot >= b.startSlot && d.timeSlot < b.endSlot
-        );
-        const sats = inBand
-            .map(d => d.executionSatisfaction)
-            .filter(v => typeof v === 'number');
-        const avgSat = sats.length > 0 ? round2(sats.reduce((a, b) => a + b, 0) / sats.length) : null;
-        const totalMinutes = inBand.reduce((sum, d) => sum + (d.durationSlots || 1) * MIN_PER_SLOT, 0);
-        return {
-            id:           b.id,
-            label:        b.label,
-            dotCount:     inBand.length,
-            avgSatisfaction: avgSat,
-            totalMinutes,
-        };
-    });
-}
+// STEP A-1 의 computeTimeBandMatrix 는 STEP D-1 에서 reports/timeBands.js 로 이전됨
+// (5계층 공용). 일간 stats 의 timeBandMatrix 호출은 동일하게 작동.
 
 // ─── STEP A-1: 라벨×만족도 매트릭스 (17 — 카테고리 다관점) ───
 // timeAllocation.byLabel 은 시간 합계만 있어 만족도 분리 안 됨.

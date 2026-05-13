@@ -32,6 +32,8 @@ import { getDotsByDateRange } from '../data/dotsRepo.js';
 import { getDailyGoals } from '../data/goalsRepo.js';
 import { getPrinciples } from '../data/principlesRepo.js';
 import { listWeekReports } from './weekReportRepo.js';
+// STEP D-4 (2026-05-14): 5계층 공용 시간대(6구간)·요일·조직 매트릭스
+import { computeTimeBandMatrix, computeDayOfWeekMatrix, computeOrgNetwork } from './timeBands.js';
 
 const SLOTS_PER_HOUR = 4;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -90,6 +92,11 @@ export async function aggregateMonthlyStats(dek, userId, monthStart, monthEnd) {
 
         // ⑨ — 팀 시스템 없음
         teamSessions:               null,
+
+        // STEP D (2026-05-14) — 5계층 다관점 통일: 시간대(6구간)·요일·조직 매트릭스 누적
+        timeBandMatrix:             computeTimeBandMatrix(dots),
+        dayOfWeekMatrix:            computeDayOfWeekMatrix(dots),
+        orgNetwork:                 computeOrgNetwork(dots),
     };
 }
 

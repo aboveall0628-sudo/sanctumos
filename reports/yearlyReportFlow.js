@@ -6,24 +6,37 @@ import { aggregateYearlyStats } from './yearlyAggregator.js';
 import { getYearReport, saveYearReport } from './yearReportRepo.js';
 import { callYearlyReport } from '../ui/aiClient.js';
 import { getAllPersons } from '../data/personRepo.js';
+// STEP D-7 (2026-05-14): orgNetwork 신규 — orgId → name 매핑
+import { getAllOrganizations } from '../data/orgRepo.js';
 
 async function enrichStatsForLLM(dek, userId, stats) {
     const personItems = stats.personNetwork?.items || [];
-    if (personItems.length === 0) {
-        return { statsForLLM: stats, personNames: [] };
+    const orgItems    = stats.orgNetwork?.items || [];
+    if (personItems.length === 0 && orgItems.length === 0) {
+        return { statsForLLM: stats, personNames: [], orgNames: [] };
     }
-    const allPersons = await getAllPersons(dek, userId).catch(() => []);
+    const [allPersons, allOrgs] = await Promise.all([
+        getAllPersons(dek, userId).catch(() => []),
+        getAllOrganizations(dek, userId).catch(() => []),
+    ]);
     const personNameById = new Map(allPersons.map(p => [p.id, p.name || '(이름 미지정)']));
+    const orgNameById    = new Map(allOrgs.map(o => [o.id, o.name || '(이름 미지정)']));
     const personsForLLM = personItems.map(({ personId, ...rest }) => ({
         name: personNameById.get(personId) || '(알 수 없는 인물)',
+        ...rest,
+    }));
+    const orgsForLLM = orgItems.map(({ orgId, ...rest }) => ({
+        name: orgNameById.get(orgId) || '(알 수 없는 조직)',
         ...rest,
     }));
     const statsForLLM = {
         ...stats,
         personNetwork: { ...stats.personNetwork, items: personsForLLM },
+        orgNetwork:    { ...stats.orgNetwork,    items: orgsForLLM },
     };
     const personNames = personsForLLM.map(p => p.name).filter(n => n && !n.startsWith('('));
-    return { statsForLLM, personNames };
+    const orgNames    = orgsForLLM.map(o => o.name).filter(n => n && !n.startsWith('('));
+    return { statsForLLM, personNames, orgNames };
 }
 
 /**
@@ -43,11 +56,11 @@ export async function generateYearlyReport(dek, userId, yearStart, yearEnd, opts
         return { status: 'no-dots', report: null, fallback: false };
     }
 
-    const { statsForLLM, personNames } = await enrichStatsForLLM(dek, userId, rawStats);
+    const { statsForLLM, personNames, orgNames } = await enrichStatsForLLM(dek, userId, rawStats);
 
     const aiResult = await callYearlyReport(statsForLLM, {
         persons: personNames,
-        orgs:    [],
+        orgs:    orgNames,
         places:  [],
         amounts: [],
     }, null, { force: !!opts.force });

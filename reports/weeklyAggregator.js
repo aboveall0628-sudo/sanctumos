@@ -18,18 +18,23 @@
 import { getDotsByDateRange } from '../data/dotsRepo.js';
 import { getDailyGoals } from '../data/goalsRepo.js';
 import { getPrinciples } from '../data/principlesRepo.js';
+// STEP D-3 (2026-05-14): 5계층 공용 시간대(6구간)·요일·조직 매트릭스. 주간도 일관 통일.
+import { computeDayOfWeekMatrix, computeOrgNetwork } from './timeBands.js';
 
 const MIN_PER_SLOT = 15;          // 15분 단위 슬롯
 const SLOTS_PER_HOUR = 4;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-// 시간대 4구간 — 한국식 (스펙 §3.2.3, B-1 합의)
-//   새벽 00:00-06:00 / 아침 06:00-12:00 / 낮 12:00-18:00 / 저녁·밤 18:00-24:00
+// STEP D-3: 시간대 6구간 — 일간 STEP A 와 동일. 4구간(새벽·아침·낮·저녁)에서 6구간으로 확장.
+//   새벽 00:00-06:00 / 아침 06:00-09:00 / 오전 09:00-12:00 /
+//   오후 12:00-18:00 / 저녁 18:00-22:00 / 밤 22:00-24:00
 const TIME_BANDS = [
-    { key: 'dawn',      label: '새벽 0-6시',   startHour: 0,  endHour: 6  },
-    { key: 'morning',   label: '아침 6-12시',  startHour: 6,  endHour: 12 },
-    { key: 'afternoon', label: '낮 12-18시',   startHour: 12, endHour: 18 },
-    { key: 'evening',   label: '저녁 18-24시', startHour: 18, endHour: 24 },
+    { key: 'dawn',         label: '새벽 0-6시',   startHour: 0,  endHour: 6  },
+    { key: 'morning',      label: '아침 6-9시',   startHour: 6,  endHour: 9  },
+    { key: 'late-morning', label: '오전 9-12시',  startHour: 9,  endHour: 12 },
+    { key: 'afternoon',    label: '오후 12-18시', startHour: 12, endHour: 18 },
+    { key: 'evening',      label: '저녁 18-22시', startHour: 18, endHour: 22 },
+    { key: 'night',        label: '밤 22-24시',   startHour: 22, endHour: 24 },
 ];
 
 const MAX_TOP_LABEL_PAIRS = 10;
@@ -62,6 +67,9 @@ export async function aggregateWeeklyStats(dek, userId, weekStart, weekEnd) {
         labelCorrelation:           computeLabelCorrelation(dots),
         pinnedPrincipleApplication: computePinnedPrincipleApplication(allPrinciples, dots),
         personCounts:               computePersonCounts(dots),
+        // STEP D-3: 5계층 통일 — 주간 요일 매트릭스(weekdayPattern 과 별개 표준 형식) + 조직 네트워크
+        dayOfWeekMatrix:            computeDayOfWeekMatrix(dots),
+        orgNetwork:                 computeOrgNetwork(dots),
     };
 }
 

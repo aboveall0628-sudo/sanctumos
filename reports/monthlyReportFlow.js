@@ -19,6 +19,8 @@ import { aggregateMonthlyStats } from './monthlyAggregator.js';
 import { getMonthReport, saveMonthReport } from './monthReportRepo.js';
 import { callMonthlyReport } from '../ui/aiClient.js';
 import { getAllPersons } from '../data/personRepo.js';
+// STEP D-7 (2026-05-14): 신규 orgNetwork (5계층 통일) — orgId → name 매핑 추가
+import { getAllOrganizations } from '../data/orgRepo.js';
 
 /**
  * stats.personNetwork.items의 personId를 실제 이름으로 매핑.
@@ -31,14 +33,25 @@ import { getAllPersons } from '../data/personRepo.js';
  */
 async function enrichStatsForLLM(dek, userId, stats) {
     const personItems = stats.personNetwork?.items || [];
-    if (personItems.length === 0) {
-        return { statsForLLM: stats, personNames: [] };
+    const orgItems    = stats.orgNetwork?.items || [];
+
+    if (personItems.length === 0 && orgItems.length === 0) {
+        return { statsForLLM: stats, personNames: [], orgNames: [] };
     }
-    const allPersons = await getAllPersons(dek, userId).catch(() => []);
+
+    const [allPersons, allOrgs] = await Promise.all([
+        getAllPersons(dek, userId).catch(() => []),
+        getAllOrganizations(dek, userId).catch(() => []),
+    ]);
     const personNameById = new Map(allPersons.map(p => [p.id, p.name || '(이름 미지정)']));
+    const orgNameById    = new Map(allOrgs.map(o => [o.id, o.name || '(이름 미지정)']));
 
     const personsForLLM = personItems.map(({ personId, ...rest }) => ({
         name: personNameById.get(personId) || '(알 수 없는 인물)',
+        ...rest,
+    }));
+    const orgsForLLM = orgItems.map(({ orgId, ...rest }) => ({
+        name: orgNameById.get(orgId) || '(알 수 없는 조직)',
         ...rest,
     }));
 
@@ -46,10 +59,12 @@ async function enrichStatsForLLM(dek, userId, stats) {
     const statsForLLM = {
         ...stats,
         personNetwork: { ...stats.personNetwork, items: personsForLLM },
+        orgNetwork:    { ...stats.orgNetwork,    items: orgsForLLM },
     };
 
     const personNames = personsForLLM.map(p => p.name).filter(n => n && !n.startsWith('('));
-    return { statsForLLM, personNames };
+    const orgNames    = orgsForLLM.map(o => o.name).filter(n => n && !n.startsWith('('));
+    return { statsForLLM, personNames, orgNames };
 }
 
 /**
@@ -79,13 +94,13 @@ export async function generateMonthlyReport(dek, userId, monthStart, monthEnd, o
         return { status: 'no-dots', report: null, fallback: false };
     }
 
-    // 4) personId → name 매핑
-    const { statsForLLM, personNames } = await enrichStatsForLLM(dek, userId, rawStats);
+    // 4) personId·orgId → name 매핑 (STEP D-7: orgNetwork 추가)
+    const { statsForLLM, personNames, orgNames } = await enrichStatsForLLM(dek, userId, rawStats);
 
     // 5) AI 호출
     const aiResult = await callMonthlyReport(statsForLLM, {
         persons: personNames,
-        orgs:    [],
+        orgs:    orgNames,
         places:  [],
         amounts: [],
     }, null, { force: !!opts.force });

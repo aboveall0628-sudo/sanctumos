@@ -16,6 +16,8 @@ import { aggregateWeeklyStats } from './weeklyAggregator.js';
 import { getWeekReport, saveWeekReport } from './weekReportRepo.js';
 import { callWeeklyReport } from '../ui/aiClient.js';
 import { getAllPersons } from '../data/personRepo.js';
+// STEP D-7 (2026-05-14): orgNetwork 신규 (5계층 통일) — orgId → name 매핑
+import { getAllOrganizations } from '../data/orgRepo.js';
 
 /**
  * stats.personCounts.items 의 personId 를 실제 이름으로 매핑.
@@ -31,15 +33,25 @@ import { getAllPersons } from '../data/personRepo.js';
  */
 async function enrichStatsForLLM(dek, userId, stats) {
     const personItems = stats.personCounts?.items || [];
-    if (personItems.length === 0) {
+    const orgItems    = stats.orgNetwork?.items || [];
+
+    if (personItems.length === 0 && orgItems.length === 0) {
         return { statsForLLM: stats, personNames: [], orgNames: [] };
     }
 
-    const allPersons = await getAllPersons(dek, userId).catch(() => []);
+    const [allPersons, allOrgs] = await Promise.all([
+        getAllPersons(dek, userId).catch(() => []),
+        getAllOrganizations(dek, userId).catch(() => []),
+    ]);
     const personNameById = new Map(allPersons.map(p => [p.id, p.name || '(이름 미지정)']));
+    const orgNameById    = new Map(allOrgs.map(o => [o.id, o.name || '(이름 미지정)']));
 
     const personsForLLM = personItems.map(({ personId, ...rest }) => ({
         name: personNameById.get(personId) || '(알 수 없는 인물)',
+        ...rest,
+    }));
+    const orgsForLLM = orgItems.map(({ orgId, ...rest }) => ({
+        name: orgNameById.get(orgId) || '(알 수 없는 조직)',
         ...rest,
     }));
 
@@ -50,11 +62,13 @@ async function enrichStatsForLLM(dek, userId, stats) {
     const statsForLLM = {
         ...stats,
         personCounts: { items: personsForLLM },
+        orgNetwork:   { ...stats.orgNetwork, items: orgsForLLM },
         pinnedPrincipleApplication: { items: pinnedForLLM },
     };
 
     const personNames = personsForLLM.map(p => p.name).filter(n => n && !n.startsWith('('));
-    return { statsForLLM, personNames, orgNames: [] };
+    const orgNames    = orgsForLLM.map(o => o.name).filter(n => n && !n.startsWith('('));
+    return { statsForLLM, personNames, orgNames };
 }
 
 /**
@@ -88,13 +102,13 @@ export async function generateWeeklyReport(dek, userId, weekStart, weekEnd, opts
         return { status: 'no-dots', report: null, fallback: false };
     }
 
-    // 4) 인물·원칙 ID → 이름 매핑 (LLM 응답이 ID 노출하지 않도록)
-    const { statsForLLM, personNames } = await enrichStatsForLLM(dek, userId, rawStats);
+    // 4) 인물·원칙·조직 ID → 이름 매핑 (LLM 응답이 ID 노출하지 않도록)
+    const { statsForLLM, personNames, orgNames } = await enrichStatsForLLM(dek, userId, rawStats);
 
-    // 5) AI 호출 — context.persons 로 진짜 이름들 넣어 P_001 자동 치환
+    // 5) AI 호출 — context.persons/orgs 로 진짜 이름들 넣어 P_001/O_001 자동 치환
     const aiResult = await callWeeklyReport(statsForLLM, {
         persons: personNames,
-        orgs:    [],
+        orgs:    orgNames,
         places:  [],
         amounts: [],
     }, null, { force: !!opts.force });
