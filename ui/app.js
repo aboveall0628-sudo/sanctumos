@@ -9,7 +9,8 @@ import {
 } from '../data/firebase.js';
 import { setupNewVault, unlockVault, recoverWithWords, KDF_PARAMS } from '../crypto/keyManager.js';
 import { initLockScreen, setUnlocked, lock, showLockError, showLockScreen, hideLockScreen } from './lockScreen.js';
-import { initAuth, showSetupScreen, hideSetupScreen, showGoogleLoginScreen, hideGoogleLoginScreen, showPasswordMigrationModal } from './auth.js';
+import { initAuth, showSetupScreen, hideSetupScreen, showGoogleLoginScreen, hideGoogleLoginScreen, showPasswordMigrationModal, showEmailRecoveryMigrationModal } from './auth.js';
+import { isEmailRecoveryRegistered } from '../crypto/emailRecoverySlot.js';
 import { POLICY_VERSION } from '../crypto/passwordPolicy.js';
 import { initAutoLock, registerFailedAttempt, isLockoutActive, getLockoutRemainingSec, resetFailedAttempts, getSavedTimeoutMinutes, saveTimeoutMinutes } from '../security/autoLock.js';
 import { logAuditAction } from '../security/auditLog.js';
@@ -245,19 +246,40 @@ async function init() {
             resetFailedAttempts();
             logAuditAction(currentUserId, 'unlock_success');
 
-            // 비밀번호 정책 마이그레이션 체크 (구 정책으로 unlock 성공한 사용자)
+            // ─── 잠금 해제 후 마이그레이션 체인 ───
+            // 1) 비밀번호 정책 v2 (Phase 1) — 통과 시 다음 단계
+            // 2) 이메일 복구 등록 권유 (트랙 2 Phase 4) — 미등록 + 세션 dismiss 안 됐을 때
+            // 3) 둘 다 통과 → setUnlocked
+            const continueWithEmailMigration = (currentDek) => {
+                const dismissed = (() => {
+                    try { return sessionStorage.getItem('sanctum-email-recovery-dismissed') === '1'; } catch (_) { return false; }
+                })();
+                if (!isEmailRecoveryRegistered(userData) && !dismissed) {
+                    showEmailRecoveryMigrationModal({
+                        dek: currentDek,
+                        userId: currentUserId,
+                        onDone: () => {
+                            setUnlocked(currentDek);
+                            logAuditAction(currentUserId, 'email_recovery_migration_shown');
+                        }
+                    });
+                } else {
+                    setUnlocked(currentDek);
+                }
+            };
+
             const userPolicyVersion = userData.passwordPolicyVersion || 1;
             if (userPolicyVersion < POLICY_VERSION) {
                 showPasswordMigrationModal({
                     dek,
                     userId: currentUserId,
                     onComplete: (migratedDek) => {
-                        setUnlocked(migratedDek);
                         logAuditAction(currentUserId, 'password_policy_migrated');
+                        continueWithEmailMigration(migratedDek);
                     }
                 });
             } else {
-                setUnlocked(dek);
+                continueWithEmailMigration(dek);
             }
         } catch (err) {
             console.error('[unlock] 실패:', err);

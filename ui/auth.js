@@ -235,6 +235,37 @@ function renderSetupScreen() {
         </div>
     `;
     document.body.appendChild(migrationOverlay);
+
+    // 5. 이메일 복구 등록 권유 오버레이 (트랙 2 Phase 4)
+    //    1차 버전 = 안내 모달. 추후 별도 트랙에서 "자연스러운 흐름"으로 대체 예정.
+    const emailRecMigOverlay = document.createElement('div');
+    emailRecMigOverlay.id = 'email-recovery-migration-overlay';
+    emailRecMigOverlay.className = 'lock-screen-overlay hidden';
+    emailRecMigOverlay.innerHTML = `
+        <div class="lock-screen-box" style="max-width: 460px;">
+            <div class="lock-icon">📧</div>
+            <h2>비상 안전망 등록</h2>
+            <p class="lock-subtitle" style="text-align:left; font-size:13px;">
+                비밀번호도, 24단어도 모두 잃어버린 경우를 대비해 <strong>이메일 복구</strong>를 등록해 두실 수 있어요.<br>
+                본인 Gmail에 들어갈 수만 있으면 일기장을 다시 열 수 있어요. <strong>한 번만 등록</strong>하면 끝.
+            </p>
+            <div style="background:var(--surface-card, var(--bg-card)); border:1px solid var(--border); border-radius:8px; padding:12px; margin:12px 0; font-size:12px;">
+                <div style="color:var(--text-secondary); margin-bottom:4px;">복구 이메일</div>
+                <strong id="email-recovery-mig-email" style="font-size:14px;">—</strong>
+            </div>
+            <div id="email-recovery-mig-error" class="lock-error hidden"></div>
+            <div style="display:flex; gap:8px; margin-top:8px;">
+                <button id="email-recovery-mig-skip-btn" class="text-btn" style="flex:1">나중에 하기</button>
+                <button id="email-recovery-mig-register-btn" class="primary-btn" style="flex:2">지금 등록하기</button>
+            </div>
+            <p style="font-size:11px; color:var(--text-secondary); margin-top:12px; line-height:1.6;">
+                ※ '나중에 하기'를 누르셔도 데이터엔 영향 없어요. 이번 로그인 동안은 다시 묻지 않고, 다음 로그인 시 한 번 더 안내드릴게요.
+                <br>
+                ※ E2EE 유지 — 서버는 본인 일기 내용을 절대 볼 수 없어요.
+            </p>
+        </div>
+    `;
+    document.body.appendChild(emailRecMigOverlay);
 }
 
 /**
@@ -304,6 +335,90 @@ export function showPasswordMigrationModal({ dek, userId, onComplete }) {
             btn.textContent = '바꾸고 들어가기';
         }
     };
+}
+
+/**
+ * 이메일 복구 등록 권유 모달 (트랙 2 Phase 4)
+ * 잠금 해제 후, 이메일 복구가 등록되지 않은 사용자에게 한 번 안내.
+ *
+ * 정책:
+ *  - 강제 아님: 'Skip(나중에)' 가능.
+ *  - Skip 빈도: 이번 로그인 동안은 sessionStorage flag로 안 묻기. 다음 로그인 시 또 안내.
+ *  - Phase 4 1차 — 추후 별도 트랙에서 "자연스러운 흐름"으로 대체 예정.
+ *
+ * @param {Object} args
+ * @param {CryptoKey} args.dek
+ * @param {string} args.userId
+ * @param {Function} args.onDone - 모달 닫힘(등록/Skip 무관) 후 호출
+ */
+export function showEmailRecoveryMigrationModal({ dek, userId, onDone }) {
+    const overlay = document.getElementById('email-recovery-migration-overlay');
+    if (!overlay) {
+        console.error('[auth] email-recovery-migration-overlay not rendered');
+        if (onDone) onDone();
+        return;
+    }
+    overlay.classList.remove('hidden');
+    overlay.style.display = 'flex';
+
+    const userEmail = auth.currentUser?.email || null;
+    const emailDisplay = document.getElementById('email-recovery-mig-email');
+    if (emailDisplay) emailDisplay.textContent = userEmail || '(이메일 정보 없음)';
+
+    const errEl = document.getElementById('email-recovery-mig-error');
+    const skipBtn = document.getElementById('email-recovery-mig-skip-btn');
+    const registerBtn = document.getElementById('email-recovery-mig-register-btn');
+
+    if (errEl) errEl.classList.add('hidden');
+    if (registerBtn) {
+        registerBtn.disabled = false;
+        registerBtn.textContent = '지금 등록하기';
+    }
+
+    const close = () => {
+        overlay.classList.add('hidden');
+        overlay.style.display = 'none';
+        if (onDone) onDone();
+    };
+
+    // 핸들러는 onclick으로 교체 (재호출 시 중복 방지)
+    if (skipBtn) {
+        skipBtn.onclick = () => {
+            try { sessionStorage.setItem('sanctum-email-recovery-dismissed', '1'); } catch (_) {}
+            close();
+        };
+    }
+
+    if (registerBtn) {
+        registerBtn.onclick = async () => {
+            if (!userEmail) {
+                showErr(errEl, 'Google 로그인 이메일을 확인할 수 없어요. 나중에 [설정 → 이메일 복구]에서 시도해 주세요.');
+                return;
+            }
+            registerBtn.disabled = true;
+            registerBtn.textContent = '등록 중...';
+            let slotKeyRaw = null;
+            try {
+                const slot = await createEmailSlot(dek);
+                slotKeyRaw = slot.emailSlotKeyRaw;
+                const { registerEmailRecovery } = await import('../crypto/emailRecoveryClient.js');
+                await registerEmailRecovery({
+                    emailSlotKey: slotKeyRaw,
+                    wrappedDEK_email: slot.wrappedDEK_email,
+                    wrappedDEK_email_iv: slot.wrappedDEK_email_iv,
+                    recoveryEmail: userEmail,
+                });
+                close();
+            } catch (e) {
+                console.error('[auth/migration] email recovery register failed:', e);
+                showErr(errEl, (e?.message || '등록에 실패했어요.') + ' 나중에 [설정 → 이메일 복구]에서 다시 시도하실 수 있어요.');
+                registerBtn.disabled = false;
+                registerBtn.textContent = '지금 등록하기';
+            } finally {
+                slotKeyRaw = null;
+            }
+        };
+    }
 }
 
 function bindEvents() {
