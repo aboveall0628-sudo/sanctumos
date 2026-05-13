@@ -100,8 +100,9 @@
                 <span id="user-name" style="font-size:14px">로그인</span>
             </div>
             <nav class="sidebar-nav">
-                <button class="sidebar-item active" id="nav-dashboard"><i class="icon" data-lucide="layout-dashboard"></i> 대시보드</button>
-                <button class="sidebar-item" id="nav-today"><i class="icon" data-lucide="calendar"></i> 오늘</button>
+                <!-- 2026-05-13: 첫 진입 = 오늘 (걸어다니는 성경 정체성 — 말씀부터). 대시보드는 두 번째. -->
+                <button class="sidebar-item active" id="nav-today"><i class="icon" data-lucide="calendar"></i> 오늘</button>
+                <button class="sidebar-item" id="nav-dashboard"><i class="icon" data-lucide="layout-dashboard"></i> 관제탑</button>
                 <hr class="nav-divider">
                 <button class="sidebar-item" id="nav-past"><i class="icon" data-lucide="scroll-text"></i> 지난 묵상</button>
                 <button class="sidebar-item" id="nav-principles"><i class="icon" data-lucide="book-open"></i> 나의 원칙</button>
@@ -149,8 +150,14 @@
         <!-- 메인 — 잠금 해제 전엔 숨김 (부팅 안전장치) -->
         <main id="main-content" class="content-area hidden">
 
-            <!-- ── 오늘 뷰 ── -->
-            <div id="view-today" class="view hidden">
+            <!-- ── 오늘 뷰 — 2026-05-13: 첫 진입 화면 ── -->
+            <div id="view-today" class="view">
+                <!-- 2026-05-13: 오늘의 시작 영역 — 대시보드에서 옮겨옴 (관제탑 정체성 정리).
+                     시간대 인사 + 핀 원칙 + 어제 묵상 질문 + 미열람 Q&A 한자리. -->
+                <section class="dash-section" id="dash-section-today-start">
+                    <div id="today-start-content"></div>
+                </section>
+
                 <!-- 핀 원칙 띠 (항상 노출) -->
                 <div id="pinned-principle-banner" class="pinned-banner hidden">
                     <i class="pin-icon" data-lucide="pin"></i>
@@ -282,37 +289,72 @@
                 </div>
             </div>
 
-            <!-- ── 대시보드 뷰 (= 첫 화면, 묵상의 자리) ── -->
-            <div id="view-dashboard" class="view">
-                <header class="page-header"><h1><i class="page-icon" data-lucide="layout-dashboard"></i> 대시보드</h1></header>
+            <!-- ── 관제탑 뷰 — 2026-05-13 재기획: "삶 전체 큰 그림" ── -->
+            <!-- view-today는 "오늘 한 날", view-dashboard는 "삶 전체" 로 정체성 분리 -->
+            <div id="view-dashboard" class="view hidden">
+                <header class="page-header">
+                    <h1><i class="page-icon" data-lucide="compass"></i> 관제탑</h1>
+                    <p class="subtitle">삶 전체의 큰 그림을 살펴봅니다</p>
+                </header>
 
-                <!-- D-2: 오늘의 시작 — 인사 + 핀 원칙 + 어제 묵상에 가져갔던 질문 -->
-                <section class="dash-section" id="dash-section-today-start">
-                    <div id="today-start-content"></div>
-                </section>
-
-                <!-- D-4: 토요일 회고 CTA + 빈 상태 가이드 — JS가 조건부 채움. 평일엔 비어있음. -->
-                <section class="dash-section dash-section-call" id="dash-section-call" hidden>
-                    <div id="dashboard-call"></div>
-                </section>
-
-                <!-- 나의 목표 — 7계층, 단 D-1 이후 daily+weekly 디폴트 노출 -->
-                <section class="dash-section" id="dash-section-goals">
-                    <header class="section-header-flex">
-                        <h2 class="section-title"><i class="section-icon" data-lucide="target"></i> 나의 목표</h2>
-                    </header>
-                    <div id="goals-container"></div>
-                </section>
-
-                <!-- D-1: 이번 주 흐름 — 산문 한 줄 + [숫자로 보기] 토글 -->
+                <!-- S2: 이번 주의 결 — 산문 한 줄 + AI 듣기 -->
                 <section class="dash-section" id="dash-section-prose">
                     <header class="section-header-flex">
-                        <h2 class="section-title"><i class="section-icon" data-lucide="leaf"></i> 이번 주는 이런 한 주였어요</h2>
+                        <h2 class="section-title"><i class="section-icon" data-lucide="leaf"></i> 이번 주의 결</h2>
+                        <button class="dash-card-quicknav" type="button" data-go="reports:week" title="리포트 주간 탭으로">
+                            <span class="dash-card-quicknav-text">→ 리포트</span>
+                            <i data-lucide="chevron-right" class="dash-card-quicknav-icon"></i>
+                        </button>
                     </header>
                     <div id="dashboard-prose"></div>
                 </section>
 
-                <!-- D-3: 이번 주 관계의 결 — 최근 만난 사람·조직 산문 + avatar 줄 -->
+                <!-- S3: 목표 트리 (칠판) — 별도 메뉴 없이 여기서 펼치고 적기 -->
+                <section class="dash-section" id="dash-section-goals">
+                    <header class="section-header-flex">
+                        <h2 class="section-title"><i class="section-icon" data-lucide="target"></i> 나의 목표 트리</h2>
+                        <span class="dash-section-sub">10년부터 이번 주까지, 흐름이 한눈에</span>
+                    </header>
+                    <div id="goals-container"></div>
+                </section>
+
+                <!-- S4: 활성 등산로 진척 — 신규 -->
+                <section class="dash-section" id="dash-section-workflows">
+                    <header class="section-header-flex">
+                        <h2 class="section-title"><i class="section-icon" data-lucide="mountain"></i> 등산로 진척</h2>
+                        <button class="dash-card-quicknav" type="button" data-go="today:section-workflows" title="오늘 화면 등산로 카드로">
+                            <span class="dash-card-quicknav-text">→ 오늘 화면</span>
+                            <i data-lucide="chevron-right" class="dash-card-quicknav-icon"></i>
+                        </button>
+                    </header>
+                    <div id="dashboard-workflows"></div>
+                </section>
+
+                <!-- S5: 다음 회고 안내 — 신규. 옛 dashboard-call(토요일 CTA) 자리 흡수 -->
+                <section class="dash-section" id="dash-section-next-reviews">
+                    <header class="section-header-flex">
+                        <h2 class="section-title"><i class="section-icon" data-lucide="calendar"></i> 다음 회고</h2>
+                        <button class="dash-card-quicknav" type="button" data-go="reports" title="리포트 메뉴로">
+                            <span class="dash-card-quicknav-text">→ 리포트</span>
+                            <i data-lucide="chevron-right" class="dash-card-quicknav-icon"></i>
+                        </button>
+                    </header>
+                    <div id="dashboard-next-reviews"></div>
+                </section>
+
+                <!-- S6: 묵상의 결 — 신규. 강제 X 가벼움 -->
+                <section class="dash-section" id="dash-section-meditation-rhythm">
+                    <header class="section-header-flex">
+                        <h2 class="section-title"><i class="section-icon" data-lucide="leaf"></i> 묵상의 결</h2>
+                        <button class="dash-card-quicknav" type="button" data-go="today:section-scripture" title="오늘 말씀으로">
+                            <span class="dash-card-quicknav-text">→ 오늘 말씀</span>
+                            <i data-lucide="chevron-right" class="dash-card-quicknav-icon"></i>
+                        </button>
+                    </header>
+                    <div id="dashboard-meditation-rhythm"></div>
+                </section>
+
+                <!-- 이번 주 관계의 결 — 일단 유지 (B-4 트랙 시 통합 검토) -->
                 <section class="dash-section" id="dash-section-people">
                     <header class="section-header-flex">
                         <h2 class="section-title"><i class="section-icon" data-lucide="users"></i> 이번 주 관계의 결</h2>
@@ -320,12 +362,19 @@
                     <div id="dashboard-people"></div>
                 </section>
 
-                <!-- D-1: 숫자로 보기 — 디폴트 접힘. 토글 클릭 시 카드 노출 -->
+                <!-- S7: 숫자 카드 — 2026-05-13: 사용자 결정으로 디폴트 펼침 -->
                 <section class="dash-section dash-section-numbers" id="dash-section-cards">
-                    <button id="dash-numbers-toggle" class="dash-numbers-toggle" type="button" aria-expanded="false">
-                        <i class="dash-icon" data-lucide="chevron-down"></i> 숫자로 보기
+                    <header class="section-header-flex">
+                        <h2 class="section-title"><i class="section-icon" data-lucide="bar-chart-3"></i> 숫자로 보기</h2>
+                        <button class="dash-card-quicknav" type="button" data-go="reports" title="리포트 메뉴로">
+                            <span class="dash-card-quicknav-text">→ 리포트</span>
+                            <i data-lucide="chevron-right" class="dash-card-quicknav-icon"></i>
+                        </button>
+                    </header>
+                    <button id="dash-numbers-toggle" class="dash-numbers-toggle" type="button" aria-expanded="true">
+                        <i class="dash-icon" data-lucide="chevron-up"></i> 숫자 접기
                     </button>
-                    <div id="dashboard-cards" class="dash-grid hidden"></div>
+                    <div id="dashboard-cards" class="dash-grid"></div>
                 </section>
             </div>
 

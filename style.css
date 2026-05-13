@@ -4043,6 +4043,13 @@ svg.person-radar { display: block; }
     background: var(--hover);
     outline: none;
 }
+/* (2026-05-13 P3) Enter 키 자동 선택 대상 — 첫 후보 시각 강조.
+   "엔터 누르면 이게 선택돼요" 를 사용자가 미리 알 수 있게. */
+.qr-ac-item.qr-ac-first {
+    background: var(--hover);
+    border-left: 2px solid var(--accent, var(--brand, #6f8fff));
+    padding-left: 8px;
+}
 .qr-ac-item .qr-ac-sub {
     color: var(--text-secondary, var(--ink-secondary));
     font-size: 12px;
@@ -5415,5 +5422,133 @@ svg.person-radar { display: block; }
     content: '🪜 ';
     font-size: 10px;
     opacity: 0.7;
+}
+
+/* ═══════════════════════════════════════
+   대시보드 재기획 (2026-05-13) — "관제탑"
+   디자인 디테일은 디자인 시스템 점검 세션에서 일괄 정리 예정.
+   ═══════════════════════════════════════ */
+
+.dash-card-quicknav {
+    display: inline-flex; align-items: center; gap: 2px;
+    background: none; border: none; cursor: pointer;
+    font-size: 12px; color: var(--ink-secondary, var(--text-secondary));
+    padding: 4px 8px; border-radius: 999px;
+    transition: all var(--ease);
+}
+.dash-card-quicknav:hover {
+    color: var(--brand-primary, var(--accent-primary));
+    background: var(--hover);
+}
+.dash-card-quicknav-icon { width: 14px; height: 14px; stroke-width: 1.75; }
+@media (max-width: 600px) {
+    .dash-card-quicknav-text { display: none; }
+    .dash-card-quicknav {
+        min-width: 44px; min-height: 44px; justify-content: center;
+    }
+    .dash-card-quicknav-icon { width: 18px; height: 18px; }
+}
+
+.dash-section-sub {
+    font-size: 12px; color: var(--ink-secondary, var(--text-secondary));
+    margin-left: auto;
+}
+
+/* S4 활성 등산로 진척 */
+.dash-wf-list { display: flex; flex-direction: column; gap: var(--sp-2); }
+.dash-wf-row {
+    display: grid;
+    grid-template-columns: 120px auto 1fr;
+    gap: var(--sp-2);
+    align-items: center;
+    padding: var(--sp-2) var(--sp-3);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+.dash-wf-bar {
+    width: 100%; height: 8px;
+    background: var(--bg-quiet, rgba(0,0,0,0.05));
+    border-radius: 999px; overflow: hidden;
+}
+.dash-wf-bar-fill {
+    height: 100%; background: var(--brand-primary, var(--accent-primary));
+    transition: width 280ms var(--ease);
+}
+.dash-wf-progress {
+    font-size: 12px; font-weight: 600;
+    color: var(--ink-secondary, var(--text-secondary));
+    font-variant-numeric: tabular-nums;
+}
+.dash-wf-title {
+    font-size: 13px;
+    color: var(--ink-primary, var(--text-primary));
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+@media (max-width: 600px) {
+    .dash-wf-row { grid-template-columns: 80px auto 1fr; }
+}
+
+/* S5 다음 회고 안내 */
+.dash-next-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.dash-next-row {
+    display: flex; align-items: center; gap: var(--sp-2);
+    padding: var(--sp-3); border-radius: var(--radius);
+    cursor: pointer;
+    transition: background var(--ease);
+}
+.dash-next-row:hover { background: var(--hover); }
+.dash-next-row-soon {
+    border-left: 3px solid var(--brand-primary, var(--accent-primary));
+    background: var(--brand-soft, rgba(91, 141, 239, 0.04));
+}
+.dash-next-icon {
+    width: 16px; height: 16px;
+    color: var(--ink-secondary, var(--text-secondary));
+    flex-shrink: 0;
+}
+.dash-next-layer {
+    font-size: 13px; font-weight: 500;
+    color: var(--ink-primary, var(--text-primary));
+    min-width: 80px;
+}
+.dash-next-date {
+    font-size: 12px;
+    color: var(--ink-secondary, var(--text-secondary));
+    font-variant-numeric: tabular-nums;
+}
+.dash-next-meta {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--brand-primary, var(--accent-primary));
+}
+
+/* S6 묵상의 결 */
+.dash-medit-row {
+    display: flex; align-items: center; gap: var(--sp-3);
+    padding: var(--sp-2) 0;
+}
+.dash-medit-line {
+    font-size: 14px;
+    color: var(--ink-primary, var(--text-primary));
+}
+.dash-medit-dots {
+    display: inline-flex; gap: 6px;
+    margin-left: auto;
+}
+.dash-medit-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: transparent;
+    border: 1px solid var(--border);
+    transition: all var(--ease);
+}
+.dash-medit-dot.filled {
+    background: var(--brand-primary, var(--accent-primary));
+    border-color: var(--brand-primary, var(--accent-primary));
+}
+.dash-medit-quiet {
+    font-size: 12px;
+    color: var(--ink-secondary, var(--text-secondary));
+    margin: var(--sp-2) 0 0;
 }
 

@@ -29,7 +29,7 @@ import { initializeSeedData } from '../seeds.js';
 // ── UI Views ──
 import { renderPrinciplesView } from './principles.js';
 import { renderGoalsView } from './goals.js';
-import { renderDashboardView } from './dashboard.js';
+import { renderDashboardView, renderTodayStartIntoView } from './dashboard.js';
 import { renderReportsView } from './reports.js';
 import { renderSettingsView } from './settings.js';
 import { renderPastMeditationsView } from './pastMeditations.js';
@@ -362,6 +362,10 @@ async function onVaultUnlocked(dek) {
     // 오늘 뷰 컴포넌트 마운트 + 데이터 로드 (핀 원칙 띠, 묵상 노트, 결단 패널)
     initTodayView({ userId: currentUserId, date: currentDate });
     await refreshTodayView({ userId: currentUserId, date: currentDate });
+    // 2026-05-13 재기획: view-today 위 "오늘의 시작" 영역(시간대 인사 + 핀 원칙 + 어제 질문 + 미열람 Q&A)
+    renderTodayStartIntoView(currentUserId).catch(e =>
+        console.warn('today-start render failed:', e)
+    );
 
     // 통합 타임라인 마운트 + 데이터 로드 (결단 박힌 슬롯, GCal 일정, 도트)
     initTimeline({
@@ -690,6 +694,8 @@ function switchView(viewId) {
     // utl-body가 화면에 그려진 직후에 호출돼야 scrollTop이 먹힘 → 다음 프레임에 실행.
     if (viewId === 'today') {
         requestAnimationFrame(() => scrollTimelineToNow());
+        // 2026-05-13 재기획: '오늘의 시작' 영역 (시간대 인사 + 핀 원칙 + 어제 질문) 갱신
+        renderTodayStartIntoView(currentUserId).catch(() => {});
     }
 
     // 모바일 사이드바 닫기

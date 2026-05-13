@@ -46,25 +46,24 @@ export async function renderDashboardView(userId) {
         return;
     }
 
-    // 데이터 fetching — 4개 영역 모두에 필요한 입력을 한 번에 모음
+    // 데이터 fetching — 모든 영역에 필요한 입력 한 번에
     const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     const today = new Date();
     const endDate = fmt(today);
     const past7 = new Date();
     past7.setDate(today.getDate() - 6);
     const startDate = fmt(past7);
-    const yesterday = new Date();
-    yesterday.setDate(today.getDate() - 1);
-    const yesterdayStr = fmt(yesterday);
 
-    const [pinned, yesterdayReport, dots, meditationCount, persons, orgs] = await Promise.all([
-        getPinnedPrinciple(dek, userId).catch(() => null),
-        getDayReport(dek, userId, yesterdayStr).catch(() => null),
+    const [dots, meditationCount, persons, orgs, workflows] = await Promise.all([
         getDotsByDateRange(dek, userId, startDate, endDate).catch(() => []),
         countMeditations(userId, startDate, endDate).catch(() => 0),
         getAllPersons(dek, userId).catch(() => []),
         getAllOrganizations(dek, userId).catch(() => []),
+        // 워크플로우 트랙 STEP 2 활용 — 활성 등산로 진척
+        import('../data/workflowsRepo.js').then(m => m.getActiveWorkflows(dek, userId)).catch(() => []),
     ]);
+    // 핀 원칙은 S6 묵상의 결에 살짝 비춰주려고만 — view-today의 오늘의 시작이 메인 책임
+    const pinned = await getPinnedPrinciple(dek, userId).catch(() => null);
 
     // 통독 진도는 외부 fetch 없음 — 활성 plan + anchor로 즉시 계산
     const bibleProgressView = computePlanProgress(getActivePlan());
@@ -72,13 +71,38 @@ export async function renderDashboardView(userId) {
     // 페이지 재진입 시 AI 캐시 초기화 — 다음 클릭에서 새 데이터로 다시 호출
     _aiBriefCache = null;
 
-    renderTodayStart(pinned, yesterdayReport);
-    renderCallSection(dots);                            // D-4: 토요일 CTA / 빈 상태 가이드
-    renderProseLine(dots, pinned, persons, orgs);       // E-2: AI 듣기 인자 전달
-    renderPeopleSection(dots, persons, orgs);           // D-3: 이번 주 관계의 결
+    // 2026-05-13 재기획: renderTodayStart 와 renderCallSection 은 view-today 책임으로 이동.
+    // 대시보드는 "삶 전체 큰 그림" — S2~S7 카드만.
+    renderProseLine(dots, pinned, persons, orgs);       // S2 — 산문 + AI 듣기
+    // S3 목표 트리 = renderGoalsView(userId) — switchView 에서 별도 호출 (옛 패턴 유지)
+    renderActiveWorkflowsCard(workflows);                // S4 — 활성 등산로 진척 (신규)
+    renderNextReviewsCard(dots);                         // S5 — 다음 회고 안내 (신규)
+    renderMeditationRhythmCard(meditationCount);         // S6 — 묵상의 결 (신규)
+    renderPeopleSection(dots, persons, orgs);            // 이번 주 관계의 결
     renderNumberCards(dots, bibleProgressView, meditationCount);
     bindNumbersToggle();
+    bindDashboardQuickNav();                             // 카드 헤더 chevron 바로가기
 
+    if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
+}
+
+/**
+ * (2026-05-13) view-today 위 "오늘의 시작" 영역을 위한 진입.
+ * 대시보드와 분리 — view-today 진입 시 호출. 같은 #today-start-content id 재사용.
+ */
+export async function renderTodayStartIntoView(userId) {
+    window.__sanctumUserId = userId;
+    const dek = getDEK();
+    if (!dek) return;
+    const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = fmt(yesterday);
+    const [pinned, yesterdayReport] = await Promise.all([
+        getPinnedPrinciple(dek, userId).catch(() => null),
+        getDayReport(dek, userId, yesterdayStr).catch(() => null),
+    ]);
+    renderTodayStart(pinned, yesterdayReport);
     if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
 }
 
@@ -718,6 +742,173 @@ async function getPinnedPrinciple(dek, userId) {
         console.warn('pinned principle load failed:', e);
         return null;
     }
+}
+
+// ─── S4) 활성 등산로 진척 카드 (2026-05-13 신규) ────────────
+function renderActiveWorkflowsCard(workflows) {
+    const root = document.getElementById('dashboard-workflows');
+    if (!root) return;
+
+    if (!workflows || workflows.length === 0) {
+        root.innerHTML = `
+            <p class="dash-prose-quiet">
+                활성 등산로(워크플로우)가 아직 없어요.
+                오늘 화면의 [등산로] 카드에서 만들어 보세요.
+            </p>
+        `;
+        return;
+    }
+
+    const rows = workflows.map(wf => {
+        const steps = Array.isArray(wf.steps) ? wf.steps : [];
+        const total = steps.length || 1;
+        const done = steps.filter(s => s.status === 'done').length;
+        const pct = Math.round((done / total) * 100);
+        return `
+            <div class="dash-wf-row">
+                <div class="dash-wf-bar"><div class="dash-wf-bar-fill" style="width:${pct}%"></div></div>
+                <span class="dash-wf-progress">${done}/${total}</span>
+                <span class="dash-wf-title">${escapeHtml(wf.title || '(이름 없는 등산로)')}</span>
+            </div>
+        `;
+    }).join('');
+
+    root.innerHTML = `<div class="dash-wf-list">${rows}</div>`;
+}
+
+// ─── S5) 다음 회고 안내 카드 (2026-05-13 신규) ──────────────
+function renderNextReviewsCard(dots) {
+    const root = document.getElementById('dashboard-next-reviews');
+    if (!root) return;
+
+    // 다음 토요일(주간), 다음 월말 토요일(월간), 다음 분기말(3·6·9·12월), 다음 12월말(연간)
+    const today = new Date();
+    const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const dayName = (d) => ['일', '월', '화', '수', '목', '금', '토'][d.getDay()];
+
+    const nextSaturday = (() => {
+        const d = new Date(today);
+        const diff = (6 - d.getDay() + 7) % 7 || 7;
+        d.setDate(d.getDate() + diff);
+        return d;
+    })();
+    const lastSatOfMonth = (() => {
+        const d = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        const diff = (d.getDay() - 6 + 7) % 7;
+        d.setDate(d.getDate() - diff);
+        if (d < today) {
+            // 이번 달 마지막 토요일이 이미 지났으면 다음 달 마지막 토요일
+            const next = new Date(today.getFullYear(), today.getMonth() + 2, 0);
+            const nd = (next.getDay() - 6 + 7) % 7;
+            next.setDate(next.getDate() - nd);
+            return next;
+        }
+        return d;
+    })();
+    const nextQuarterEnd = (() => {
+        const quarters = [2, 5, 8, 11]; // 3월(2), 6월(5), 9월(8), 12월(11)
+        for (const m of quarters) {
+            for (let y = today.getFullYear(); y <= today.getFullYear() + 1; y++) {
+                const d = new Date(y, m + 1, 0);
+                const diff = (d.getDay() - 6 + 7) % 7;
+                d.setDate(d.getDate() - diff);
+                if (d >= today) return d;
+            }
+        }
+        return null;
+    })();
+
+    const dotsCount = (dots || []).length;
+    const rows = [
+        { layer: '주간', d: nextSaturday, tab: 'week', highlight: true },
+        { layer: '월간', d: lastSatOfMonth, tab: 'month' },
+        { layer: '분기', d: nextQuarterEnd, tab: 'quarter' },
+    ].filter(r => r.d);
+
+    root.innerHTML = `
+        <ul class="dash-next-list">
+            ${rows.map(r => `
+                <li class="dash-next-row ${r.highlight ? 'dash-next-row-soon' : ''}" data-go="reports:${r.tab}">
+                    <i class="dash-next-icon" data-lucide="calendar-days"></i>
+                    <span class="dash-next-layer">${r.layer} 회고</span>
+                    <span class="dash-next-date">${fmt(r.d)} (${dayName(r.d)})</span>
+                    ${r.highlight ? `<span class="dash-next-meta">모인 도트 ${dotsCount}개 미리보기</span>` : ''}
+                </li>
+            `).join('')}
+        </ul>
+    `;
+}
+
+// ─── S6) 묵상의 결 카드 (2026-05-13 신규) ──────────────────
+// 강제 X 스트릭 X — 그저 관찰. "걸어다니는 성경" 정체성.
+async function renderMeditationRhythmCard(meditationCount) {
+    const root = document.getElementById('dashboard-meditation-rhythm');
+    if (!root) return;
+
+    // 7일 점 (이번 주 묵상 일수 만큼만 채움) — 평가/판단 표현 X
+    const filled = Math.max(0, Math.min(7, meditationCount || 0));
+    const dotsHtml = Array.from({ length: 7 }).map((_, i) =>
+        `<span class="dash-medit-dot ${i < filled ? 'filled' : ''}"></span>`
+    ).join('');
+
+    root.innerHTML = `
+        <div class="dash-medit-row">
+            <span class="dash-medit-line">이번 주 묵상 <strong>${filled}일</strong></span>
+            <div class="dash-medit-dots" aria-hidden="true">${dotsHtml}</div>
+        </div>
+        <p class="dash-medit-quiet">오늘의 말씀이 펼쳐져 있어요.</p>
+    `;
+}
+
+// ─── 카드 헤더 바로가기 chevron 이벤트 위임 (2026-05-13 신규) ───
+// data-go="today:section-id" or data-go="reports:week" or data-go="reports"
+function bindDashboardQuickNav() {
+    const view = document.getElementById('view-dashboard');
+    if (!view) return;
+    // 한 번만 박힘 — 같은 컨테이너에 다시 위임 시 중복 방지
+    if (view.dataset.quicknavBound === '1') return;
+    view.dataset.quicknavBound = '1';
+
+    view.addEventListener('click', (e) => {
+        const btn = e.target.closest('.dash-card-quicknav, .dash-next-row[data-go]');
+        if (!btn) return;
+        const target = btn.dataset.go;
+        if (!target) return;
+        handleDashboardQuickNav(target);
+    });
+}
+
+function handleDashboardQuickNav(target) {
+    if (typeof window.__sanctumSwitchView !== 'function') return;
+
+    // "today:section-workflows" 형태 — view-today 진입 + 해당 섹션으로 스크롤
+    if (target.startsWith('today:')) {
+        const sectionId = target.slice('today:'.length);
+        window.__sanctumSwitchView('today');
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                document.getElementById(sectionId)
+                    ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        });
+        return;
+    }
+
+    // "reports:week" — 리포트 메뉴 + 해당 탭 활성화
+    if (target.startsWith('reports:')) {
+        const tab = target.slice('reports:'.length);
+        window.__sanctumSwitchView('reports');
+        // 리포트 탭 활성화 — 다음 프레임에 탭 버튼 클릭 시뮬레이션
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                document.querySelector(`.report-tabs .tab-btn[data-tab="${tab}"]`)?.click();
+            });
+        });
+        return;
+    }
+
+    // 단순 view 이름
+    window.__sanctumSwitchView(target);
 }
 
 // ─── utils ────────────────────────────────────────────────
