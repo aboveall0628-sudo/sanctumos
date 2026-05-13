@@ -5364,6 +5364,383 @@ svg.person-radar { display: block; }
     .today-tx-cat { display: none; }
 }
 
+/* ════════════════════════════════════════════════════════════
+   분별의 자리 (B-1 의사결정 시스템, 2026-05-13)
+   모노톤 베이스 + brand 단일 톤 accent. 강한 색 충돌 금지.
+   reference_design_tone_2026_05.md 원칙 적용.
+   ════════════════════════════════════════════════════════════ */
+
+body.dg-open { overflow: hidden; }
+
+.dg-overlay {
+    position: fixed; inset: 0; z-index: 1000;
+    background: rgba(40, 40, 35, 0.4);
+    display: flex;
+    transition: opacity var(--ease);
+}
+.dg-overlay.hidden { display: none; }
+
+/* 자유 모드 — 우측 슬라이드 패널 */
+.dg-overlay.dg-mode-free { justify-content: flex-end; }
+.dg-overlay.dg-mode-free .dg-panel {
+    width: 480px;
+    max-width: 100%;
+    height: 100vh;
+    border-radius: 0;
+    border-left: 1px solid var(--line);
+    animation: dg-slide-in var(--ease);
+}
+@keyframes dg-slide-in {
+    from { transform: translateX(40px); opacity: 0; }
+    to   { transform: translateX(0);    opacity: 1; }
+}
+
+/* 목표 수정 모드 — 풀스크린 중앙 모달 (강제감) */
+.dg-overlay.dg-mode-goal-edit { justify-content: center; align-items: center; padding: var(--sp-5); }
+.dg-overlay.dg-mode-goal-edit .dg-panel {
+    width: 620px;
+    max-width: 100%;
+    max-height: calc(100vh - var(--sp-6));
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow-lg);
+}
+
+.dg-panel {
+    background: var(--surface-card);
+    color: var(--ink-primary);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.dg-head {
+    position: relative;
+    padding: var(--sp-5) var(--sp-5) var(--sp-4);
+    border-bottom: 1px solid var(--line);
+}
+.dg-mode-chip {
+    display: inline-block;
+    font-size: var(--fs-caption);
+    color: var(--accent);
+    background: var(--accent-soft);
+    padding: 2px var(--sp-2);
+    border-radius: var(--radius-pill);
+    margin-bottom: var(--sp-2);
+    letter-spacing: 0.02em;
+}
+.dg-head h2 {
+    font-family: "Noto Serif KR", "Pretendard Variable", serif;
+    font-size: var(--fs-display);
+    font-weight: 400;
+    line-height: var(--lh-heading);
+    margin: 0 0 var(--sp-2);
+}
+.dg-sub {
+    font-size: var(--fs-small);
+    color: var(--ink-secondary);
+    margin: 0;
+    line-height: var(--lh-body);
+}
+.dg-close-btn {
+    position: absolute; top: var(--sp-3); right: var(--sp-3);
+    width: 32px; height: 32px;
+    border: none; background: transparent;
+    color: var(--ink-secondary);
+    font-size: 22px; line-height: 1; cursor: pointer;
+    border-radius: var(--radius-sm);
+}
+.dg-close-btn:hover { background: var(--hover); color: var(--ink-primary); }
+
+.dg-section {
+    padding: var(--sp-4) var(--sp-5);
+    border-bottom: 1px solid var(--line);
+}
+.dg-section:last-of-type { border-bottom: none; }
+
+.dg-section-title {
+    font-size: var(--fs-body);
+    font-weight: 600;
+    margin: 0 0 var(--sp-2);
+    color: var(--ink-primary);
+}
+.dg-section-desc {
+    font-size: var(--fs-small);
+    color: var(--ink-secondary);
+    margin: 0 0 var(--sp-3);
+}
+.dg-field-label {
+    display: block;
+    font-size: var(--fs-small);
+    font-weight: 500;
+    color: var(--ink-secondary);
+    margin-bottom: var(--sp-2);
+}
+.dg-textarea {
+    width: 100%;
+    padding: var(--sp-3);
+    font-family: var(--font);
+    font-size: var(--fs-body);
+    color: var(--ink-primary);
+    background: var(--surface-canvas);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    resize: vertical;
+    line-height: var(--lh-body);
+}
+.dg-textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: var(--surface-card);
+}
+
+/* 원칙 카드 — soft chip 톤 */
+.dg-principles-list {
+    display: flex; flex-direction: column; gap: var(--sp-2);
+}
+.dg-principle-card {
+    text-align: left;
+    padding: var(--sp-3);
+    background: var(--surface-canvas);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: background var(--ease), border-color var(--ease);
+    font-family: inherit;
+}
+.dg-principle-card:hover {
+    border-color: var(--accent);
+    background: var(--surface-card);
+}
+.dg-principle-card.selected {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    border-left: 3px solid var(--accent);
+    padding-left: calc(var(--sp-3) - 2px);
+}
+.dg-principle-head {
+    display: flex; align-items: center; gap: var(--sp-2);
+    margin-bottom: var(--sp-1);
+}
+.dg-principle-title {
+    font-size: var(--fs-body);
+    font-weight: 500;
+    flex: 1;
+    color: var(--ink-primary);
+}
+.dg-strength-chip {
+    font-size: var(--fs-caption);
+    padding: 2px var(--sp-2);
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--line);
+    color: var(--ink-secondary);
+    background: var(--surface-card);
+    white-space: nowrap;
+}
+.dg-strength-chip.dg-strength-core {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-soft);
+}
+.dg-strength-chip.dg-strength-primary {
+    color: var(--ink-secondary);
+    border-color: var(--line);
+}
+.dg-strength-chip.dg-strength-reference {
+    color: var(--ink-tertiary);
+    border-style: dashed;
+}
+.dg-principle-meta {
+    display: flex; align-items: center; gap: var(--sp-2);
+    font-size: var(--fs-small);
+    color: var(--ink-secondary);
+}
+.dg-cat-chip {
+    font-size: var(--fs-caption);
+    color: var(--ink-tertiary);
+    padding: 1px var(--sp-2);
+    background: var(--surface-elevated);
+    border-radius: var(--radius-sm);
+}
+.dg-principle-body { color: var(--ink-secondary); flex: 1; overflow: hidden; text-overflow: ellipsis; }
+
+/* 판례 카드 */
+.dg-precedents-list { display: flex; flex-direction: column; gap: var(--sp-2); }
+.dg-precedent-card {
+    text-align: left;
+    padding: var(--sp-3);
+    background: var(--surface-canvas);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-family: inherit;
+}
+.dg-precedent-card:hover { border-color: var(--accent); }
+.dg-precedent-card.attached {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+}
+.dg-precedent-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: var(--sp-1);
+}
+.dg-precedent-date { font-size: var(--fs-caption); color: var(--ink-tertiary); }
+.dg-attached-mark { font-size: var(--fs-caption); color: var(--accent); }
+.dg-precedent-situation {
+    font-size: var(--fs-small); color: var(--ink-secondary);
+    margin-bottom: var(--sp-1); line-height: var(--lh-body);
+}
+.dg-precedent-decision {
+    font-size: var(--fs-small); color: var(--ink-primary);
+    line-height: var(--lh-body);
+}
+
+.dg-empty, .dg-empty-soft {
+    text-align: center;
+    padding: var(--sp-4);
+    color: var(--ink-secondary);
+    font-size: var(--fs-small);
+    background: var(--surface-canvas);
+    border: 1px dashed var(--line);
+    border-radius: var(--radius);
+    margin: 0;
+}
+.dg-empty-soft { background: transparent; border: none; padding: var(--sp-3) 0; }
+.dg-empty a { color: var(--accent); text-decoration: underline; }
+
+/* 기도/묵상 훅 */
+.dg-prayer-row { background: var(--surface-canvas); }
+.dg-checkbox-label {
+    display: flex; align-items: center; gap: var(--sp-2);
+    font-size: var(--fs-small); color: var(--ink-primary);
+    cursor: pointer;
+}
+.dg-prayer-hint {
+    margin: var(--sp-2) 0 0;
+    font-size: var(--fs-caption);
+    color: var(--ink-tertiary);
+    line-height: var(--lh-body);
+}
+
+/* 푸터 */
+.dg-foot {
+    position: sticky; bottom: 0;
+    display: flex; justify-content: flex-end; gap: var(--sp-2);
+    padding: var(--sp-4) var(--sp-5);
+    background: var(--surface-card);
+    border-top: 1px solid var(--line);
+}
+.dg-text-btn {
+    padding: var(--sp-2) var(--sp-3);
+    background: transparent;
+    color: var(--ink-secondary);
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-family: inherit; font-size: var(--fs-small);
+}
+.dg-text-btn:hover { color: var(--ink-primary); }
+.dg-primary-btn {
+    padding: var(--sp-2) var(--sp-4);
+    background: var(--accent-soft);
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-family: inherit; font-size: var(--fs-small); font-weight: 500;
+}
+.dg-primary-btn:hover { background: var(--accent); color: white; }
+.dg-primary-btn:disabled { opacity: 0.5; cursor: wait; }
+
+/* ── 헤더 바로가기 아이콘 (분별의 펜) ── */
+.dg-shortcut-wrap {
+    position: fixed; top: var(--sp-3); right: 56px;
+    z-index: 90;
+}
+.dg-shortcut-btn {
+    width: 36px; height: 36px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--surface-card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    color: var(--ink-secondary);
+    cursor: pointer;
+    transition: color var(--ease), border-color var(--ease);
+}
+.dg-shortcut-btn:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+}
+.dg-shortcut-btn i { width: 18px; height: 18px; }
+
+/* ── view-today 안 카드 (분별의 자리 카드) ── */
+.dg-today-card {
+    display: flex; align-items: center; gap: var(--sp-3);
+    padding: var(--sp-3) var(--sp-4);
+    margin: var(--sp-3) 0;
+    background: var(--surface-card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: border-color var(--ease), background var(--ease);
+    text-align: left;
+    width: 100%;
+    font-family: inherit;
+}
+.dg-today-card:hover {
+    border-left: 3px solid var(--accent);
+    padding-left: calc(var(--sp-4) - 2px);
+    background: var(--surface-canvas);
+}
+.dg-today-card-icon {
+    width: 32px; height: 32px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-radius: var(--radius-sm);
+    flex-shrink: 0;
+}
+.dg-today-card-icon i { width: 18px; height: 18px; }
+.dg-today-card-body { flex: 1; }
+.dg-today-card-title {
+    font-size: var(--fs-body);
+    font-weight: 500;
+    color: var(--ink-primary);
+    margin: 0 0 2px;
+}
+.dg-today-card-sub {
+    font-size: var(--fs-small);
+    color: var(--ink-secondary);
+    margin: 0;
+}
+.dg-today-card-arrow {
+    color: var(--ink-tertiary);
+    font-size: 18px;
+}
+
+/* ── 목표 카드 안 "분별의 자리" 명시 진입 버튼 ── */
+.goal-discernment-btn {
+    display: inline-flex; align-items: center; gap: var(--sp-1);
+    padding: 4px var(--sp-2);
+    font-size: var(--fs-caption);
+    background: transparent;
+    color: var(--ink-secondary);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-family: inherit;
+}
+.goal-discernment-btn:hover { color: var(--accent); border-color: var(--accent); }
+.goal-discernment-btn i { width: 14px; height: 14px; }
+
+/* 모바일 — 슬라이드 패널을 풀폭으로, 모달도 거의 풀폭으로 */
+@media (max-width: 600px) {
+    .dg-overlay.dg-mode-free .dg-panel { width: 100%; }
+    .dg-overlay.dg-mode-goal-edit { padding: var(--sp-3); }
+    .dg-shortcut-wrap { right: 56px; top: var(--sp-2); }
+    .dg-shortcut-btn { width: 32px; height: 32px; }
+}
+
 /* ═══════════════════════════════════════
    워크플로우 트랙 STEP 2 — 등산로 카드 (2026-05-13)
    디자인 디테일은 디자인 시스템 점검 세션에서 일괄 정리 예정. 여기선 기본만.

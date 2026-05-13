@@ -95,11 +95,17 @@ export async function getActiveVersion(dek, userId, goalId) {
  * @param {Object} opts
  *   - revisionReason: 의사결정 게이트가 채울 자리. 자동 감지면 빈 문자열.
  *   - source: 'self_report' | 'ai_inferred' | 'system_auto' (자동 감지 시 'system_auto')
+ *   - sourcePrecedentId: (B-1) 이 버전을 만든 판례 id. 게이트 통과 시 채움.
  *   - now: Date.now() override (테스트용)
  * @returns {Promise<{ id, versionNumber }>}
  */
 export async function createNextVersion(dek, goal, opts = {}) {
-    const { revisionReason = '', source = 'system_auto', now = Date.now() } = opts;
+    const {
+        revisionReason = '',
+        source = 'system_auto',
+        sourcePrecedentId = null,
+        now = Date.now()
+    } = opts;
     if (!goal?.id || !goal?.userId) {
         throw new Error('createNextVersion: goal.id / goal.userId required');
     }
@@ -122,7 +128,8 @@ export async function createNextVersion(dek, goal, opts = {}) {
         validTo: null,
         source,
         snapshotData: corePayload(goal),
-        revisionReason
+        revisionReason,
+        sourcePrecedentId
     };
     await saveRecord(dek, PATH, record, id);
     return { id, versionNumber };

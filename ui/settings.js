@@ -165,6 +165,26 @@ function injectExtraSections() {
     const container = document.getElementById('settings-container');
     if (!container || document.getElementById('settings-extra-injected')) return;
 
+    // (B-4 본인 프로필 트랙 2026-05-13) "내 프로필" 진입 카드 — 가장 위 자리.
+    //   사이드바 메뉴와 더불어 설정 안에서도 한 번 더 진입 가능.
+    if (!document.getElementById('settings-self-profile-card')) {
+        const selfCard = document.createElement('div');
+        selfCard.id = 'settings-self-profile-card';
+        selfCard.className = 'card-section';
+        selfCard.innerHTML = `
+            <h3 class="section-title"><i class="section-icon" data-lucide="user-circle"></i> 내 프로필</h3>
+            <p class="section-desc">
+                "나는 누구인가" 한 자리에 모아두는 카드예요. 5년·10년 회고의 기준점이 됩니다.
+                필드별로 공개 두께(🌍 공개 / 🤝 친한 사이 / 🔒 비공개)도 함께 정해두실 수 있어요.
+            </p>
+            <button id="btn-open-self-profile" class="primary-btn" style="margin-top:8px;">
+                <i data-lucide="user-circle" class="btn-icon"></i> 내 프로필 열기
+            </button>
+        `;
+        // 가장 첫 자리에 끼워넣기
+        container.insertBefore(selfCard, container.firstChild);
+    }
+
     // 진단 카드 안에 v1 식별자 입력 추가
     const diagBox = document.getElementById('migration-status-box');
     if (diagBox && !document.getElementById('v1-id-input')) {
@@ -488,6 +508,15 @@ async function bindEconomyThresholdSettings() {
 }
 
 function bindEvents() {
+    // (B-4 본인 프로필 트랙 2026-05-13) "내 프로필 열기" 버튼 — view-self-profile 로 전환
+    const btnOpenSelf = document.getElementById('btn-open-self-profile');
+    if (btnOpenSelf) {
+        btnOpenSelf.addEventListener('click', () => {
+            if (typeof window.__sanctumNav === 'function') window.__sanctumNav('self-profile');
+            else if (typeof window.__sanctumSwitchView === 'function') window.__sanctumSwitchView('self-profile');
+        });
+    }
+
     const btnDiagnose = document.getElementById('btn-diagnose');
     const btnMigrate = document.getElementById('btn-migrate');
     const btnBackup = document.getElementById('btn-backup');

@@ -35,6 +35,7 @@ import { renderReportsView } from './reports.js';
 import { renderSettingsView } from './settings.js';
 import { renderPastMeditationsView } from './pastMeditations.js';
 import { renderPersonsView } from './personCard.js';
+import { renderSelfProfileView } from './selfProfile.js';
 import { renderOrganizationsView } from './orgCard.js';
 import { renderEconomyView, getTodaysTxSummary } from './economy.js';
 import { openQuickAdd as openEconomyQuickAdd } from './economyQuickAdd.js';
@@ -43,6 +44,8 @@ import { getBucketSettings } from '../data/economyRepo.js';
 // Phase E-7: 우측 상단 알람 종 + 자동 알람 생성기
 import { initRemindersUI, refreshRemindersUI } from './reminders.js';
 import { generateAllAutoReminders } from '../data/reminderGenerator.js';
+// B-1 의사결정 시스템 (2026-05-13): 분별의 자리 — 헤더 아이콘 + view-today 카드
+import { mountDecisionGate } from './decisionGate.js';
 // 단축키 / 모달 매니저 — Phase E-9 (Step 1)
 import { initShortcuts } from '../shortcuts/router.js';
 
@@ -424,6 +427,9 @@ async function onVaultUnlocked(dek) {
 
     // Phase E-7: 알람 UI 마운트 + 자동 알람 4종 생성 (background, 실패해도 메인은 안 막힘)
     initRemindersUI(currentUserId).catch(e => console.warn('reminders UI init failed:', e));
+
+    // B-1 의사결정 시스템 (2026-05-13): 분별의 자리 — 헤더 아이콘 + view-today 카드 바인딩
+    try { mountDecisionGate(currentUserId); } catch (e) { console.warn('[B-1] decisionGate mount failed:', e); }
     generateAllAutoReminders(dek, currentUserId, currentDate)
         .then((result) => {
             const g = result?.generated || {};
@@ -530,6 +536,7 @@ function setupNavigation() {
         'nav-past': 'past',
         'nav-principles': 'principles',
         'nav-reports': 'reports',
+        'nav-self-profile': 'self-profile',
         'nav-persons': 'persons',
         'nav-organizations': 'organizations',
         'nav-economy': 'economy',
@@ -701,6 +708,8 @@ function switchView(viewId) {
         renderSettingsView(currentUserId, currentUserEmail);
     } else if (viewId === 'persons') {
         renderPersonsView(currentUserId);
+    } else if (viewId === 'self-profile') {
+        renderSelfProfileView(currentUserId);
     } else if (viewId === 'organizations') {
         renderOrganizationsView(currentUserId);
     } else if (viewId === 'economy') {

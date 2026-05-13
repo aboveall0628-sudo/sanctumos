@@ -9,6 +9,8 @@
 import { getAllGoals, saveGoal, deleteGoal } from '../data/goalsRepo.js';
 import { getDEK } from './lockScreen.js';
 import { showToast } from './quickReview.js';
+// B-1 의사결정 시스템 (2026-05-13): 분별의 자리 — 폐기 자동 게이트 + 명시 진입
+import { openDecisionGate } from './decisionGate.js';
 
 // icon 필드는 Lucide name (디자인 시스템 정합)
 const PERIOD_LABELS = {
@@ -174,7 +176,10 @@ function renderGoalCard(g) {
             <div class="goal-card-footer">
                 <span class="goal-card-meta">${g.progress != null ? `진행 ${g.progress}%` : '진행률은 곧 자동으로 보여요'}</span>
                 <div class="goal-card-actions">
-                    <button class="icon-btn extinguish-btn" title="이 목표 그만두기 (추모비로 보존)">🪦</button>
+                    <button class="goal-discernment-btn" title="분별의 자리 — 결정을 한 번 들여다보기" type="button">
+                        📜 분별
+                    </button>
+                    <button class="icon-btn extinguish-btn" title="이 목표 그만두기 (분별 후 추모비로 보존)">🪦</button>
                     <button class="icon-btn delete-btn" title="완전 삭제 (흔적 없음)">🗑</button>
                 </div>
             </div>
@@ -242,32 +247,55 @@ function bindPanelEvents(panel) {
             }
         });
 
-        // (2026-05-13 HC#1 추모비) 🪦 그만두기 — 추모비로 보존 + 목표 archived.
+        // (2026-05-13 HC#1 추모비 + B-1) 🪦 그만두기 — 분별의 자리 자동 호출 →
+        // 게이트가 saveGoal(status:archived) + revisionReason + sourcePrecedentId 박음
+        // → onDecided 콜백이 추모비 저장 (saveGoal 중복 방지로 skipGoalUpdate=true)
         const extinguishBtn = card.querySelector('.extinguish-btn');
-        extinguishBtn?.addEventListener('click', async () => {
+        extinguishBtn?.addEventListener('click', () => {
             const goal = _goals.find(g => g.id === id);
             if (!goal) return;
-            const note = prompt(
-                `"${goal.title || '(이름 없는 목표)'}" 를 그만두시겠어요?\n` +
-                `남기고 싶은 한 줄이 있다면 적어 주세요 (생략 가능).\n\n` +
-                `이 목표의 흔적은 추모비로 보존돼요. [지나간 목표]에서 다시 볼 수 있어요.`,
-                ''
-            );
-            if (note === null) return; // 취소
-            const dek = getDEK();
-            if (!dek) { showToast('잠시 잠겨 있어요. 비밀번호로 열어 주실래요?'); return; }
-            try {
-                const { extinguishGoalToMemorial } = await import('../data/memorialsRepo.js');
-                await extinguishGoalToMemorial(dek, _userId, goal, { userNote: note });
-                // 화면 갱신 — 로컬 캐시도 archived 표시
-                const g2 = _goals.find(x => x.id === id);
-                if (g2) g2.status = 'archived';
-                renderActivePanel(document.getElementById('goals-container'));
-                showToast('🪦 추모비에 보관했어요. [지나간 목표]에서 다시 볼 수 있어요.');
-            } catch (e) {
-                console.error('extinguish failed:', e);
-                showToast('지금은 추모비에 보관이 잠깐 막혔어요.');
-            }
+            openDecisionGate({
+                userId: _userId,
+                mode: 'goal-edit',
+                presetGoal: goal,
+                pendingGoalChanges: { status: 'archived', archivedAt: new Date().toISOString() },
+                onDecided: async ({ precedentId, applied, revisedGoal }) => {
+                    if (!applied) return; // 사용자가 게이트 닫고 적용 안 했으면 무동작
+                    const dek = getDEK();
+                    if (!dek) { showToast('잠시 잠겨 있어요. 비밀번호로 열어 주실래요?'); return; }
+                    try {
+                        const { extinguishGoalToMemorial } = await import('../data/memorialsRepo.js');
+                        await extinguishGoalToMemorial(dek, _userId, revisedGoal || goal, {
+                            userNote: '', // 결정 본문은 판례에 박힘. 추모비 userNote 는 별도 자유 메모로 비워둠.
+                            triggeredByPrecedentId: precedentId,
+                            skipGoalUpdate: true  // 게이트가 이미 saveGoal 호출
+                        });
+                        // 화면 갱신 — 로컬 캐시도 archived 표시
+                        const g2 = _goals.find(x => x.id === id);
+                        if (g2) g2.status = 'archived';
+                        renderActivePanel(document.getElementById('goals-container'));
+                        showToast('🪦 분별의 자리에 결정을 박고, 추모비에 보관했어요.');
+                    } catch (e) {
+                        console.error('extinguish after gate failed:', e);
+                        showToast('추모비 보관이 잠깐 막혔어요. 분별 기록은 안전해요.');
+                    }
+                }
+            });
+        });
+
+        // (B-1) 📜 분별 버튼 — 자유 모드 게이트. 이 목표를 linkedGoal 로 박음.
+        const discernBtn = card.querySelector('.goal-discernment-btn');
+        discernBtn?.addEventListener('click', () => {
+            const goal = _goals.find(g => g.id === id);
+            if (!goal) return;
+            openDecisionGate({
+                userId: _userId,
+                mode: 'free',
+                presetGoal: goal,
+                onDecided: () => {
+                    showToast('📜 분별의 자리에 보관했어요.');
+                }
+            });
         });
     });
 }

@@ -29,10 +29,11 @@ const PERIODS = ['daily', 'weekly', 'monthly', 'quarterly', 'yearly', '5year', '
  * @param {Object} [opts]
  *   - skipVersioning: 자동 버전 감지 끔
  *   - revisionReason: 의사결정 게이트가 채울 자리 (B1 트랙)
+ *   - sourcePrecedentId: (B-1) 이 변경을 만든 판례 id. 게이트 통과 시 채움.
  *   - source: 'self_report' | 'ai_inferred' | 'system_auto'
  */
 export async function saveGoal(dek, goalData, opts = {}) {
-    const { skipVersioning = false, revisionReason = '', source } = opts;
+    const { skipVersioning = false, revisionReason = '', sourcePrecedentId = null, source } = opts;
 
     if (!skipVersioning && dek && goalData?.id && goalData?.userId) {
         try {
@@ -42,6 +43,7 @@ export async function saveGoal(dek, goalData, opts = {}) {
                 goalData.currentVersion = 1;
                 await createNextGoalVersion(dek, goalData, {
                     revisionReason,
+                    sourcePrecedentId,
                     source: source || 'self_report'
                 });
             } else if (!isSameGoalVersion(prev, goalData)) {
@@ -50,7 +52,8 @@ export async function saveGoal(dek, goalData, opts = {}) {
                 goalData.currentVersion = next;
                 await createNextGoalVersion(dek, goalData, {
                     revisionReason,
-                    source: source || 'system_auto'
+                    sourcePrecedentId,
+                    source: source || (sourcePrecedentId ? 'self_report' : 'system_auto')
                 });
             } else {
                 // 배치 상태 변경 등 — 버전 그대로 유지

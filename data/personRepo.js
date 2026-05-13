@@ -42,10 +42,17 @@ export async function getPerson(dek, userId, personId) {
 
 /**
  * 사용자의 모든 인물 카드 조회 (정렬: 최근 상호작용 → 이름)
+ *
+ * (B-4 본인 프로필 트랙 2026-05-13)
+ *   본인 카드(isSelf=true)는 디폴트로 제외 — 인물 화면·자동완성·통계 모두 "다른 사람들"이 대상.
+ *   본인 카드까지 포함하려면 opts.includeSelf=true 명시.
+ *   본인 카드만 단독으로 가져오려면 getSelfCard 사용.
  */
-export async function getAllPersons(dek, userId) {
+export async function getAllPersons(dek, userId, opts = {}) {
+    const includeSelf = !!opts.includeSelf;
     const persons = await queryRecords(dek, subPath(userId, SUB));
-    return persons.sort((a, b) => {
+    const filtered = includeSelf ? persons : persons.filter(p => !p.isSelf);
+    return filtered.sort((a, b) => {
         const ta = a.lastInteractionAt?.toMillis ? a.lastInteractionAt.toMillis() : 0;
         const tb = b.lastInteractionAt?.toMillis ? b.lastInteractionAt.toMillis() : 0;
         if (tb !== ta) return tb - ta;
@@ -126,6 +133,93 @@ export async function touchLastInteraction(dek, userId, personId) {
  */
 export async function deletePerson(userId, personId) {
     await deleteDoc(doc(db, 'users', userId, SUB, personId));
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  (B-4 본인 프로필 트랙 2026-05-13) 본인 카드 헬퍼
+//  ─────────────────────────────────────────────────────────────────────
+//  persons 컬렉션 안에 isSelf=true 카드를 단 1장 두고 본인 프로필을 표현.
+//  - getSelfCard: 본인 카드 1장 조회 (없으면 null)
+//  - ensureSelfCard: 본인 카드가 없으면 빈 카드 1장 생성 (첫 진입 자동)
+//  - saveSelfCard: 본인 카드 저장 (isSelf=true 강제, lastSelfUpdatedAt 자동 갱신)
+//  영적 은사 필드는 1차 제외 — project_gifts_talents_serving.md 별도 트랙.
+// ═══════════════════════════════════════════════════════════════════════
+
+const SELF_CARD_ID_PREFIX = 'person_self_';
+
+/**
+ * 본인 카드 1장 조회 — isSelf=true 인 카드 첫 매칭.
+ * @returns {Object|null}
+ */
+export async function getSelfCard(dek, userId) {
+    const all = await queryRecords(dek, subPath(userId, SUB));
+    return all.find(p => p.isSelf === true) || null;
+}
+
+/**
+ * 본인 카드 보장 — 없으면 빈 카드 1장 자동 생성.
+ *   첫 진입 시 호출 → 사용자가 점진적으로 채워나감.
+ *   "평가보다 인과" — 자동 점수화 X, 모든 본인 필드는 사용자가 직접 입력.
+ */
+export async function ensureSelfCard(dek, userId) {
+    const existing = await getSelfCard(dek, userId);
+    if (existing) return existing;
+
+    const now = new Date().toISOString();
+    const data = {
+        id: `${SELF_CARD_ID_PREFIX}${Date.now()}`,
+        isSelf: true,
+        // 정체성 1층 — 본인 기본값
+        name: '',                   // 사용자가 채움
+        nicknames: [],
+        relation: 'self',           // 'self' 마커
+        innerCircle: true,          // 본인은 항상 내 사람
+        stance: 'ally',             // 본인 stance 의미 없음, ally 디폴트
+        stanceHistory: [],
+        // Big5·능력 — 모두 null 로 시작 ("모르겠어요" 디폴트, 사용자 직접 입력)
+        bigFive: { O: null, C: null, E: null, A: null, N: null },
+        competencies: {},
+        relationship: { closeness: null, trust: null, friendliness: null, importance: null },
+        // 본인 전용 — 빈 값으로 시작
+        lifeStage: '',
+        currentCity: '',
+        homeChurch: '',
+        faithStartDate: '',
+        faithTone: '',
+        valueKeywords: [],
+        lifeMission: '',
+        interests: [],
+        identitySentence: '',
+        currentChallenges: [],
+        mbti: '',
+        // visibility 는 디폴트가 UI 상수로 박혀있어 비워두면 디폴트 적용
+        profileVisibility: {},
+        profileVersionIds: [],
+        // 메타
+        lastSelfUpdatedAt: now,
+        createdAt: now,
+        updatedAt: now,
+    };
+    await savePerson(dek, userId, data);
+    return data;
+}
+
+/**
+ * 본인 카드 저장 — isSelf=true 강제, lastSelfUpdatedAt 자동 갱신.
+ *   사용자가 "내 프로필" 화면에서 저장 누르면 호출.
+ */
+export async function saveSelfCard(dek, userId, data) {
+    const now = new Date().toISOString();
+    const payload = {
+        ...data,
+        isSelf: true,                  // 강제
+        lastSelfUpdatedAt: now,
+        updatedAt: now,
+    };
+    if (!payload.id) {
+        payload.id = `${SELF_CARD_ID_PREFIX}${Date.now()}`;
+    }
+    return savePerson(dek, userId, payload);
 }
 
 /**

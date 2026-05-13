@@ -108,6 +108,8 @@
                 <button class="sidebar-item" id="nav-principles"><i class="icon" data-lucide="book-open"></i> 나의 원칙</button>
                 <button class="sidebar-item" id="nav-reports"><i class="icon" data-lucide="trending-up"></i> 리포트</button>
                 <hr class="nav-divider">
+                <!-- B-4 본인 프로필 트랙 (2026-05-13): 사람 차원 묶음 첫 자리. 5y/10y 리포트 base case. -->
+                <button class="sidebar-item" id="nav-self-profile"><i class="icon" data-lucide="user-circle"></i> 내 프로필</button>
                 <button class="sidebar-item" id="nav-persons"><i class="icon" data-lucide="users"></i> 인물</button>
                 <button class="sidebar-item" id="nav-organizations"><i class="icon" data-lucide="building-2"></i> 조직</button>
                 <button class="sidebar-item" id="nav-economy"><i class="icon" data-lucide="wallet"></i> 경제</button>
@@ -123,6 +125,14 @@
         <div id="manual-lock-wrap" class="manual-lock-wrap hidden">
             <button id="manual-lock-btn" class="manual-lock-btn" title="앱 잠그기 (Ctrl+Shift+L)" aria-label="앱 즉시 잠그기">
                 <i data-lucide="lock"></i>
+            </button>
+        </div>
+
+        <!-- 우측 상단 분별의 자리 바로가기 (B-1 의사결정 시스템, 2026-05-13) — 잠금 해제 후에만 노출 -->
+        <div id="dg-shortcut-wrap" class="dg-shortcut-wrap hidden">
+            <button id="dg-shortcut-btn" class="dg-shortcut-btn" title="분별의 자리"
+                    aria-label="분별의 자리 열기">
+                <i data-lucide="scale"></i>
             </button>
         </div>
 
@@ -161,6 +171,16 @@
                         <i data-lucide="x"></i>
                     </button>
                 </div>
+
+                <!-- 분별의 자리 카드 (B-1 의사결정 시스템, 2026-05-13) — 매일 노출, 권유 톤 -->
+                <button type="button" id="dg-today-card" class="dg-today-card">
+                    <span class="dg-today-card-icon"><i data-lucide="scale"></i></span>
+                    <span class="dg-today-card-body">
+                        <span class="dg-today-card-title">오늘 마음에 걸리는 결정이 있나요?</span>
+                        <span class="dg-today-card-sub">5분만, 약속과 지난 결정을 같이 봐요</span>
+                    </span>
+                    <span class="dg-today-card-arrow">›</span>
+                </button>
 
                 <!-- 2026-05-13: 오늘의 시작 영역 — 대시보드에서 옮겨옴 (관제탑 정체성 정리).
                      시간대 인사 + 핀 원칙 + 어제 묵상 질문 + 미열람 Q&A 한자리. -->
@@ -424,6 +444,9 @@
                 </div>
                 <div id="reports-list" class="reports-list"></div>
             </div>
+
+            <!-- ── 본인 프로필 뷰 (B-4 트랙 2026-05-13) ── -->
+            <div id="view-self-profile" class="view hidden"></div>
 
             <!-- ── 인물 뷰 (v3-①) ── -->
             <div id="view-persons" class="view hidden"></div>

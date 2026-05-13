@@ -45,8 +45,54 @@ export const POLICY = {
         encrypted: ['content', 'decisions', 'prayer']
     },
     principles: {
-        plaintext: ['id', 'userId', 'category', 'pinned', 'active', 'createdAt', 'updatedAt'],
-        encrypted: ['title', 'body', 'triggerKeywords', 'derivedFromDotIds']
+        plaintext: [
+            'id', 'userId', 'category', 'pinned', 'active', 'createdAt', 'updatedAt',
+            // (B-1 트랙 2026-05-13) 원칙 강도. UI 라벨: "핵심/주요/참고" (config/principleEnums.js)
+            'strength',
+            // (B-1) 원칙 의미축 출처: user_value | scripture | book | ai_drafted_user_confirmed
+            // dot.source 와 의미축이 다름 — 도트는 데이터 출처, 원칙은 가치 출처.
+            'source',
+            // (B-1) 만든 주체. 'user' 또는 'ai_drafted_user_confirmed'
+            'createdBy'
+        ],
+        encrypted: [
+            'title', 'body', 'triggerKeywords', 'derivedFromDotIds',
+            // (B-1) 적용 조건 자유 텍스트 ("친구가 부탁할 때만" 등)
+            'conditions',
+            // (B-1) source=scripture/book 일 때 출처 메타
+            'scriptureRef', 'bookRef',
+            // (B-1) 양방향 인과 가지 — 이 원칙이 적용된 판례 / 도트
+            'linkedPrecedentIds', 'linkedDotIds',
+            // (B-1) 수정 로그: [{ revisedAt, previousBody, previousStrength, reason, triggeredBy:{type,reference} }]
+            'revisionLog'
+        ]
+    },
+    // (B-1 트랙 2026-05-13) 판례 — 의사결정 시스템 핵심.
+    // "평가보다 인과" 원칙: evaluation/outcome/satisfaction 필드 없음.
+    // 그때 상황 + 그때 결정 + 그 시점 원칙 스냅샷 + 인과 가지(linked*) 만.
+    precedents: {
+        plaintext: [
+            'id', 'userId',
+            'decidedAt',                 // 결정 시각 (timestamp)
+            'createdAt',
+            // 작성 주체: 'user' 또는 'ai_drafted_user_confirmed'
+            'source',
+            // 묵상 훅 — 결정 전 기도/묵상 함께 했는지 (boolean)
+            'prayerLogged'
+        ],
+        encrypted: [
+            'situation',                 // 그때 상황
+            'decision',                  // 그때 결정 내용
+            'contextNote',               // 자유 메모 (평가 아닌 "그때 그 결")
+            'principlesAtTime',          // [{ principleId, strengthAtTime, bodyAtTime }] 시점 스냅샷
+            'linkedPrincipleIds',        // 적용된 원칙들 (양방향)
+            'linkedDotIds',              // 결정 이후 발생한 도트들 (1차는 빈 배열, 후속 자동 박힘)
+            'linkedPrecedentIds',        // 이 판례에서 파생된 후속 판례
+            'linkedGoalId',              // 이 결정으로 만들거나 수정한 목표
+            'linkedGoalVersionId',       // 그 시점 GoalVersion id (R2 — 도피 행동화 추적 직결)
+            'linkedScriptureId',         // 묵상 훅 — 함께 본 말씀
+            'revisionLog'                // 판례 본문 수정 시
+        ]
     },
     goals: {
         plaintext: [
@@ -70,11 +116,14 @@ export const POLICY = {
         plaintext: [
             'id', 'userId', 'goalId', 'versionNumber',
             'validFrom', 'validTo',  // validTo=null 이면 현재 활성 버전
-            'source', 'createdAt'
+            'source', 'createdAt',
+            // (B-1 트랙 2026-05-13) 이 버전을 만든 판례 id. 의사결정 게이트가 채움.
+            // 자동 감지/시드 등 게이트 미경유면 null.
+            'sourcePrecedentId'
         ],
         encrypted: [
             'snapshotData',          // 그 시점 목표 전체 (title/description/parentGoalId/...)
-            'revisionReason'         // 의사결정 게이트가 채울 자리 (B1 트랙 대기). 자동 감지 시엔 빈 값.
+            'revisionReason'         // (B-1) 의사결정 게이트가 채움. 자동 감지 시엔 빈 값.
         ]
     },
     // (워크플로우 트랙 2026-05-13) 워크플로우 — 목표를 도트로 분해하는 다리
@@ -192,10 +241,19 @@ export const POLICY = {
     // ═══════════════════════════════════════════════════════════════
 
     // ── 인물·조직 모듈 ──
+    // (B-4 본인 프로필 트랙 2026-05-13) persons 컬렉션 안에 isSelf=true 카드 1장으로 본인 프로필 흡수.
+    //   - 인물 화면(view-persons)은 isSelf 자동 제외, 본인 카드는 별도 화면(view-self-profile).
+    //   - 본인 전용 필드(lifeStage·신앙·소명·자기 인식·visibility)는 모두 사적이라 암호화.
+    //   - isSelf, lastSelfUpdatedAt 두 개만 평문 — 본인 카드 식별·시점 정렬용.
+    //   - 영적 은사 필드는 1차에서 제외, 공동체 모듈 진입 시 재기획 (project_gifts_talents_serving.md).
     persons: {
         plaintext: [
             'id', 'relation', 'innerCircle', 'stance', 'isPinned', 'isFallback',
-            'lastInteractionAt', 'createdAt', 'updatedAt'
+            'lastInteractionAt', 'createdAt', 'updatedAt',
+            // (B-4 본인 프로필 트랙) 본인 카드 식별·필터
+            'isSelf',
+            // (B-4 본인 프로필 트랙) 본인 프로필 마지막 저장 시점 — 5y/10y 리포트 base 시점 인덱싱용
+            'lastSelfUpdatedAt'
         ],
         encrypted: [
             'name', 'nicknames', 'avatarUrl',
@@ -209,7 +267,37 @@ export const POLICY = {
             // 친한 사람 한정 기념일/생일 — 사적 정보로 암호화
             'birthday', 'anniversaries',
             // (v3 2026-05-12) 첫 평가 1회 보존 — 첫인상 비교용
-            'firstImpression'
+            'firstImpression',
+            // ─── (B-4 본인 프로필 트랙 2026-05-13) isSelf=true 카드 전용 ───
+            'lifeStage',          // 🪪 인생 단계 — 'student'|'employee'|'married'|'parent'|... 자유 텍스트 허용
+            'currentCity',        // 🪪 현재 도시
+            'homeChurch',         // ⛪ 소속 교회 이름
+            'faithStartDate',     // ⛪ 신앙 시작 시점 (자유 텍스트 또는 'YYYY' / 'YYYY-MM')
+            'faithTone',          // ⛪ '묵상형'|'전도형'|'섬김형'|... (자유 텍스트)
+            'valueKeywords',      // 🎯 가치관 키워드 ['정직', '사랑', ...]
+            'lifeMission',        // 🎯 인생 미션 한 줄
+            'interests',          // 🎯 관심사 ['독서', '음악', ...]
+            'identitySentence',   // 🧠 "나는 ... 사람" 정체성 한 줄
+            'currentChallenges',  // 🧠 현재 도전 중인 것 ['도전 1', ...]
+            'mbti',               // 🧠 MBTI 'INTJ' 등 (선택)
+            // 🎚️ visibility 정책 — 필드별 디폴트 + 사용자 토글 결과
+            //   { fieldName: 'public'|'shared'|'private' }
+            //   디폴트는 ui/selfProfile.js 상수로 박혀 있고, 사용자가 바꾼 결과만 여기 저장
+            'profileVisibility',
+            // 📷 시점 스냅샷 (1차엔 모델 자리만 — 자동 보존 로직은 5y/10y·B-1 트랙)
+            'profileVersionIds'   // [profileVersions docId, ...] — 1차엔 비어 있음
+        ]
+    },
+    // (B-4 본인 프로필 트랙 2026-05-13) 본인 프로필 시점 스냅샷 — 1차엔 컬렉션 자리만 박아둠.
+    //   자동 보존 트리거(의사결정 게이트·분기·연 등)는 5y/10y 리포트 트랙 / B-1 의사결정 트랙에서 정교화.
+    profileVersions: {
+        plaintext: [
+            'id', 'userId', 'versionNumber', 'capturedAt', 'createdAt',
+            'trigger'   // 'manual'|'auto_quarter'|'decision_gate'|... 자동 보존 로직 진입 시 분류
+        ],
+        encrypted: [
+            'snapshotData',  // 그 시점 본인 카드 전체 (인물 카드 + 본인 전용 필드)
+            'note'           // 사용자가 명시 박은 메모 (선택)
         ]
     },
     organizations: {

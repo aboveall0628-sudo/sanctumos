@@ -61,17 +61,23 @@ export async function getMemorialsByUser(dek, userId) {
  *   3) 추모비 저장
  *   4) 목표 status='archived' 로 변경 (saveGoal — 새 GoalVersion 자동 생성)
  *
- * 다음 트랙(B-1) 에서 의사결정 게이트가 이 함수를 자동 호출할 수 있도록
- * source 파라미터를 둠. 1차 X 버튼은 'self_report'.
+ * (B-1 트랙 2026-05-13) 의사결정 게이트가 이 함수를 호출할 때:
+ *   - triggeredByPrecedentId: 게이트가 만든 판례 id
+ *   - skipGoalUpdate: true 면 saveGoal 생략 (게이트가 이미 saveGoal 호출했음 — 중복 방지)
  *
  * @param {CryptoKey} dek
  * @param {string} userId
  * @param {Object} goal — 폐기할 목표 객체 전체
- * @param {Object} opts — { userNote, source }
+ * @param {Object} opts — { userNote, source, triggeredByPrecedentId, skipGoalUpdate }
  * @returns {Promise<Object>} 생성된 추모비 객체
  */
 export async function extinguishGoalToMemorial(dek, userId, goal, opts = {}) {
-    const { userNote = '', source = 'self_report' } = opts;
+    const {
+        userNote = '',
+        source = 'self_report',
+        triggeredByPrecedentId = null,
+        skipGoalUpdate = false
+    } = opts;
     const today = new Date().toISOString().slice(0, 10);
 
     // 1) 목표 시작일·기간 계산
@@ -114,26 +120,30 @@ export async function extinguishGoalToMemorial(dek, userId, goal, opts = {}) {
         representativeDots: [],          // 다음 트랙 (AI 선별)
         contributions: [],               // B-4 트랙 후 채움
         aiNarrativeSummary: '',          // 다음 트랙
-        triggeredByPrecedentId: null,    // B-1 끝나면
+        triggeredByPrecedentId,          // (B-1) 게이트 통과 시 채움
         userNote,
     };
 
     // 4) 추모비 먼저 저장
     await saveMemorial(dek, memorial);
 
-    // 5) 목표 status='archived' — saveGoal 이 자동으로 새 GoalVersion 만듦
-    const archivedGoal = {
-        ...goal,
-        status: 'archived',
-        archivedAt: new Date().toISOString(),
-    };
-    try {
-        await saveGoal(dek, archivedGoal, {
-            source,
-            revisionReason: `extinguished: ${userNote || '사용자 결정'}`,
-        });
-    } catch (e) {
-        console.warn('[memorials] goal archive failed (memorial saved):', e);
+    // 5) 목표 status='archived' — saveGoal 이 자동으로 새 GoalVersion 만듦.
+    //    게이트가 이미 saveGoal 을 호출한 경우(skipGoalUpdate=true)는 생략 — 중복 방지.
+    if (!skipGoalUpdate) {
+        const archivedGoal = {
+            ...goal,
+            status: 'archived',
+            archivedAt: new Date().toISOString(),
+        };
+        try {
+            await saveGoal(dek, archivedGoal, {
+                source,
+                revisionReason: `extinguished: ${userNote || '사용자 결정'}`,
+                sourcePrecedentId: triggeredByPrecedentId
+            });
+        } catch (e) {
+            console.warn('[memorials] goal archive failed (memorial saved):', e);
+        }
     }
 
     return memorial;
