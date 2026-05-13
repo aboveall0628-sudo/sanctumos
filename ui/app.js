@@ -947,15 +947,46 @@ function gisLoaded(tries = 0) {
     gisInited = true;
 
     // 랜딩에서 돌아온 흐름이면 GIS 준비 직후 자동으로 Google 로그인 모달 발사
+    // (2026-05-13 #57) 이미 유효한 토큰이 있으면 모달 발사 X — 새 탭 등에서 매번 로그인 요구되는 문제 차단
     if (_isLoginFlow) {
         _isLoginFlow = false; // 한 번만
-        document.dispatchEvent(new CustomEvent('sanctum:request-google-login'));
+        const saved = localStorage.getItem(TOKEN_KEY);
+        let alreadyValid = false;
+        if (saved) {
+            try {
+                const t = JSON.parse(saved);
+                if (t && t.expires_at && t.expires_at > Date.now() + 60_000) {
+                    alreadyValid = true;
+                }
+            } catch {}
+        }
+        if (!alreadyValid) {
+            document.dispatchEvent(new CustomEvent('sanctum:request-google-login'));
+        }
     }
 }
 
+// (2026-05-13 #57) 새 탭에서 매번 구글 로그인 요구되는 문제 — silent 토큰 갱신 우선 시도.
+//   localStorage 의 토큰이 만료됐거나 부재일 때만 'consent' 모달.
 function handleAuthClick() {
     if (!gisInited) return;
-    tokenClient.requestAccessToken({ prompt: 'consent' });
+    const saved = localStorage.getItem(TOKEN_KEY);
+    let needConsent = true;
+    if (saved) {
+        try {
+            const t = JSON.parse(saved);
+            // 토큰 만료까지 1분 이상 남아있으면 이미 유효 — 굳이 다시 묻지 않음
+            if (t && t.expires_at && t.expires_at > Date.now() + 60_000) {
+                try { gapi.client.setToken(t); } catch {}
+                loadUserProfile().catch(() => {});
+                reflectGcalAuthUI();
+                return;
+            }
+        } catch {}
+        // 토큰이 있지만 만료 — 사용자 이미 동의 이력 있으므로 silent 시도 가능
+        needConsent = false;
+    }
+    tokenClient.requestAccessToken({ prompt: needConsent ? 'consent' : '' });
 }
 
 async function loadUserProfile() {

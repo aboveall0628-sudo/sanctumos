@@ -1036,6 +1036,9 @@ function bindMeditationAutosave() {
 function bindNoteEditor(editorId, field) {
     const editor = document.getElementById(editorId);
     if (!editor) return;
+    // (2026-05-13 #56) 핸들러 중복 등록 가드 — 같은 텍스트가 5배 노출되는 회귀 차단
+    if (editor.dataset.noteBound === '1') return;
+    editor.dataset.noteBound = '1';
 
     editor.addEventListener('input', () => {
         _meditationCache[field] = editor.innerText;
@@ -1045,22 +1048,35 @@ function bindNoteEditor(editorId, field) {
 
     // 외부에서 복사해 온 텍스트는 폰트/배경/색상 인라인 스타일을 모두 떼고
     // 순수 텍스트만 받아 옴 → 노트 폰트(프리텐다드)와 테마 색상이 그대로 적용됨
+    // (2026-05-13 #56) execCommand 회피 — 일부 브라우저에서 paste 이벤트 재진입으로 N배 복사 발생.
+    //   range.insertNode 단일 경로로 통일하고 stopPropagation 으로 capture/bubble 중복 차단.
     editor.addEventListener('paste', (e) => {
         e.preventDefault();
+        e.stopPropagation();
         const cd = e.clipboardData || window.clipboardData;
         const text = cd ? cd.getData('text/plain') : '';
         if (!text) return;
-        // execCommand는 deprecated이지만 contenteditable 호환성이 가장 좋음
-        if (document.queryCommandSupported && document.queryCommandSupported('insertText')) {
-            document.execCommand('insertText', false, text);
+        const sel = window.getSelection();
+        if (!sel || !sel.rangeCount) {
+            // selection 없으면 끝에 추가
+            editor.appendChild(document.createTextNode(text));
         } else {
-            const sel = window.getSelection();
-            if (!sel || !sel.rangeCount) return;
             const range = sel.getRangeAt(0);
-            range.deleteContents();
-            range.insertNode(document.createTextNode(text));
-            range.collapse(false);
+            // selection 이 editor 밖에 있으면(다른 곳 클릭한 상태) 끝에 추가
+            if (!editor.contains(range.commonAncestorContainer)) {
+                editor.appendChild(document.createTextNode(text));
+            } else {
+                range.deleteContents();
+                const node = document.createTextNode(text);
+                range.insertNode(node);
+                range.setStartAfter(node);
+                range.collapse(true);
+                sel.removeAllRanges();
+                sel.addRange(range);
+            }
         }
+        // 수동 input 이벤트 dispatch — autosave 트리거 (execCommand 없이도 저장 흐름 보장)
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
     });
 }
 
