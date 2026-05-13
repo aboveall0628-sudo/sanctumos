@@ -148,7 +148,6 @@ function pageTemplate(d) {
     return `
         <header class="page-header">
             <h1><i class="page-icon" data-lucide="user-circle"></i> 내 프로필</h1>
-            <p class="subtitle">"나는 누구인가" 한 자리에 모아두는 카드예요. 5년·10년 회고의 기준점이 됩니다.</p>
         </header>
 
         <div class="self-profile-intro">

@@ -48,7 +48,6 @@ export async function renderEconomyView(userId) {
     view.innerHTML = `
         <header class="page-header">
             <h1><i class="page-icon" data-lucide="wallet"></i> 경제</h1>
-            <p class="subtitle">시간·관계처럼, 돈도 정직하게 마주.</p>
         </header>
         <div id="economy-body"></div>
     `;

@@ -130,7 +130,6 @@ export async function renderOrganizationsView(userId) {
     container.innerHTML = `
         <header class="page-header">
             <h1><i class="page-icon" data-lucide="building-2"></i> 조직</h1>
-            <p class="subtitle">조직도 사람의 모임이에요. 한 라벨로 가두지 않습니다.</p>
         </header>
         <div id="orgs-toolbar"></div>
         <div id="orgs-grid"></div>

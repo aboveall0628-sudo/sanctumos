@@ -122,7 +122,6 @@ export async function renderPersonsView(userId) {
     container.innerHTML = `
         <header class="page-header">
             <h1><i class="page-icon" data-lucide="users"></i> 인물</h1>
-            <p class="subtitle">하나님 앞에서 사람을 정직하게 보되, 라벨로 정죄하지 않습니다.</p>
         </header>
         <div id="persons-toolbar"></div>
         <div id="persons-grid"></div>
