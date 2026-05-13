@@ -916,6 +916,9 @@ async function handleSave() {
                 ..._addedTransactions.map(t => t.id),
             ],
             category: _selectedCategoryId || null,
+            // 정직성 인프라: 모달에서 사용자가 직접 입력한 도트 — self_report 명시.
+            // 기존 도트 수정 시엔 옛 source 보존 (있다면), 없으면 self_report 로 시작.
+            source: _currentExistingDot?.source || 'self_report',
         };
         if (_selectedCategoryId) pushRecentCategory(_selectedCategoryId);
         // 기존 도트가 있으면 id 유지하여 덮어쓰기

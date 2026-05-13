@@ -663,6 +663,8 @@ function openInlineActualInput(col, slot, duration = 1) {
                 linkedGoalId: linkedGoal?.id || null,
                 reason: '',
                 labelIds: [],
+                // 정직성 인프라: 타임라인 인라인에서 사용자가 직접 찍은 도트.
+                source: 'self_report',
             };
             await saveDot(dek, dot);
             panel.remove();
