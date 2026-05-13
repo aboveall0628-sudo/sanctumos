@@ -196,12 +196,21 @@ small { font-size: var(--fs-small); color: var(--ink-secondary); }
 }
 .sidebar-item .icon svg { width: 18px; height: 18px; stroke-width: 1.75; }
 .nav-divider { border: none; border-top: 1px solid var(--border); margin: var(--sp-2) 0; }
+/* (2026-05-13) 프로필을 로고 아래로 옮김 — margin-top: auto 제거.
+   .sidebar-nav 가 flex:1 이라 자연스럽게 위쪽 묶음 + 하단 묶음으로 분리됨. */
 .sidebar-profile {
     display: flex; align-items: center; gap: var(--sp-3);
-    padding: var(--sp-3) var(--sp-3); margin-top: auto;
+    padding: var(--sp-3) var(--sp-3);
+    margin-bottom: var(--sp-2);
     border-radius: var(--radius); transition: background var(--ease);
 }
 .sidebar-profile:hover { background: var(--hover); }
+/* (2026-05-13) 하단 고정 묶음 — 설정 + boot-status */
+.sidebar-bottom {
+    margin-top: var(--sp-2);
+    border-top: 1px solid var(--border);
+    padding-top: var(--sp-2);
+}
 .sidebar-footer {
     display: flex; align-items: center; gap: var(--sp-2);
     padding-top: var(--sp-3); border-top: 1px solid var(--border);
@@ -4225,6 +4234,37 @@ svg.person-radar { display: block; }
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   수동 잠금 버튼 — 우측 상단, 알람 종 왼쪽
+   ═══════════════════════════════════════════════════════════════ */
+.manual-lock-wrap {
+    position: fixed;
+    top: calc(14px + env(safe-area-inset-top, 0));
+    /* 알람 종(38px wide, right 18px)의 왼쪽으로 8px gap */
+    right: calc(64px + env(safe-area-inset-right, 0));
+    z-index: 100;
+}
+.manual-lock-wrap.hidden { display: none; }
+.manual-lock-btn {
+    position: relative;
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    border: 1px solid var(--border, rgba(0,0,0,0.08));
+    background: var(--surface-card, var(--bg-card));
+    color: var(--text-primary);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: var(--shadow-sm);
+    transition: background 0.15s, box-shadow 0.15s;
+}
+.manual-lock-btn:hover {
+    background: var(--hover, rgba(0,0,0,0.04));
+}
+.manual-lock-btn:active {
+    transform: scale(0.96);
+}
+.manual-lock-btn i { width: 18px; height: 18px; }
+
+/* ═══════════════════════════════════════════════════════════════
    Phase E-7 — 우측 상단 알람 종 + dropdown 패널
    ═══════════════════════════════════════════════════════════════ */
 .reminder-bell-wrap {
@@ -4370,6 +4410,7 @@ svg.person-radar { display: block; }
 /* 모바일 — 패널이 더 좁게 */
 @media (max-width: 480px) {
     .reminder-bell-wrap { top: 10px; right: 12px; }
+    .manual-lock-wrap { top: 10px; right: 58px; }
     .reminder-panel {
         width: calc(100vw - 24px);
         right: 0;

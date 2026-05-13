@@ -32,6 +32,7 @@ export function setUnlocked(dek) {
     _dek = dek;
     hideLockScreen();
     startTimerTick();
+    showManualLockButton();
     if (_onUnlock) _onUnlock(dek);
 }
 
@@ -41,8 +42,35 @@ export function setUnlocked(dek) {
 export function lock() {
     _dek = null;
     stopTimerTick();
+    hideManualLockButton();
     showLockScreen();
     if (_onLock) _onLock();
+}
+
+/**
+ * 우상단 수동 잠금 버튼 — 잠금 해제 후에만 노출, 클릭 시 lock() 호출
+ */
+function showManualLockButton() {
+    const wrap = document.getElementById('manual-lock-wrap');
+    if (!wrap) return;
+    wrap.classList.remove('hidden');
+    const btn = document.getElementById('manual-lock-btn');
+    if (btn && !btn.__sanctumLockBound) {
+        btn.addEventListener('click', async () => {
+            // 열려 있는 모달이 있으면 먼저 모두 닫기 (단축키 lockNow 동작과 일치)
+            try {
+                const mm = await import('./modalManager.js');
+                if (mm && typeof mm.closeAllModals === 'function') mm.closeAllModals();
+            } catch (_) { /* 모달 매니저 없으면 통과 */ }
+            lock();
+        });
+        btn.__sanctumLockBound = true;
+    }
+}
+
+function hideManualLockButton() {
+    const wrap = document.getElementById('manual-lock-wrap');
+    if (wrap) wrap.classList.add('hidden');
 }
 
 function startTimerTick() {
