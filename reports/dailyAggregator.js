@@ -74,7 +74,10 @@ function computeDotsTimeline(dots) {
             const endMin   = startMin + durMin;
             return {
                 time:                 fmtSlotRange(startMin, endMin),
-                title:                d.title || d.label || '(제목 없음)',
+                // (2026-05-14 fix) 도트 제목 필드는 quickReview 가 저장하는 actualTask.
+                //   STEP A 1차 작성 시 d.title 만 봐서 '(제목 없음)' 으로 LLM 에 전달 →
+                //   산문이 "이름 없는 활동" 으로 풀어쓴 회귀. plannedTask 도 fallback.
+                title:                d.actualTask || d.plannedTask || d.title || d.label || '(제목 없음)',
                 reason:               d.reason || null,
                 labels:               d.labelIds || [],
                 executionSatisfaction: d.executionSatisfaction ?? null,
