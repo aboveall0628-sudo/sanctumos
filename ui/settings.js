@@ -13,7 +13,9 @@ import { changePassword, unlockVault } from '../crypto/keyManager.js';
 import { db, doc, setDoc, getDoc, serverTimestamp } from '../data/firebase.js';
 import { logAuditAction } from '../security/auditLog.js';
 import { validatePassword, firstError, bindPolicyHint, POLICY_VERSION } from '../crypto/passwordPolicy.js';
-import { isEmailRecoveryRegistered } from '../crypto/emailRecoverySlot.js';
+import { isEmailRecoveryRegistered, createEmailSlot } from '../crypto/emailRecoverySlot.js';
+import { registerEmailRecovery } from '../crypto/emailRecoveryClient.js';
+import { auth } from '../data/firebase.js';
 // Phase B-3: 예전 결단 정리용
 import { getAllDecisions, deleteDecision } from '../data/decisionsRepo.js';
 import { deleteCalendarEventById } from './app.js';
@@ -54,7 +56,6 @@ export function renderSettingsView(userId, userEmail) {
 
 /**
  * 이메일 복구 카드의 현재 상태 텍스트를 users 문서 조회 결과로 갱신.
- * Phase 2: 필드 존재 여부만으로 판정.
  */
 async function refreshEmailRecoveryStatus() {
     const statusEl = document.getElementById('email-recovery-status-text');
@@ -64,12 +65,76 @@ async function refreshEmailRecoveryStatus() {
         const snap = await getDoc(doc(db, 'users', _userId));
         const data = snap.exists() ? snap.data() : null;
         if (isEmailRecoveryRegistered(data)) {
-            statusEl.innerHTML = '✓ <strong style="color:var(--dot-green)">등록됨</strong> — 비상 시 이메일로 복구할 수 있어요.';
+            const email = data.recoveryEmail || _userEmail || '(이메일 정보 없음)';
+            statusEl.innerHTML = `✓ <strong style="color:var(--dot-green)">등록됨</strong> — 비상 시 <strong>${email}</strong> 으로 복구할 수 있어요.`;
+            // 등록된 경우 버튼 라벨을 "재등록"으로
+            const btn = document.getElementById('btn-email-recovery-register');
+            if (btn) btn.textContent = '슬롯 키 회전 (재등록)';
         } else {
-            statusEl.innerHTML = '○ 아직 등록되지 않았어요. (Phase 3 도입 후 등록 가능)';
+            statusEl.innerHTML = '○ 아직 등록되지 않았어요.';
+            const btn = document.getElementById('btn-email-recovery-register');
+            if (btn) btn.textContent = '이메일 복구 등록하기';
         }
     } catch (err) {
         statusEl.textContent = '상태를 확인하지 못했어요.';
+    }
+}
+
+/**
+ * 이메일 복구 등록 핸들러
+ * 흐름: getDEK → createEmailSlot → Cloud Function emailRecoveryRegister → 카드 갱신
+ *
+ * 보안:
+ * - 잠금 해제 상태(DEK 있음)에서만 호출 가능
+ * - emailSlotKeyRaw는 Cloud Function 전송 후 즉시 변수 폐기
+ * - 서버는 그 키를 KMS로 wrap한 후 즉시 폐기 (코드 내 logger도 키는 안 찍음)
+ */
+async function handleEmailRecoveryRegister() {
+    const btn = document.getElementById('btn-email-recovery-register');
+    const errEl = document.getElementById('email-recovery-error');
+    if (errEl) errEl.textContent = '';
+
+    const dek = getDEK();
+    if (!dek) {
+        if (errEl) errEl.textContent = '잠금이 풀려 있어야 등록할 수 있어요.';
+        return;
+    }
+
+    const user = auth.currentUser;
+    const recoveryEmail = user?.email;
+    if (!recoveryEmail) {
+        if (errEl) errEl.textContent = 'Google 로그인 이메일을 확인할 수 없어요.';
+        return;
+    }
+
+    const originalLabel = btn?.textContent || '이메일 복구 등록하기';
+    if (btn) { btn.disabled = true; btn.textContent = '등록 중...'; }
+
+    let emailSlotKeyRaw = null;
+    try {
+        const slot = await createEmailSlot(dek);
+        emailSlotKeyRaw = slot.emailSlotKeyRaw;
+
+        await registerEmailRecovery({
+            emailSlotKey: emailSlotKeyRaw,
+            wrappedDEK_email: slot.wrappedDEK_email,
+            wrappedDEK_email_iv: slot.wrappedDEK_email_iv,
+            recoveryEmail,
+        });
+
+        // 카드 갱신
+        await refreshEmailRecoveryStatus();
+        const { showToast } = await import('./quickReview.js');
+        showToast('이메일 복구 등록 완료 ✓', 1800);
+    } catch (e) {
+        console.error('[settings] email recovery register failed:', e);
+        const msg = e?.message || '등록에 실패했어요.';
+        if (errEl) errEl.textContent = `등록 실패: ${msg}`;
+        if (btn) btn.textContent = originalLabel;
+    } finally {
+        // emailSlotKeyRaw 메모리 폐기 (GC 의존)
+        emailSlotKeyRaw = null;
+        if (btn) btn.disabled = false;
     }
 }
 
@@ -146,16 +211,15 @@ function injectExtraSections() {
                 </p>
             </div>
         </div>
+        <div id="email-recovery-error" style="color:var(--dot-red);font-size:12px;min-height:16px;margin-top:4px;"></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
-            <button id="btn-email-recovery-register" class="primary-btn" aria-disabled="true"
-                    style="opacity:0.55;cursor:not-allowed;"
-                    title="서버측 인증 시스템(Phase 3) 도입 후 활성화됩니다">
-                이메일 복구 등록하기 (준비 중)
+            <button id="btn-email-recovery-register" class="primary-btn">
+                이메일 복구 등록하기
             </button>
         </div>
         <p class="section-desc" style="margin-top:8px;font-size:11px;color:var(--ink-secondary)">
-            ※ 지금은 자물쇠 본체와 자리만 마련된 상태예요. 다음 작업(Cloud Functions + 본인 인증)이 완료되면
-            이 버튼이 활성화되고, 등록 후엔 24단어 못 찾았을 때도 이메일로 다시 들어올 수 있어요.
+            ※ 등록 시 본인 Gmail 주소가 복구 이메일로 저장돼요. 등록 정보(슬롯 키)는 운영자 금고에 한 번 더 잠겨 보관되며,
+            서버는 평문 시드를 절대 갖지 않아요. (E2EE 유지)
         </p>
     `;
     container.appendChild(emailRecoveryCard);
@@ -387,15 +451,10 @@ function bindEvents() {
     const btnExport = document.getElementById('btn-export-backup');
     const statusBox = document.getElementById('migration-status-box');
 
-    // 이메일 복구 등록 버튼 (Phase 2: 비활성. 클릭 시 안내만)
+    // 이메일 복구 등록 버튼 (Phase 3 활성)
     const btnEmailRecovery = document.getElementById('btn-email-recovery-register');
     if (btnEmailRecovery) {
-        btnEmailRecovery.addEventListener('click', () => {
-            const statusEl = document.getElementById('email-recovery-status-text');
-            if (statusEl) {
-                statusEl.innerHTML = '⏳ 이메일 복구는 다음 단계(서버측 본인 인증)가 완료되면 활성화돼요.';
-            }
-        });
+        btnEmailRecovery.addEventListener('click', () => handleEmailRecoveryRegister());
     }
 
     if (btnDiagnose) btnDiagnose.onclick = async () => {

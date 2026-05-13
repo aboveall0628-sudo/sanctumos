@@ -3,9 +3,13 @@
  */
 
 import { setupNewVault, recoverWithWords, changePassword } from '../crypto/keyManager.js';
-import { db, doc, setDoc, getDoc, serverTimestamp } from '../data/firebase.js';
+import { db, doc, setDoc, getDoc, serverTimestamp, auth } from '../data/firebase.js';
 import { loadUserVaultData } from './app.js'; // to get wrappedDEK_recovery
 import { validatePassword, firstError, bindPolicyHint, POLICY_VERSION } from '../crypto/passwordPolicy.js';
+import { createEmailSlot, unwrapDEKWithEmailSlot } from '../crypto/emailRecoverySlot.js';
+import {
+    requestRecoveryCode, verifyRecoveryCode, redeemRecoverySeed, rotateRecoverySeed,
+} from '../crypto/emailRecoveryClient.js';
 
 let _onSetupComplete = null;
 let _currentUserId = null;
@@ -150,22 +154,60 @@ function renderSetupScreen() {
     `;
     document.body.appendChild(setupOverlay);
 
-    // 3. 복구 화면 오버레이
+    // 3. 복구 화면 오버레이 (방법 선택 → 24단어 / 이메일 분기)
     const recoveryOverlay = document.createElement('div');
     recoveryOverlay.id = 'recovery-screen-overlay';
     recoveryOverlay.className = 'lock-screen-overlay hidden';
     recoveryOverlay.innerHTML = `
-        <div class="lock-screen-box" style="max-width: 440px;">
-            <div class="lock-icon">📄</div>
-            <h2>복구 코드로 열기</h2>
-            <p class="lock-subtitle">적어두신 24단어를 띄어쓰기로 구분해서 적어주세요.</p>
-            <textarea id="recovery-words-input" class="lock-input" style="height:120px; font-size:14px; text-align:left; resize:none;" placeholder="단어1 단어2 단어3 ..."></textarea>
-            <div id="recovery-error" class="lock-error hidden"></div>
-            <div style="display:flex; gap:8px;">
-                <button id="recovery-cancel-btn" class="text-btn" style="flex:1">취소</button>
-                <button id="recovery-submit-btn" class="primary-btn" style="flex:2">열기</button>
+        <div class="lock-screen-box" style="max-width: 460px;">
+            <!-- 방법 선택 -->
+            <div id="recovery-method-select">
+                <div class="lock-icon">🔑</div>
+                <h2>복구 방법 선택</h2>
+                <p class="lock-subtitle" style="text-align:left; font-size:13px;">
+                    적어둔 <strong>24단어</strong>가 있거나, 설정에서 <strong>이메일 복구</strong>를 등록해 두셨다면
+                    두 방법 중 하나로 다시 들어올 수 있어요.
+                </p>
+                <div style="display:flex; flex-direction:column; gap:8px; margin: 16px 0;">
+                    <button id="recovery-go-words-btn" class="primary-btn" style="width:100%">📄 24단어로 복구</button>
+                    <button id="recovery-go-email-btn" class="primary-btn" style="width:100%">📧 이메일로 복구</button>
+                </div>
+                <button id="recovery-cancel-btn" class="text-btn" style="width:100%">취소</button>
             </div>
-            <p style="font-size:12px; color:var(--text-secondary); margin-top:16px;">열고 나면 설정에서 새 비밀번호로 꼭 바꿔주세요.</p>
+
+            <!-- 24단어 입력 -->
+            <div id="recovery-words-form" class="hidden">
+                <div class="lock-icon">📄</div>
+                <h2>24단어로 열기</h2>
+                <p class="lock-subtitle">적어두신 24단어를 띄어쓰기로 구분해서 적어주세요.</p>
+                <textarea id="recovery-words-input" class="lock-input" style="height:120px; font-size:14px; text-align:left; resize:none;" placeholder="단어1 단어2 단어3 ..."></textarea>
+                <div id="recovery-error" class="lock-error hidden"></div>
+                <div style="display:flex; gap:8px;">
+                    <button id="recovery-back-from-words-btn" class="text-btn" style="flex:1">뒤로</button>
+                    <button id="recovery-submit-btn" class="primary-btn" style="flex:2">열기</button>
+                </div>
+                <p style="font-size:12px; color:var(--text-secondary); margin-top:16px;">열고 나면 설정에서 새 비밀번호로 꼭 바꿔주세요.</p>
+            </div>
+
+            <!-- 이메일 복구 -->
+            <div id="recovery-email-form" class="hidden">
+                <div class="lock-icon">📧</div>
+                <h2>이메일로 복구</h2>
+                <p class="lock-subtitle" style="text-align:left; font-size:13px;" id="recovery-email-step-desc">
+                    설정에서 등록해 둔 이메일을 입력해 주세요. 6자리 코드를 보내드릴게요.
+                </p>
+                <input id="recovery-email-input" type="email" class="lock-input" placeholder="등록한 이메일" autocomplete="email" />
+                <button id="recovery-email-send-btn" class="primary-btn" style="width:100%">코드 보내기</button>
+                <div id="recovery-email-code-row" class="hidden" style="margin-top:12px;">
+                    <input id="recovery-email-code" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" class="lock-input" style="text-align:center;letter-spacing:8px;font-size:20px;" placeholder="6자리 코드" />
+                    <button id="recovery-email-verify-btn" class="primary-btn" style="width:100%; margin-top:8px;">확인하고 열기</button>
+                </div>
+                <div id="recovery-email-error" class="lock-error hidden"></div>
+                <div style="display:flex; gap:8px; margin-top:12px;">
+                    <button id="recovery-back-from-email-btn" class="text-btn" style="flex:1">뒤로</button>
+                </div>
+                <p style="font-size:12px; color:var(--text-secondary); margin-top:16px;">코드는 5분 뒤 만료되고, 5회까지 시도할 수 있어요.</p>
+            </div>
         </div>
     `;
     document.body.appendChild(recoveryOverlay);
@@ -307,17 +349,28 @@ function bindEvents() {
                     createdAt: serverTimestamp()
                 });
 
-                // ─────────────────────────────────────────────────────────────
-                // 트랙 2 / Phase 3 활성화 자리:
-                //   const { createEmailSlot } = await import('../crypto/emailRecoverySlot.js');
-                //   const slot = await createEmailSlot(vaultData.dek);
-                //   const userEmail = (auth.currentUser && auth.currentUser.email) || null;
-                //   // Cloud Function 호출: emailRecoveryRegister(slot.emailSlotKeyRaw, userEmail)
-                //   //   → 응답으로 wrappedEmailSlotKey 받음
-                //   // users 문서에 wrappedDEK_email, wrappedDEK_email_iv, wrappedEmailSlotKey, recoveryEmail 저장
-                //   // slot.emailSlotKeyRaw 변수는 즉시 폐기 (null 할당 + GC 의존)
-                // Phase 2 (현재)에서는 가입 후 [설정 → 이메일 복구]에서 사용자 선택으로 등록.
-                // ─────────────────────────────────────────────────────────────
+                // ── 트랙 2 Phase 3: 가입 직후 이메일 복구 자동 등록 (best effort) ──
+                // 실패해도 가입 자체는 계속 진행. 사용자가 [설정 → 이메일 복구]에서 다시 등록 가능.
+                let _autoSlotKeyRaw = null;
+                try {
+                    const userEmail = auth.currentUser?.email;
+                    if (userEmail) {
+                        const slot = await createEmailSlot(vaultData.dek);
+                        _autoSlotKeyRaw = slot.emailSlotKeyRaw;
+                        const { registerEmailRecovery } = await import('../crypto/emailRecoveryClient.js');
+                        await registerEmailRecovery({
+                            emailSlotKey: _autoSlotKeyRaw,
+                            wrappedDEK_email: slot.wrappedDEK_email,
+                            wrappedDEK_email_iv: slot.wrappedDEK_email_iv,
+                            recoveryEmail: userEmail,
+                        });
+                        console.info('[auth] email recovery auto-registered for', userEmail);
+                    }
+                } catch (regErr) {
+                    console.warn('[auth] email recovery auto-register skipped:', regErr?.message);
+                } finally {
+                    _autoSlotKeyRaw = null; // 메모리 폐기 (GC 의존)
+                }
 
                 // 복구 단어 표시
                 document.getElementById('setup-step-1').classList.add('hidden');
@@ -368,22 +421,37 @@ function bindEvents() {
             document.getElementById('setup-finish-btn').disabled = !e.target.checked;
         }
     });
-    // 복구 모드 전환
+    // 복구 모드 전환 — 방법 선택 화면부터
     document.addEventListener('sanctum:recovery-requested', () => {
         const overlay = document.getElementById('recovery-screen-overlay');
-        if (overlay) {
-            overlay.classList.remove('hidden');
-            overlay.style.display = 'flex';
-            document.getElementById('recovery-words-input').value = '';
-        }
+        if (!overlay) return;
+        overlay.classList.remove('hidden');
+        overlay.style.display = 'flex';
+        showRecoveryStep('method');
+        // 입력 초기화
+        const wi = document.getElementById('recovery-words-input');     if (wi) wi.value = '';
+        const ei = document.getElementById('recovery-email-input');    if (ei) ei.value = '';
+        const ec = document.getElementById('recovery-email-code');     if (ec) ec.value = '';
+        const cr = document.getElementById('recovery-email-code-row'); if (cr) cr.classList.add('hidden');
+        hideErr(document.getElementById('recovery-error'));
+        hideErr(document.getElementById('recovery-email-error'));
     });
 
     document.body.addEventListener('click', async (e) => {
+        // ── 취소 (방법 선택 화면) ──
         if (e.target.id === 'recovery-cancel-btn') {
             document.getElementById('recovery-screen-overlay').classList.add('hidden');
             document.getElementById('recovery-screen-overlay').style.display = 'none';
         }
-        
+
+        // ── 방법 분기 ──
+        if (e.target.id === 'recovery-go-words-btn') showRecoveryStep('words');
+        if (e.target.id === 'recovery-go-email-btn') showRecoveryStep('email');
+        if (e.target.id === 'recovery-back-from-words-btn' || e.target.id === 'recovery-back-from-email-btn') {
+            showRecoveryStep('method');
+        }
+
+        // ── 24단어 흐름 (기존) ──
         if (e.target.id === 'recovery-submit-btn') {
             const inputStr = document.getElementById('recovery-words-input').value.trim();
             const err = document.getElementById('recovery-error');
@@ -403,10 +471,10 @@ function bindEvents() {
                 const userData = userDoc.data();
 
                 const dek = await recoverWithWords(words, userData.wrappedDEK_recovery, userData.wrappedDEK_recovery_iv, userData.kdfParams || null);
-                
+
                 document.getElementById('recovery-screen-overlay').classList.add('hidden');
                 document.getElementById('recovery-screen-overlay').style.display = 'none';
-                
+
                 if (_onSetupComplete) _onSetupComplete(dek);
 
             } catch (error) {
@@ -417,7 +485,105 @@ function bindEvents() {
                 e.target.disabled = false;
             }
         }
+
+        // ── 이메일 흐름: 코드 보내기 ──
+        if (e.target.id === 'recovery-email-send-btn') {
+            const email = (document.getElementById('recovery-email-input').value || '').trim();
+            const err = document.getElementById('recovery-email-error');
+            if (!email) { showErr(err, '등록한 이메일을 입력해 주세요.'); return; }
+
+            e.target.disabled = true;
+            e.target.textContent = '보내는 중...';
+            try {
+                await requestRecoveryCode(email);
+                // 응답은 항상 ok — 등록 안 됐어도 ok로 응답 (열거 공격 방어).
+                // UI는 "코드를 보냈어요" 안내만.
+                document.getElementById('recovery-email-code-row').classList.remove('hidden');
+                const desc = document.getElementById('recovery-email-step-desc');
+                if (desc) desc.innerHTML = `등록된 이메일이라면 <strong>${email}</strong> 으로 6자리 코드를 보냈어요. 메일을 확인해 주세요.`;
+                hideErr(err);
+                document.getElementById('recovery-email-code').focus();
+            } catch (error) {
+                console.error('[recovery/email] request failed:', error);
+                showErr(err, error?.message || '코드 발송에 실패했어요.');
+            } finally {
+                e.target.disabled = false;
+                e.target.textContent = '코드 다시 보내기';
+            }
+        }
+
+        // ── 이메일 흐름: 코드 검증 + 복원 + 회전 ──
+        if (e.target.id === 'recovery-email-verify-btn') {
+            const code = (document.getElementById('recovery-email-code').value || '').trim();
+            const err = document.getElementById('recovery-email-error');
+            if (!/^\d{6}$/.test(code)) {
+                showErr(err, '6자리 숫자 코드를 입력해 주세요.');
+                return;
+            }
+
+            e.target.disabled = true;
+            e.target.textContent = '확인 중...';
+            try {
+                // 1) 코드 검증 → token
+                const { token } = await verifyRecoveryCode(code);
+
+                // 2) token → emailSlotKey (60초 단일 사용)
+                const { emailSlotKey } = await redeemRecoverySeed(token);
+
+                // 3) users 문서에서 wrappedDEK_email 로드 후 unwrap
+                const userDoc = await getDoc(doc(db, 'users', _currentUserId || window.currentUserId || 'anonymous'));
+                if (!userDoc.exists()) throw new Error('계정 정보를 찾을 수 없어요.');
+                const userData = userDoc.data();
+                if (!userData.wrappedDEK_email || !userData.wrappedDEK_email_iv) {
+                    throw new Error('이메일 복구가 등록되어 있지 않아요.');
+                }
+                const dek = await unwrapDEKWithEmailSlot(emailSlotKey, userData.wrappedDEK_email, userData.wrappedDEK_email_iv);
+
+                // 4) 슬롯 키 회전 (방금 노출된 키는 폐기, 새 키로 갈아끼움) — best effort, 실패해도 복구 진행
+                try {
+                    const newSlot = await createEmailSlot(dek);
+                    await rotateRecoverySeed({
+                        emailSlotKey: newSlot.emailSlotKeyRaw,
+                        wrappedDEK_email: newSlot.wrappedDEK_email,
+                        wrappedDEK_email_iv: newSlot.wrappedDEK_email_iv,
+                    });
+                    // 새 raw 키 메모리 폐기
+                    // (newSlot.emailSlotKeyRaw는 함수 스코프에서 GC 처리)
+                } catch (rotErr) {
+                    console.warn('[recovery/email] rotate failed (non-fatal):', rotErr);
+                }
+
+                // 5) 복구 완료
+                document.getElementById('recovery-screen-overlay').classList.add('hidden');
+                document.getElementById('recovery-screen-overlay').style.display = 'none';
+                if (_onSetupComplete) _onSetupComplete(dek);
+
+            } catch (error) {
+                console.error('[recovery/email] verify failed:', error);
+                showErr(err, error?.message || '복구에 실패했어요.');
+            } finally {
+                e.target.disabled = false;
+                e.target.textContent = '확인하고 열기';
+            }
+        }
     });
+}
+
+/**
+ * 복구 화면 내 세 단계 전환: method / words / email
+ */
+function showRecoveryStep(step) {
+    const m = document.getElementById('recovery-method-select');
+    const w = document.getElementById('recovery-words-form');
+    const e = document.getElementById('recovery-email-form');
+    if (!m || !w || !e) return;
+    m.classList.toggle('hidden', step !== 'method');
+    w.classList.toggle('hidden', step !== 'words');
+    e.classList.toggle('hidden', step !== 'email');
+}
+
+function hideErr(el) {
+    if (el) { el.textContent = ''; el.classList.add('hidden'); }
 }
 
 function showErr(el, msg) {
