@@ -44,6 +44,10 @@ let _orgRatings = {};
 // 이번 평가 세션 중 stub으로 새로 만든 인물·조직 id 추적 (26번 — 멤버 연결 묻기)
 let _newlyCreatedPersonIds = new Set();
 let _newlyCreatedOrgIds = new Set();
+// (2026-05-13 묶음 A A-3) race-condition 차단용 in-flight 락.
+// Enter 자동 클릭 + 빠른 더블 클릭 시 같은 stub 카드가 두 개 만들어지는 문제 방지.
+let _addingPerson = false;
+let _addingOrg = false;
 // 활동 카테고리 (2026-05-12) — 도트 1개당 1개. null 허용.
 let _selectedCategoryId = null;
 // 인물별 카테고리 평가 라벨 — { personId: [ratingDefId, ...] } (복수 선택)
@@ -238,7 +242,7 @@ function renderModal() {
                         <input type="text" id="qr-person-input" class="qr-text-input"
                                autocomplete="off"
                                placeholder="이름 또는 별명 (예: 박서연, 큰형)" />
-                        <button id="qr-person-add" class="text-btn">+ 추가</button>
+                        <button type="button" id="qr-person-add" class="text-btn">+ 추가</button>
                         <div id="qr-person-ac" class="qr-ac-panel hidden" role="listbox" aria-label="인물 후보"></div>
                     </div>
                     <div id="qr-person-chips" class="qr-chip-row"></div>
@@ -252,7 +256,7 @@ function renderModal() {
                         <input type="text" id="qr-org-input" class="qr-text-input"
                                autocomplete="off"
                                placeholder="조직 이름 (없으면 자동으로 카드 만들어요)" />
-                        <button id="qr-org-add" class="text-btn">+ 추가</button>
+                        <button type="button" id="qr-org-add" class="text-btn">+ 추가</button>
                         <div id="qr-org-ac" class="qr-ac-panel hidden" role="listbox" aria-label="조직 후보"></div>
                     </div>
                     <div id="qr-org-chips" class="qr-chip-row"></div>
@@ -394,8 +398,17 @@ function bindEvents() {
         if (e.target.id === 'qr-org-add') addOrgFromInput();
     });
     document.addEventListener('keydown', (e) => {
-        if (e.target.id === 'qr-person-input' && e.key === 'Enter') { e.preventDefault(); addPersonFromInput(); }
-        if (e.target.id === 'qr-org-input'    && e.key === 'Enter') { e.preventDefault(); addOrgFromInput(); }
+        // (2026-05-13 P3) Enter 는 자동완성 첫 후보 선택 전용.
+        // 후보 없으면 무동작 — 오타로 새 카드가 자동 생성되는 사고 방지.
+        // 진짜 새 인물·조직 추가는 사용자가 "+ 추가" 버튼을 손으로 누르는 명시적 의도일 때만.
+        if (e.target.id === 'qr-person-input' && e.key === 'Enter') {
+            e.preventDefault();
+            selectFirstAcCandidate('person');
+        }
+        if (e.target.id === 'qr-org-input' && e.key === 'Enter') {
+            e.preventDefault();
+            selectFirstAcCandidate('org');
+        }
         if ((e.target.id === 'qr-person-input' || e.target.id === 'qr-org-input') && e.key === 'Escape') {
             hideAutocompletePanels();
         }
@@ -589,32 +602,103 @@ function refreshLinkDatalists() {
     refreshOrgAutocomplete();
 }
 
+// ─── (2026-05-13 P4) 유사 검색 헬퍼: 한글 초성 + 편집 거리 ───
+
+const HANGUL_CHO = ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+
+// 한글 음절을 초성 문자열로 변환. "김지민" → "ㄱㅈㅁ".
+// 한글 아닌 문자는 그대로 유지 — 영문 약어 검색도 자연스럽게 호환.
+function toChosung(str) {
+    let out = '';
+    for (const ch of (str || '')) {
+        const code = ch.charCodeAt(0);
+        if (code >= 0xAC00 && code <= 0xD7A3) {
+            out += HANGUL_CHO[Math.floor((code - 0xAC00) / 588)];
+        } else {
+            out += ch;
+        }
+    }
+    return out;
+}
+
+// Levenshtein 편집 거리. 길이 차이가 큰 경우 일찍 cutoff 해서 빠르게.
+function editDistance(a, b) {
+    a = a || ''; b = b || '';
+    const m = a.length, n = b.length;
+    if (Math.abs(m - n) > 2) return 99;
+    if (m === 0) return n;
+    if (n === 0) return m;
+    const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+    for (let i = 0; i <= m; i++) dp[i][0] = i;
+    for (let j = 0; j <= n; j++) dp[0][j] = j;
+    for (let i = 1; i <= m; i++) {
+        for (let j = 1; j <= n; j++) {
+            if (a[i - 1] === b[j - 1]) dp[i][j] = dp[i - 1][j - 1];
+            else dp[i][j] = 1 + Math.min(dp[i - 1][j - 1], dp[i - 1][j], dp[i][j - 1]);
+        }
+    }
+    return dp[m][n];
+}
+
+// 매칭 점수. 0 이면 미매칭. 큰 값일수록 일치도 높음.
+// 정확 > prefix > substring > 초성 prefix > 초성 substring > 편집거리 1~2.
+function scoreMatch(name, q) {
+    const n = (name || '').toLowerCase();
+    const Q = (q || '').toLowerCase();
+    if (!n || !Q) return 0;
+    if (n === Q) return 100;
+    if (n.startsWith(Q)) return 80;
+    if (n.includes(Q)) return 60;
+    const nCho = toChosung(n);
+    const qCho = toChosung(Q);
+    if (nCho.startsWith(qCho)) return 50;
+    if (nCho.includes(qCho)) return 40;
+    // 편집 거리 — 짧은 이름엔 1, 긴 이름엔 2 까지 허용.
+    const maxEdit = Math.max(1, Math.floor(Math.max(n.length, Q.length) / 4));
+    const ed = editDistance(n, Q);
+    if (ed <= maxEdit) return 30 - ed;
+    const edCho = editDistance(nCho, qCho);
+    if (edCho <= maxEdit) return 20 - edCho;
+    return 0;
+}
+
 function refreshPersonAutocomplete() {
     const input = document.getElementById('qr-person-input');
     const panel = document.getElementById('qr-person-ac');
     if (!input || !panel) return;
-    const q = (input.value || '').trim().toLowerCase();
+    const q = (input.value || '').trim();
     if (!q) { panel.classList.add('hidden'); panel.innerHTML = ''; return; }
 
+    // 이름·별명 중 최대 점수 사용. 점수 0 은 제외, 내림차순 정렬.
     const candidates = _personsCache
         .filter(p => !p.isFallback && !_selectedPersonIds.includes(p.id))
-        .filter(p => {
-            const name = (p.name || '').toLowerCase();
-            if (name.includes(q)) return true;
-            return Array.isArray(p.nicknames) && p.nicknames.some(n => (n || '').toLowerCase().includes(q));
+        .map(p => {
+            let best = scoreMatch(p.name || '', q);
+            if (Array.isArray(p.nicknames)) {
+                for (const nick of p.nicknames) {
+                    const s = scoreMatch(nick || '', q);
+                    if (s > best) best = s;
+                }
+            }
+            return { p, score: best };
         })
-        .slice(0, 8);
+        .filter(x => x.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 8)
+        .map(x => x.p);
 
     if (candidates.length === 0) { panel.classList.add('hidden'); panel.innerHTML = ''; return; }
 
-    panel.innerHTML = candidates.map(p => {
+    panel.innerHTML = candidates.map((p, i) => {
         // 자동완성은 검색용이라 본명·별명을 함께 보여줘야 매칭이 직관적. 본문 표시 규칙은
         // 칩에서만 적용 (innerCircle 아닌 사람은 별명 위주).
+        // 첫 후보엔 .qr-ac-first — Enter 키 자동 선택 대상 표시.
         const nicks = Array.isArray(p.nicknames) ? p.nicknames.filter(Boolean) : [];
         const label = nicks.length
             ? `${escapeHtml(p.name || '')} <span class="qr-ac-sub">(${escapeHtml(nicks.join(', '))})</span>`
             : `${escapeHtml(p.name || '')}`;
-        return `<button type="button" class="qr-ac-item" data-person-id="${escapeAttr(p.id)}" role="option">${label}</button>`;
+        const cls = i === 0 ? 'qr-ac-item qr-ac-first' : 'qr-ac-item';
+        return `<button type="button" class="${cls}" data-person-id="${escapeAttr(p.id)}" role="option">${label}</button>`;
     }).join('');
     panel.classList.remove('hidden');
 }
@@ -623,20 +707,52 @@ function refreshOrgAutocomplete() {
     const input = document.getElementById('qr-org-input');
     const panel = document.getElementById('qr-org-ac');
     if (!input || !panel) return;
-    const q = (input.value || '').trim().toLowerCase();
+    const q = (input.value || '').trim();
     if (!q) { panel.classList.add('hidden'); panel.innerHTML = ''; return; }
 
     const candidates = _orgsCache
         .filter(o => !_selectedOrgIds.includes(o.id))
-        .filter(o => (o.name || '').toLowerCase().includes(q))
-        .slice(0, 8);
+        .map(o => ({ o, score: scoreMatch(o.name || '', q) }))
+        .filter(x => x.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 8)
+        .map(x => x.o);
 
     if (candidates.length === 0) { panel.classList.add('hidden'); panel.innerHTML = ''; return; }
 
-    panel.innerHTML = candidates.map(o =>
-        `<button type="button" class="qr-ac-item" data-org-id="${escapeAttr(o.id)}" role="option">${escapeHtml(o.name || '')}</button>`
-    ).join('');
+    panel.innerHTML = candidates.map((o, i) => {
+        const cls = i === 0 ? 'qr-ac-item qr-ac-first' : 'qr-ac-item';
+        return `<button type="button" class="${cls}" data-org-id="${escapeAttr(o.id)}" role="option">${escapeHtml(o.name || '')}</button>`;
+    }).join('');
     panel.classList.remove('hidden');
+}
+
+// (2026-05-13 P3) 자동완성 첫 후보를 클릭한 효과 — Enter 키 핸들러에서 호출.
+// 첫 후보가 없거나 패널이 숨겨져 있으면 false 반환 → 호출 측은 무동작.
+function selectFirstAcCandidate(kind) {
+    const panelId = kind === 'person' ? 'qr-person-ac' : 'qr-org-ac';
+    const panel = document.getElementById(panelId);
+    if (!panel || panel.classList.contains('hidden')) return false;
+    const first = panel.querySelector('.qr-ac-first') || panel.querySelector('.qr-ac-item');
+    if (!first) return false;
+    if (kind === 'person') {
+        const pid = first.dataset.personId;
+        const p = _personsCache.find(x => x.id === pid);
+        if (!p || _selectedPersonIds.includes(p.id)) return false;
+        _selectedPersonIds.push(p.id);
+        const input = document.getElementById('qr-person-input');
+        if (input) input.value = '';
+    } else {
+        const oid = first.dataset.orgId;
+        const o = _orgsCache.find(x => x.id === oid);
+        if (!o || _selectedOrgIds.includes(o.id)) return false;
+        _selectedOrgIds.push(o.id);
+        const input = document.getElementById('qr-org-input');
+        if (input) input.value = '';
+    }
+    renderLinkChips();
+    refreshLinkDatalists();
+    return true;
 }
 
 function hideAutocompletePanels() {
@@ -645,101 +761,114 @@ function hideAutocompletePanels() {
 }
 
 async function addPersonFromInput() {
+    // (2026-05-13 P1) in-flight 락 — 같은 입력이 매우 빠르게 두 번 들어와도
+    // 두 번째 호출은 즉시 종료. await 중 race로 같은 stub 카드가 두 개 만들어지는 문제 차단.
+    if (_addingPerson) return;
     const input = document.getElementById('qr-person-input');
     const name = (input?.value || '').trim();
     if (!name) return;
+    _addingPerson = true;
+    try {
+        // 1) 기존 카드와 이름/별명 정확히 일치 → 그 카드 재사용
+        let matched = _personsCache.find(p =>
+            !p.isFallback && (
+                (p.name || '') === name ||
+                (Array.isArray(p.nicknames) && p.nicknames.includes(name))
+            )
+        );
 
-    // 1) 기존 카드와 이름/별명 정확히 일치 → 그 카드 재사용
-    let matched = _personsCache.find(p =>
-        !p.isFallback && (
-            (p.name || '') === name ||
-            (Array.isArray(p.nicknames) && p.nicknames.includes(name))
-        )
-    );
+        // 2) 없으면 즉석 stub 카드 생성 — 이름 필드에 입력값(이름 또는 별명) 그대로
+        if (!matched) {
+            const dek = getDEK();
+            if (!dek) { showToast('잠시 잠겨 있어요'); return; }
+            const stub = {
+                name: name,
+                relation: 'unknown',
+                innerCircle: false,
+                stance: 'neutral',
+                isFallback: false,
+                nicknames: [],
+                bigFive: { O: null, C: null, E: null, A: null, N: null },
+                competencies: {},
+                relationship: { closeness: null, trust: null, friendliness: null, importance: null },
+                stanceHistory: [],
+                createdAt: new Date().toISOString(),
+            };
+            try {
+                await savePerson(dek, _currentUserId, stub);
+                _personsCache.push(stub);
+                matched = stub;
+                _newlyCreatedPersonIds.add(stub.id);
+                showToast(`✓ "${name}" 카드를 만들었어요. [인물]에서 자세히 채워주세요.`);
+            } catch (e) {
+                console.error('inline person create failed:', e);
+                showToast('카드 만들기가 잠깐 막혔어요.');
+                return;
+            }
+        }
 
-    // 2) 없으면 즉석 stub 카드 생성 — 이름 필드에 입력값(이름 또는 별명) 그대로
-    if (!matched) {
-        const dek = getDEK();
-        if (!dek) { showToast('잠시 잠겨 있어요'); return; }
-        const stub = {
-            name: name,
-            relation: 'unknown',
-            innerCircle: false,
-            stance: 'neutral',
-            isFallback: false,
-            nicknames: [],
-            bigFive: { O: null, C: null, E: null, A: null, N: null },
-            competencies: {},
-            relationship: { closeness: null, trust: null, friendliness: null, importance: null },
-            stanceHistory: [],
-            createdAt: new Date().toISOString(),
-        };
-        try {
-            await savePerson(dek, _currentUserId, stub);
-            _personsCache.push(stub);
-            matched = stub;
-            _newlyCreatedPersonIds.add(stub.id);
-            showToast(`✓ "${name}" 카드를 만들었어요. [인물]에서 자세히 채워주세요.`);
-        } catch (e) {
-            console.error('inline person create failed:', e);
-            showToast('카드 만들기가 잠깐 막혔어요.');
+        if (_selectedPersonIds.includes(matched.id)) {
+            showToast('이미 추가된 사람이에요');
             return;
         }
+        _selectedPersonIds.push(matched.id);
+        input.value = '';
+        renderLinkChips();
+        refreshLinkDatalists();
+    } finally {
+        _addingPerson = false;
     }
-
-    if (_selectedPersonIds.includes(matched.id)) {
-        showToast('이미 추가된 사람이에요');
-        return;
-    }
-    _selectedPersonIds.push(matched.id);
-    input.value = '';
-    renderLinkChips();
-    refreshLinkDatalists();
 }
 
 async function addOrgFromInput() {
+    // (2026-05-13 P1) in-flight 락 — addPersonFromInput 과 동일 의도.
+    if (_addingOrg) return;
     const input = document.getElementById('qr-org-input');
     const name = (input?.value || '').trim();
     if (!name) return;
+    _addingOrg = true;
+    try {
+        let matched = _orgsCache.find(o => (o.name || '') === name);
 
-    let matched = _orgsCache.find(o => (o.name || '') === name);
+        if (!matched) {
+            const dek = getDEK();
+            if (!dek) { showToast('잠시 잠겨 있어요'); return; }
+            const stub = {
+                name: name,
+                // v5 — multi-select 모델. 인라인 stub은 '방문' 단일 역할로 시작.
+                roles: ['visit'],
+                type: 'visit', // 구 호환
+                activityType: 'none',
+                stance: 'neutral',
+                friendliness: 3, trust: 3, importance: 3, riskLevel: 1,
+                memberPersonIds: [],
+                stanceHistory: [],
+                createdAt: new Date().toISOString(),
+            };
+            try {
+                await saveOrganization(dek, _currentUserId, stub);
+                _orgsCache.push(stub);
+                matched = stub;
+                _newlyCreatedOrgIds.add(stub.id);
+                showToast(`✓ "${name}" 조직 카드를 만들었어요. [조직]에서 자세히 채워주세요.`);
+            } catch (e) {
+                console.error('inline org create failed:', e);
+                showToast('카드 만들기가 잠깐 막혔어요.');
+                return;
+            }
+        }
 
-    if (!matched) {
-        const dek = getDEK();
-        if (!dek) { showToast('잠시 잠겨 있어요'); return; }
-        const stub = {
-            name: name,
-            // v5 — multi-select 모델. 인라인 stub은 '방문' 단일 역할로 시작.
-            roles: ['visit'],
-            type: 'visit', // 구 호환
-            activityType: 'none',
-            stance: 'neutral',
-            friendliness: 3, trust: 3, importance: 3, riskLevel: 1,
-            memberPersonIds: [],
-            stanceHistory: [],
-            createdAt: new Date().toISOString(),
-        };
-        try {
-            await saveOrganization(dek, _currentUserId, stub);
-            _orgsCache.push(stub);
-            matched = stub;
-            _newlyCreatedOrgIds.add(stub.id);
-            showToast(`✓ "${name}" 조직 카드를 만들었어요. [조직]에서 자세히 채워주세요.`);
-        } catch (e) {
-            console.error('inline org create failed:', e);
-            showToast('카드 만들기가 잠깐 막혔어요.');
+        if (_selectedOrgIds.includes(matched.id)) {
+            showToast('이미 추가된 조직이에요');
             return;
         }
+        _selectedOrgIds.push(matched.id);
+        input.value = '';
+        renderLinkChips();
+        refreshLinkDatalists();
+    } finally {
+        _addingOrg = false;
     }
-
-    if (_selectedOrgIds.includes(matched.id)) {
-        showToast('이미 추가된 조직이에요');
-        return;
-    }
-    _selectedOrgIds.push(matched.id);
-    input.value = '';
-    renderLinkChips();
-    refreshLinkDatalists();
 }
 
 function escapeHtml(s) {
