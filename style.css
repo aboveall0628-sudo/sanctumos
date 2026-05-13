@@ -461,6 +461,14 @@ button .btn-icon { vertical-align: text-bottom; }
 .passage-header:hover { background: var(--hover); }
 .passage-title { font-size: 14px; font-weight: 600; color: var(--accent); flex: 1; }
 .passage-meta { font-size: 11px; color: var(--text-secondary); margin-left: auto; }
+/* (2026-05-13) manual 모드 자동 롤오버 어긋났을 때 사용자 직접 다음 장 진입 */
+.passage-jump-next {
+    margin-left: var(--sp-2); padding: 2px 8px;
+    font-size: 11px; color: var(--accent);
+    background: transparent; border: 1px solid var(--border);
+    border-radius: 6px; cursor: pointer;
+}
+.passage-jump-next:hover { background: var(--hover); }
 .passage-container.collapsed .verse-list { display: none; }
 .passage-container.collapsed .passage-header { border-bottom: none; }
 .passage-container.collapsed .passage-header::after { transform: rotate(-90deg); }

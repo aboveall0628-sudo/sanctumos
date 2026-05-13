@@ -318,10 +318,18 @@ export async function renderScriptureForDate(date) {
                </div>`
             : '';
 
+        // (2026-05-13 즉효 fix) manual 모드에서 자동 롤오버가 어긋났을 때를 위한 수동 진입 버튼.
+        //   본문 헤더 우측에 작은 "→ 다음 장" 버튼 노출. 클릭 시 즉시 다음 장으로 이동.
+        //   본격 롤오버 로직 디버그는 별도 매듭.
+        const manualJumpHtml = mode === 'manual'
+            ? `<button type="button" class="passage-jump-next" data-part="${part.id}" title="다음 장으로 이동">다음 장 →</button>`
+            : '';
+
         passageContainer.innerHTML = `
             <div class="passage-header">
                 <span class="passage-title">${info.full || info.abbr} ${info.chapter}장</span>
                 <span class="passage-meta">${part.name.replace('파트','P')} · ${index + 1}/${total}</span>
+                ${manualJumpHtml}
             </div>
             <div class="verse-list">
                 ${verses.map(v => `
@@ -340,6 +348,22 @@ export async function renderScriptureForDate(date) {
         passageContainer.querySelector('.passage-header').addEventListener('click', () => {
             passageContainer.classList.toggle('collapsed');
         });
+
+        // (2026-05-13) "다음 장 →" 즉시 진입 — manual 모드 자동 롤오버 어긋났을 때 사용자 직접 이동
+        const jumpBtn = passageContainer.querySelector('.passage-jump-next');
+        if (jumpBtn) {
+            jumpBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const partChapters = flattenPartChapters(part);
+                const max = partChapters.length;
+                const curPos = getPartPosition(plan.id, part.id);
+                const baseline = typeof curPos === 'number' ? curPos : index;
+                const nextPos = Math.min(baseline + 1, max - 1);
+                setPartPosition(plan.id, part.id, nextPos);
+                clearPartLastRead(plan.id, part.id);
+                renderScriptureForDate(date).catch(() => {});
+            });
+        }
 
         // 구절 클릭 → 토글 선택
         passageContainer.querySelectorAll('.verse-item').forEach(el => {
