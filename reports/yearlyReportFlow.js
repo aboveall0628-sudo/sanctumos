@@ -8,6 +8,8 @@ import { callYearlyReport } from '../ui/aiClient.js';
 import { getAllPersons } from '../data/personRepo.js';
 // STEP D-7 (2026-05-14): orgNetwork 신규 — orgId → name 매핑
 import { getAllOrganizations } from '../data/orgRepo.js';
+// 재작성(↻) 시 이전 Q&A archive — 사용자 정책 C
+import { archiveQuestionsByReport } from './reportQuestionsRepo.js';
 
 async function enrichStatsForLLM(dek, userId, stats) {
     const personItems = stats.personNetwork?.items || [];
@@ -50,6 +52,11 @@ export async function generateYearlyReport(dek, userId, yearStart, yearEnd, opts
     const existing = await getYearReport(dek, userId, year);
     if (!opts.force && existing && existing.aiSummary) {
         return { status: 'existed', report: existing, fallback: false };
+    }
+
+    // 재작성 모드 — 같은 reportId 의 이전 Q&A 를 archive (정책 C)
+    if (opts.force) {
+        archiveQuestionsByReport(userId, year).catch(e => console.warn('[yearReport] archive Q&A failed:', e));
     }
 
     if (rawStats.totalDots === 0) {

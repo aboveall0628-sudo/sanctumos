@@ -15,7 +15,10 @@
  */
 
 import { callReportQuestion } from './aiClient.js';
-import { saveReportQuestion, listQuestionsByReport, markQuestionSeen } from '../reports/reportQuestionsRepo.js';
+import {
+    saveReportQuestion, listQuestionsByReport, markQuestionSeen,
+    countArchivedByReport, listArchivedQuestionsByReport,
+} from '../reports/reportQuestionsRepo.js';
 import { getAllPersons } from '../data/personRepo.js';
 import { getAllOrganizations } from '../data/orgRepo.js';
 
@@ -94,6 +97,7 @@ export async function mountReportQna(anchorEl, cfg) {
     wrap.className = 'qna-wrap';
     wrap.innerHTML = `
         <div class="qna-history" data-empty="true"></div>
+        <div class="qna-archive-row" data-mounted="false"></div>
         <form class="qna-form" autocomplete="off">
             <label class="qna-label" for="qna-input-${escapeId(cfg.reportId)}">리포트에 대해 질문하기</label>
             <div class="qna-input-row">
@@ -106,6 +110,41 @@ export async function mountReportQna(anchorEl, cfg) {
     `;
     // 푸터(여기까지가 데이터예요…) 바로 앞에 끼움. 없으면 마지막에.
     anchorEl.insertAdjacentElement('beforebegin', wrap);
+
+    // 재작성으로 archive 된 이전 Q&A 가 있으면 토글 노출 (2026-05-14 정책 C)
+    countArchivedByReport(cfg.userId, cfg.reportId).then(count => {
+        if (count <= 0) return;
+        const row = wrap.querySelector('.qna-archive-row');
+        if (!row) return;
+        row.dataset.mounted = 'true';
+        row.innerHTML = `
+            <button type="button" class="qna-archive-toggle" aria-expanded="false">
+                ↻ 이전 Q&A ${count}건 보기
+            </button>
+            <div class="qna-archive-list hidden"></div>
+        `;
+        const btn  = row.querySelector('.qna-archive-toggle');
+        const list = row.querySelector('.qna-archive-list');
+        btn.addEventListener('click', async () => {
+            const willOpen = list.classList.contains('hidden');
+            if (willOpen && !list.dataset.loaded) {
+                btn.disabled = true;
+                btn.textContent = '불러오는 중…';
+                try {
+                    const items = await listArchivedQuestionsByReport(cfg.dek, cfg.userId, cfg.reportId, 50);
+                    renderArchivedList(list, items);
+                    list.dataset.loaded = 'true';
+                } catch (e) {
+                    console.warn('archive load failed:', e);
+                    list.innerHTML = `<p class="qna-error">이전 Q&A 를 부르지 못했어요.</p>`;
+                }
+                btn.disabled = false;
+            }
+            list.classList.toggle('hidden', !willOpen);
+            btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+            btn.textContent = willOpen ? `▾ 이전 Q&A ${count}건 접기` : `↻ 이전 Q&A ${count}건 보기`;
+        });
+    }).catch(e => console.warn('archive count failed:', e));
 
     // 기존 질문 로드 — listQuestionsByReport
     try {
@@ -177,6 +216,20 @@ function renderHistory(historyEl, items) {
     historyEl.dataset.empty = 'false';
     historyEl.innerHTML = items.map(it => `
         <article class="qna-card" data-question-id="${escapeAttr(it.id)}">
+            <p class="qna-question">${escapeHtml(it.question || '')}</p>
+            <div class="qna-answer">${renderAnswerHtml(it)}</div>
+        </article>
+    `).join('');
+}
+
+// archive 토글 본문 — 옅은 톤으로 현재와 구분
+function renderArchivedList(listEl, items) {
+    if (!items || items.length === 0) {
+        listEl.innerHTML = `<p class="qna-archive-empty">기록된 이전 Q&A 가 없어요.</p>`;
+        return;
+    }
+    listEl.innerHTML = items.map(it => `
+        <article class="qna-card qna-card-archived" data-question-id="${escapeAttr(it.id)}">
             <p class="qna-question">${escapeHtml(it.question || '')}</p>
             <div class="qna-answer">${renderAnswerHtml(it)}</div>
         </article>

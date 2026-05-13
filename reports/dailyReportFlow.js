@@ -19,6 +19,8 @@ import { callDailyReport } from '../ui/aiClient.js';
 // 인물·조직 이름 매핑 — LLM이 Firestore ID 대신 실제 이름 보고 응답하도록
 import { getAllPersons } from '../data/personRepo.js';
 import { getAllOrganizations } from '../data/orgRepo.js';
+// 재작성(↻) 시 이전 Q&A archive — 사용자 정책 C (2026-05-14)
+import { archiveQuestionsByReport } from './reportQuestionsRepo.js';
 
 /**
  * stats의 connections에 들어있는 personId/orgId를 실제 이름으로 매핑.
@@ -150,6 +152,11 @@ export async function generateDailyReport(dek, userId, date, opts = {}) {
     const existing = await getDayReport(dek, userId, date);
     if (!opts.force && existing && existing.aiSummary) {
         return { status: 'existed', report: existing, fallback: false };
+    }
+
+    // 재작성 모드 — 같은 reportId 의 이전 Q&A 를 archive (정책 C)
+    if (opts.force) {
+        archiveQuestionsByReport(userId, date).catch(e => console.warn('[dailyReport] archive Q&A failed:', e));
     }
 
     // 2) 도트 0개면 의미 있는 리포트 못 만듦

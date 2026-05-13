@@ -21,6 +21,8 @@ import { callMonthlyReport } from '../ui/aiClient.js';
 import { getAllPersons } from '../data/personRepo.js';
 // STEP D-7 (2026-05-14): 신규 orgNetwork (5계층 통일) — orgId → name 매핑 추가
 import { getAllOrganizations } from '../data/orgRepo.js';
+// 재작성(↻) 시 이전 Q&A archive — 사용자 정책 C
+import { archiveQuestionsByReport } from './reportQuestionsRepo.js';
 
 /**
  * stats.personNetwork.items의 personId를 실제 이름으로 매핑.
@@ -87,6 +89,11 @@ export async function generateMonthlyReport(dek, userId, monthStart, monthEnd, o
     const existing = await getMonthReport(dek, userId, yearMonth);
     if (!opts.force && existing && existing.aiSummary) {
         return { status: 'existed', report: existing, fallback: false };
+    }
+
+    // 재작성 모드 — 같은 reportId 의 이전 Q&A 를 archive (정책 C)
+    if (opts.force) {
+        archiveQuestionsByReport(userId, yearMonth).catch(e => console.warn('[monthReport] archive Q&A failed:', e));
     }
 
     // 3) 도트 0개면 의미 있는 리포트 못 만듦

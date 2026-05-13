@@ -1638,6 +1638,32 @@ button .btn-icon { vertical-align: text-bottom; }
 }
 .qna-card-pending { opacity: 0.7; }
 
+/* (2026-05-14 정책 C) 재작성으로 archive 된 이전 Q&A — 옅은 톤으로 구분 */
+.qna-archive-row { margin: var(--sp-3) 0; }
+.qna-archive-row[data-mounted="false"] { display: none; }
+.qna-archive-toggle {
+    background: transparent;
+    border: 1px dashed var(--border);
+    color: var(--text-secondary);
+    font-size: 12px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+.qna-archive-toggle:hover { background: var(--bg-quiet, rgba(0,0,0,0.03)); }
+.qna-archive-toggle[aria-expanded="true"] { background: var(--bg-quiet, rgba(0,0,0,0.03)); }
+.qna-archive-list { display: flex; flex-direction: column; gap: var(--sp-3); margin-top: var(--sp-3); }
+.qna-archive-list.hidden { display: none; }
+.qna-archive-empty {
+    font-size: 12px; color: var(--text-secondary); font-style: italic;
+    margin: 0; padding: var(--sp-3);
+}
+.qna-card-archived {
+    opacity: 0.7;
+    border-left-color: var(--border);
+    background: var(--bg-quiet, rgba(0,0,0,0.02));
+}
+
 .qna-question {
     margin: 0 0 8px;
     font-size: 13px; font-weight: 600;

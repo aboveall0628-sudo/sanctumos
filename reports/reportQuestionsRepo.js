@@ -3,7 +3,8 @@
  *
  * 컬렉션: 'reportQuestions'
  *   plaintext: id, userId, reportId, reportType, askedAt, createdAt
- *              + (이 모듈에서 추가) seenAt (다음 아침 게이트에서 노출 후 마킹)
+ *              + seenAt (다음 아침 게이트에서 노출 후 마킹)
+ *              + archivedAt (2026-05-14, 리포트 재작성 시 사용자 정책 C — 옛 사고 흔적 보존 + 새 카드에선 숨김)
  *   encrypted: question, observationFlow, returnToMeditation
  *
  * 흐름:
@@ -11,9 +12,11 @@
  *   2) saveReportQuestion → Firestore 에 저장
  *   3) 다음 아침 게이트 (대시보드 #today-start-content) 가 listUnseenQuestions 로 조회
  *   4) 사용자가 본 뒤 markSeen → 다음엔 안 보임
+ *   5) 사용자가 리포트 재작성(↻) → archiveQuestionsByReport 호출
+ *      → listQuestionsByReport 기본 호출은 active 만 반환 (새 카드 깨끗)
+ *      → 사용자가 "이전 Q&A N건 보기" 토글 누르면 listArchivedQuestionsByReport
  *
- * seenAt 은 plaintext 추가 필드. 컬렉션 정책에 명시되어 있지 않지만 plaintext 메타에
- * 같이 둠 (질문/응답 본문은 암호화).
+ * seenAt / archivedAt 둘 다 plaintext 메타 (본문은 암호화 유지).
  */
 
 import {
@@ -49,6 +52,7 @@ export async function saveReportQuestion(dek, userId, opts) {
         returnToMeditation: opts.returnToMeditation,
         askedAt:            serverTimestamp(),
         seenAt:             null,
+        archivedAt:         null,
         createdAt:          serverTimestamp(),
     };
     await saveRecord(dek, COLLECTION, data, id);
@@ -56,13 +60,16 @@ export async function saveReportQuestion(dek, userId, opts) {
 }
 
 /**
- * 특정 리포트에 대한 질문 목록 (최신순).
+ * 특정 리포트에 대한 질문 목록 (최신순). 기본은 archived 제외 — 새 카드 깨끗.
  *
  * Firestore composite index 회피: userId 단일 where 로 가져온 뒤
  * 클라이언트에서 reportId 필터 + askedAt 정렬.
  * (메모리: feedback_firestore_index_pattern.md)
+ *
+ * @param {Object} [opts]
+ *   @param {boolean} [opts.includeArchived=false] true면 archived 도 함께 반환
  */
-export async function listQuestionsByReport(dek, userId, reportId, limitCount = 10) {
+export async function listQuestionsByReport(dek, userId, reportId, limitCount = 10, opts = {}) {
     const q = query(
         collection(db, COLLECTION),
         where('userId', '==', userId),
@@ -71,8 +78,58 @@ export async function listQuestionsByReport(dek, userId, reportId, limitCount = 
     const all = await queryRecords(dek, q);
     return all
         .filter(r => r.reportId === reportId)
+        .filter(r => opts.includeArchived ? true : !r.archivedAt)
         .sort((a, b) => toMillis(b.askedAt) - toMillis(a.askedAt))
         .slice(0, limitCount);
+}
+
+/**
+ * 리포트 재작성(↻) 시 호출 — 같은 reportId 의 active Q&A 를 archivedAt 으로 마킹.
+ * 본문 암호화 필드는 그대로 보존. plaintext 메타만 갱신.
+ * (사용자 명시 정책 C — 사고 흔적 보존, 새 카드에선 숨김, 토글로 펼침)
+ */
+export async function archiveQuestionsByReport(userId, reportId) {
+    const q = query(
+        collection(db, COLLECTION),
+        where('userId', '==', userId),
+        limit(100),
+    );
+    const all = await queryRecords(null, q);   // plaintext 만 필요 — DEK 없이도 메타 조회 가능
+    const targets = all.filter(r => r.reportId === reportId && !r.archivedAt);
+    await Promise.all(targets.map(r => {
+        const ref = doc(db, COLLECTION, r.id);
+        return setDoc(ref, { archivedAt: serverTimestamp() }, { merge: true });
+    }));
+    return targets.length;
+}
+
+/**
+ * archive 된 Q&A 목록 — 사용자가 "이전 Q&A N건 보기" 토글 누를 때.
+ */
+export async function listArchivedQuestionsByReport(dek, userId, reportId, limitCount = 20) {
+    const q = query(
+        collection(db, COLLECTION),
+        where('userId', '==', userId),
+        limit(100),
+    );
+    const all = await queryRecords(dek, q);
+    return all
+        .filter(r => r.reportId === reportId && !!r.archivedAt)
+        .sort((a, b) => toMillis(b.archivedAt) - toMillis(a.archivedAt))
+        .slice(0, limitCount);
+}
+
+/**
+ * archive 카운트 — UI 토글 노출 여부 결정 시 가벼운 호출. 본문 디크립트 회피.
+ */
+export async function countArchivedByReport(userId, reportId) {
+    const q = query(
+        collection(db, COLLECTION),
+        where('userId', '==', userId),
+        limit(100),
+    );
+    const all = await queryRecords(null, q);
+    return all.filter(r => r.reportId === reportId && !!r.archivedAt).length;
 }
 
 /**
@@ -91,7 +148,8 @@ export async function listUnseenReportQuestions(dek, userId, max = 3) {
     );
     const records = await queryRecords(dek, q);
     return records
-        .filter(r => !r.seenAt)
+        // archived 도 게이트에서 제외 — 사용자가 재작성했다는 건 새 출발 의지
+        .filter(r => !r.seenAt && !r.archivedAt)
         .sort((a, b) => toMillis(b.askedAt) - toMillis(a.askedAt))
         .slice(0, max);
 }
