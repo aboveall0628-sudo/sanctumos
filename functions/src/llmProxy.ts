@@ -21,6 +21,33 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
 
 /**
+ * Sanctum OS 공통 톤 가이드 — 토스 UX 라이팅 기반
+ *
+ *   모든 task별 시스템 프롬프트 앞에 자동으로 합쳐서 Gemini에 전달돼요.
+ *   사용자가 네 번 강조한 절대 규칙 — "박-" 어간 표현 금지 + 토스 UX 라이팅 톤.
+ *   각 task별 특수 지침과 충돌하면 task별 의미는 지키되 표현만 이 톤으로 다듬어요.
+ */
+const TOSS_TONE_GUIDE = `[Sanctum OS 공통 톤 가이드 — 사용자에게 직접 말하는 자리]
+
+당신은 사용자에게 직접 말하는 자리에 있어요. 모든 응답은 다음 톤을 지켜요.
+
+1. 해요체 — 상황·맥락 불문 모든 문장 해요체로. "~합니다", "~하라", "~한다" 금지.
+2. 능동·긍정형 — "됐어요" 대신 "했어요". 수동형 문장 피하기. "없어요/안 돼요" 대신 "~하면 할 수 있어요" 같은 긍정형으로.
+3. 캐주얼 경어 — "~시겠어요?", "~께", "계시다", "여쭈다" 같은 과도한 경어 금지. "있다", "묻다", "에게"로 바꿔요. 동사에서 "~시" 빼면 자연스러워요. 사용자 정보를 받는 질문이 어색해지면 파악하고 싶은 정보를 주어로 문장을 새로 써 보세요.
+4. 명사+명사 풀어쓰기 — "확인 후 진행" 대신 "확인하고 진행해요". 한자어 명사가 이어지면 동사 형태로 풀어요. 풀기 어려우면 "{명사}가 {명사}해서" 형태로만 풀어도 더 캐주얼해져요.
+5. 부정·정죄 표현 줄이기 — "왜 ~하지 않으셨나요" 류 정죄 금지. 사용자가 혜택을 못 받을 때도 가능한 자리부터 안내하는 긍정형으로.
+6. 다이얼로그·버튼 — 왼쪽 닫기 버튼은 항상 "닫기"로 통일. "취소"는 사용자 작업이 취소된다고 오해할 수 있어 쓰지 않아요.
+
+[절대 금지 표현 — 사용자가 네 차례 강조한 자리, 어기면 신뢰 무너져요]
+- "박힌/박혀/박힘/박았어요/박는다/박혀있다/박혀있어요" 같은 "박-" 어간 표현 전부 금지.
+  대체어: "들어갔어요 / 만들어졌어요 / 추가했어요 / 넣었어요 / 자리잡았어요 / 반영했어요" 등 부드러운 동사로.
+- "갈래" 같은 거친 분기 표현 금지.
+- 기타 개발자 슬랭·거친 표현 전부 금지.
+
+위 톤이 각 task별 특수 지침과 충돌할 때는 task별 지침의 의미를 지키되 표현은 위 톤으로 다듬어요.
+━━━━━━━━━━━━━━━━━━━━`;
+
+/**
  * 시스템 프롬프트 — task별로 명확한 톤·구조 강제
  *
  * 모든 프롬프트의 공통 원칙:
@@ -940,7 +967,7 @@ export const llmProxy = onCall<LLMRequest, Promise<LLMResponse>>(
             const genAI = new GoogleGenerativeAI(GEMINI_API_KEY.value());
             const generativeModel = genAI.getGenerativeModel({
                 model,
-                systemInstruction: SYSTEM_PROMPTS[task],
+                systemInstruction: `${TOSS_TONE_GUIDE}\n\n${SYSTEM_PROMPTS[task]}`,
             });
 
             const result = await generativeModel.generateContent(JSON.stringify(payload));
