@@ -27,6 +27,8 @@ import { ensureSelfCard, saveSelfCard } from '../data/personRepo.js';
 import { showToast } from './quickReview.js';
 // (53번 본인 프로필 AI 부트스트랩 — 2026-05-14) 묶음당 2~3 짧은 질문 + 일괄 제안
 import { callProfileBootstrap } from './aiClient.js';
+// (#58 후속 2026-05-14) 음력 → 올해 양력 자동 표시
+import { parseBirthdayMonthDay, lunarBirthdayToUpcomingSolar } from '../infra/lunarCalendar.js';
 
 const BOOTSTRAP_INTRO_KEY = 'sf-bootstrap-intro-shown';
 
@@ -255,6 +257,7 @@ function pageTemplate(d) {
                     <button type="button" class="bcal-chip ${d.birthdayCalendar === 'lunar' ? 'active' : ''}"
                         data-bcal="lunar">🌙 음력</button>
                 </div>
+                <div id="sf-birthday-solar-hint" class="birthday-solar-hint"></div>
             </div>
         </section>
 
@@ -477,7 +480,24 @@ function bindEvents(container) {
     }
 
     // (#58 2026-05-14) 생일 음력/양력 토글 — 메타만 보존
+    // (#58 후속) 음력일 때 input 아래에 "올해 양력: X월 X일" 자동 표시
     const birthInput = container.querySelector('#sf-birthday');
+    const solarHint  = container.querySelector('#sf-birthday-solar-hint');
+
+    const refreshSolarHint = async () => {
+        if (!solarHint) return;
+        const cal = _draft.birthdayCalendar || 'solar';
+        const txt = birthInput?.value || '';
+        if (cal !== 'lunar' || !txt.trim()) { solarHint.textContent = ''; return; }
+        const md = parseBirthdayMonthDay(txt);
+        if (!md) { solarHint.textContent = ''; return; }
+        solarHint.textContent = '✨ 계산 중...';
+        const solar = await lunarBirthdayToUpcomingSolar(md.month, md.day);
+        if (!solar) { solarHint.textContent = '✨ 양력 변환을 못 했어요 (윤달이거나 범위 밖일 수 있어요)'; return; }
+        const daysLabel = solar.daysUntil === 0 ? '오늘!' : `${solar.daysUntil}일 후`;
+        solarHint.textContent = `✨ 양력 ${solar.year}년 ${solar.month}월 ${solar.day}일 — ${daysLabel}`;
+    };
+
     container.querySelectorAll('.birthday-cal-toggle .bcal-chip').forEach(chip => {
         chip.addEventListener('click', () => {
             const val = chip.dataset.bcal;
@@ -490,8 +510,11 @@ function bindEvents(container) {
                     ? '음력 예: 8월 15일'
                     : 'YYYY-MM-DD 또는 자유 텍스트';
             }
+            refreshSolarHint();
         });
     });
+    birthInput?.addEventListener('input', () => refreshSolarHint());
+    refreshSolarHint();
 
     if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
 }

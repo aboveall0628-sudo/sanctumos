@@ -6477,3 +6477,11 @@ body.dg-open { overflow: hidden; }
 .person-birthday-row {
     flex-wrap: wrap;
 }
+.birthday-solar-hint {
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--ink-tertiary, #a8a499);
+    line-height: 1.4;
+    font-family: inherit;
+}
+.birthday-solar-hint:empty { display: none; }

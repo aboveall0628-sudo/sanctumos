@@ -584,10 +584,28 @@ function bindLayer1Events(root) {
 
 function bindAnnivEvents(root) {
     const birthInput = root.querySelector('#person-birthday');
+    const solarHint  = root.querySelector('#person-birthday-solar-hint');
     birthInput?.addEventListener('change', e => {
         _editingDraft.birthday = e.target.value;
     });
-    // (#58) 음력/양력 토글 — 메타만 보존, 알람 트리거는 별도 트랙
+
+    // (#58 후속 2026-05-14) 음력일 때 input 아래에 "올해 양력: X월 X일" 자동 표시
+    const refreshSolarHint = async () => {
+        if (!solarHint) return;
+        const cal = _editingDraft.birthdayCalendar || 'solar';
+        const txt = birthInput?.value || '';
+        if (cal !== 'lunar' || !txt.trim()) { solarHint.textContent = ''; return; }
+        const lib = await import('../infra/lunarCalendar.js');
+        const md = lib.parseBirthdayMonthDay(txt);
+        if (!md) { solarHint.textContent = ''; return; }
+        solarHint.textContent = '✨ 계산 중...';
+        const solar = await lib.lunarBirthdayToUpcomingSolar(md.month, md.day);
+        if (!solar) { solarHint.textContent = '✨ 양력 변환을 못 했어요 (윤달이거나 범위 밖일 수 있어요)'; return; }
+        const daysLabel = solar.daysUntil === 0 ? '오늘!' : `${solar.daysUntil}일 후`;
+        solarHint.textContent = `✨ 양력 ${solar.year}년 ${solar.month}월 ${solar.day}일 — ${daysLabel}`;
+    };
+
+    // (#58) 음력/양력 토글 — 메타만 보존
     root.querySelectorAll('.birthday-cal-toggle .bcal-chip').forEach(chip => {
         chip.addEventListener('click', () => {
             const val = chip.dataset.bcal;
@@ -600,8 +618,11 @@ function bindAnnivEvents(root) {
                     ? '음력 예: 8월 15일 또는 1985-08-15'
                     : 'YYYY-MM-DD 또는 8/15';
             }
+            refreshSolarHint();
         });
     });
+    birthInput?.addEventListener('input', () => refreshSolarHint());
+    refreshSolarHint();
     root.querySelector('#person-anniv-add')?.addEventListener('click', () => {
         const list = Array.isArray(_editingDraft.anniversaries) ? _editingDraft.anniversaries : [];
         list.push({ date: '', label: '' });
@@ -1184,6 +1205,7 @@ function anniversariesHtml(p) {
                     <button type="button" class="bcal-chip ${p.birthdayCalendar === 'lunar' ? 'active' : ''}"
                         data-bcal="lunar">🌙 음력</button>
                 </div>
+                <div id="person-birthday-solar-hint" class="birthday-solar-hint"></div>
             </div>
             <div class="anniv-list" id="person-anniv-list">${rows}</div>
             <button type="button" id="person-anniv-add" class="text-btn">+ 기념일 추가</button>

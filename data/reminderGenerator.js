@@ -21,10 +21,18 @@ import { getAllPersons } from './personRepo.js';
 import { getAllOrganizations } from './orgRepo.js';
 import { getWeekReport } from '../reports/weekReportRepo.js';
 import { db, doc, getDoc } from './firebase.js';
+// (#58 후속 2026-05-14) 음력 → 올해 양력 변환 (lazy ESM CDN)
+import {
+    parseBirthdayMonthDay,
+    lunarBirthdayToUpcomingSolar,
+    solarBirthdayDaysUntil,
+} from '../infra/lunarCalendar.js';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const STALE_GOAL_DAYS_THRESHOLD = 3;   // daily 목표 미배치 N일+ 이면 알람
 const EMPTY_CARD_DAYS_THRESHOLD = 3;    // 인물/조직 카드 생성 후 N일+ 미완 시 알람
+// (#58 후속) 생일 알람 — 7일 전, 3일 전, 당일 3회
+const BIRTHDAY_REMINDER_DAYS = [7, 3, 0];
 
 /**
  * 4종 자동 알람 모두 시도. 각각 try/catch — 하나 실패해도 나머지는 동작.
@@ -35,7 +43,7 @@ const EMPTY_CARD_DAYS_THRESHOLD = 3;    // 인물/조직 카드 생성 후 N일+
  * @returns {Promise<{ generated: { weekly:number, yesterday:number, stale:number, principle:number } }>}
  */
 export async function generateAllAutoReminders(dek, userId, today) {
-    const result = { weekly: 0, yesterday: 0, stale: 0, principle: 0, emptyCard: 0, dailyMed: 0 };
+    const result = { weekly: 0, yesterday: 0, stale: 0, principle: 0, emptyCard: 0, dailyMed: 0, birthday: 0 };
 
     try {
         if (await generateWeeklyReviewReminder(dek, userId, today)) result.weekly = 1;
@@ -61,6 +69,11 @@ export async function generateAllAutoReminders(dek, userId, today) {
     try {
         if (await generateDailyMeditationReminder(dek, userId, today)) result.dailyMed = 1;
     } catch (e) { console.warn('[reminderGen] daily-meditation failed:', e); }
+
+    // (#58 후속 2026-05-14) 생일 알람 — 7일/3일/당일. innerCircle + 본인.
+    try {
+        result.birthday = await generateBirthdayReminders(dek, userId, today);
+    } catch (e) { console.warn('[reminderGen] birthday failed:', e); }
 
     return { generated: result };
 }
@@ -344,4 +357,84 @@ function isoYearWeek(dateStr) {
     const week1 = new Date(d.getFullYear(), 0, 4);
     const weekNum = 1 + Math.round(((d - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
     return `${d.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// (#58 후속 2026-05-14) 생일 알람 — 7일 전 + 3일 전 + 당일
+//
+// 대상: innerCircle=true 인물 카드 + 본인 카드 (isSelf=true)
+// 컨텍스트 ID: ${personId}_${today}_${daysOffset}  — 같은 날 같은 알람 한 번만.
+// 양력/음력:
+//   - birthdayCalendar='solar' 또는 없음 → 양력 단순 계산
+//   - birthdayCalendar='lunar' → korean-lunar-calendar 변환 후 양력 매칭
+// 라이브러리 실패 시 음력 카드는 조용히 건너뜀 (양력만 처리).
+// ─────────────────────────────────────────────────────────────────────
+export async function generateBirthdayReminders(dek, userId, today) {
+    let created = 0;
+    let all;
+    try {
+        all = await getAllPersons(dek, userId, { includeSelf: true });
+    } catch (e) {
+        console.warn('[reminderGen] birthday: getAllPersons 실패', e?.message || e);
+        return 0;
+    }
+    // 본인 + innerCircle 만
+    const targets = all.filter(p => p && (p.isSelf === true || p.innerCircle === true));
+
+    for (const p of targets) {
+        if (!p.birthday) continue;
+        const md = parseBirthdayMonthDay(p.birthday);
+        if (!md) continue;
+
+        // 양력 기준 다가오는 날짜 계산
+        let solar; // { year, month, day, daysUntil }
+        try {
+            if (p.birthdayCalendar === 'lunar') {
+                solar = await lunarBirthdayToUpcomingSolar(md.month, md.day, today);
+                if (!solar) continue; // 라이브러리 실패 → 조용히 skip
+            } else {
+                const daysU = solarBirthdayDaysUntil(md.month, md.day, today);
+                solar = { month: md.month, day: md.day, daysUntil: daysU };
+            }
+        } catch (e) {
+            console.warn('[reminderGen] birthday 계산 실패:', p.name || p.id, e?.message || e);
+            continue;
+        }
+
+        if (!BIRTHDAY_REMINDER_DAYS.includes(solar.daysUntil)) continue;
+
+        const daysOffset = solar.daysUntil;
+        const id = makeReminderId(userId, 'birthday', `${p.id}_${today}_${daysOffset}`);
+        const isSelf = p.isSelf === true;
+        const calLabel = p.birthdayCalendar === 'lunar' ? ' (음력)' : '';
+
+        let title, body;
+        if (isSelf) {
+            if (daysOffset === 0)      { title = '🎂 오늘 생신이에요'; body = '하루를 곁들여 보세요.'; }
+            else if (daysOffset === 3) { title = `🎂 3일 후 생신이에요`; body = '한 호흡 미리.'; }
+            else                       { title = `🎂 ${daysOffset}일 후 생신이에요`; body = '한 주가 다가와요.'; }
+        } else {
+            const who = p.name || '한 분';
+            if (daysOffset === 0)      { title = `🎂 ${who} 오늘 생신${calLabel}`; body = '한 줄 메시지 어떠세요?'; }
+            else if (daysOffset === 3) { title = `🎂 ${who} 3일 후 생신${calLabel}`; body = '선물·메시지 준비할 시간이에요.'; }
+            else                       { title = `🎂 ${who} ${daysOffset}일 후 생신${calLabel}`; body = '한 주가 다가와요.'; }
+        }
+
+        try {
+            const res = await saveReminderIfAbsent(dek, {
+                id,
+                userId,
+                type:         'birthday',
+                title,
+                body,
+                targetView:   isSelf ? 'self-profile' : 'persons',
+                targetParams: isSelf ? null : { personId: p.id },
+                dueDate:      today,
+            });
+            if (res.created) created++;
+        } catch (e) {
+            console.warn('[reminderGen] birthday 알람 저장 실패:', p.name || p.id, e?.message || e);
+        }
+    }
+    return created;
 }
