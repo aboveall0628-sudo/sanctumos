@@ -21,7 +21,7 @@
 
 import {
     db, collection, query, where, orderBy, limit, serverTimestamp,
-    doc, setDoc,
+    doc, setDoc, getDocs,
 } from '../data/firebase.js';
 import { saveRecord, getRecord, queryRecords } from '../data/baseRepo.js';
 
@@ -87,6 +87,9 @@ export async function listQuestionsByReport(dek, userId, reportId, limitCount = 
  * 리포트 재작성(↻) 시 호출 — 같은 reportId 의 active Q&A 를 archivedAt 으로 마킹.
  * 본문 암호화 필드는 그대로 보존. plaintext 메타만 갱신.
  * (사용자 명시 정책 C — 사고 흔적 보존, 새 카드에선 숨김, 토글로 펼침)
+ *
+ * baseRepo.queryRecords 는 readDocument(dek) 강제라 dek 없이 plaintext 만 보려면
+ * raw getDocs 로 직접 docSnap.data() 의 평문 필드(userId/reportId/archivedAt) 만 읽음.
  */
 export async function archiveQuestionsByReport(userId, reportId) {
     const q = query(
@@ -94,10 +97,16 @@ export async function archiveQuestionsByReport(userId, reportId) {
         where('userId', '==', userId),
         limit(100),
     );
-    const all = await queryRecords(null, q);   // plaintext 만 필요 — DEK 없이도 메타 조회 가능
-    const targets = all.filter(r => r.reportId === reportId && !r.archivedAt);
-    await Promise.all(targets.map(r => {
-        const ref = doc(db, COLLECTION, r.id);
+    const snap = await getDocs(q);
+    const targets = [];
+    snap.forEach(docSnap => {
+        const data = docSnap.data() || {};
+        if (data.reportId === reportId && !data.archivedAt) {
+            targets.push(docSnap.id);
+        }
+    });
+    await Promise.all(targets.map(id => {
+        const ref = doc(db, COLLECTION, id);
         return setDoc(ref, { archivedAt: serverTimestamp() }, { merge: true });
     }));
     return targets.length;
@@ -121,6 +130,7 @@ export async function listArchivedQuestionsByReport(dek, userId, reportId, limit
 
 /**
  * archive 카운트 — UI 토글 노출 여부 결정 시 가벼운 호출. 본문 디크립트 회피.
+ * archiveQuestionsByReport 와 동일 — raw getDocs 로 평문 메타만 읽음.
  */
 export async function countArchivedByReport(userId, reportId) {
     const q = query(
@@ -128,8 +138,13 @@ export async function countArchivedByReport(userId, reportId) {
         where('userId', '==', userId),
         limit(100),
     );
-    const all = await queryRecords(null, q);
-    return all.filter(r => r.reportId === reportId && !!r.archivedAt).length;
+    const snap = await getDocs(q);
+    let count = 0;
+    snap.forEach(docSnap => {
+        const data = docSnap.data() || {};
+        if (data.reportId === reportId && !!data.archivedAt) count++;
+    });
+    return count;
 }
 
 /**
