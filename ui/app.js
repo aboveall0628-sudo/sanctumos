@@ -455,6 +455,26 @@ async function onVaultUnlocked(dek) {
 
     // 단축키 시스템 — 잠금 해제 후 한 번만 초기화 (router 가 중복 호출 가드)
     try { initShortcuts(); } catch (e) { console.warn('[shortcuts] init failed:', e); }
+
+    // (본인 프로필 재기획 트랙 2026-05-14 S-D) 신규 사용자 첫 진입 자동 라우팅.
+    //   selfCard.name 빈 값이면 onboarding 모달 강제. 완료 후 view-today 진입 + 미션 진행도 갱신.
+    //   기존 사용자는 needsOnboarding=false 라 즉시 통과.
+    try {
+        const onboarding = await import('./onboarding.js');
+        if (await onboarding.needsOnboarding(dek, currentUserId)) {
+            onboarding.showOnboardingModal({
+                userId: currentUserId,
+                dek,
+                onComplete: () => {
+                    switchView('today');
+                    // 어체 따라 시간대 인사 등 갱신 위해 오늘의 시작 영역 다시 렌더
+                    renderTodayStartIntoView(currentUserId).catch(() => {});
+                }
+            });
+        }
+    } catch (e) {
+        console.warn('[onboarding] auto-route check failed:', e?.message || e);
+    }
 }
 
 function onVaultLocked() {
