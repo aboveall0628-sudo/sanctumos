@@ -130,6 +130,51 @@ export function expenseTypeLabel(typeId) {
     return EXPENSE_TYPES.find(t => t.id === typeId)?.label || typeId;
 }
 
+// ─── (경제 트랙 1.a 2026-05-14) 거래 9종 분류 ────────────
+// 가이드 별: "도트=거울+인과 진단" (사용자 명시).
+// direction × incomeType/expenseType/transferKind 축으로 9종을 만든다.
+//
+// 수입 3종 (incomeType):
+//   - active    "일해서 번 돈" (월급·프리랜서비)
+//   - passive   "내 돈이 일해서 번 돈" (배당·이자·임대)
+//   - trade     "사고 팔아서 남은/잃은 돈" (±매매차익, 손실 시 음수)
+//
+// 지출 4종: 일반(별도 incomeType 없음, category 일반) / 세금(category='tax')
+//           / 헌금(category='giving') / 고정비(expenseType='fixed' 또는 category='subscription'·'fixed-cost')
+//
+// 이체 2종 (transferKind):
+//   - internal  내 통장 사이 (transferFromAccountId, transferToAccountId 모두 본인 통장)
+//               → 지출 합계 X (분식회계 방지)
+//   - external  다른 사람에게 (transferToAccountId=null, recipient만 채움)
+//               → 지출 합계 자동 합산
+//
+// 매매(trade) 거래만 의사결정 흔적 필드 노출: tradeReason/tradeLesson/linkedPrecedentId.
+
+export const DIRECTIONS = [
+    { id: 'income',   label: '수입',  shortLabel: '들어옴' },
+    { id: 'expense',  label: '지출',  shortLabel: '나감' },
+    { id: 'transfer', label: '이체',  shortLabel: '옮김' },
+];
+
+export const INCOME_TYPES = [
+    { id: 'active',  label: '활성 (노동)',   desc: '일해서 번 돈',          icon: 'briefcase' },
+    { id: 'passive', label: '비활성 (자산)', desc: '내 돈이 일해서 번 돈',  icon: 'trending-up' },
+    { id: 'trade',   label: '매매 (±)',      desc: '사고 팔아서 남은/잃은 돈', icon: 'arrow-up-down' },
+];
+
+export const TRANSFER_KINDS = [
+    { id: 'internal', label: '내 통장 사이',     desc: '잔액 이동, 지출 아님' },
+    { id: 'external', label: '다른 사람에게',    desc: '메모 필수, 지출로 합산' },
+];
+
+export function incomeTypeLabel(typeId) {
+    return INCOME_TYPES.find(t => t.id === typeId)?.label || typeId;
+}
+
+export function directionLabel(dirId) {
+    return DIRECTIONS.find(d => d.id === dirId)?.label || dirId;
+}
+
 /**
  * direction 별 카테고리 리스트.
  */

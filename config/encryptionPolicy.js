@@ -12,6 +12,12 @@ export const POLICY = {
             'executionSatisfaction',
             'outcomeSatisfaction', 'executed', 'labelIds',
             'amountBucket', 'sentimentBucket', 'createdAt',
+            // (경제 트랙 1.a 2026-05-14) 도트 종류 — 'schedule'(일정, 디폴트) | 'event'(점 도트).
+            //   schedule: 시간 구간(timeSlot·durationSlots) + 평가. event: 한 시점(eventTimestamp), 거래·말·자동결제.
+            //   기존 도트는 모두 schedule 디폴트(saveDot 안에서 자동 박힘).
+            'kind',
+            // (경제 트랙 1.a) 이벤트 도트 시점 — ISO 'YYYY-MM-DDTHH:mm:ss'. schedule 도트는 null. 같은 날 시간순 정렬 키.
+            'eventTimestamp',
             // 활동 카테고리 (2026-05-12) — 시간 분석용 큰 분류. id만 평문, 라벨/아이콘은 클라이언트에서 메타 매핑.
             'category',
             // (워크플로우 트랙 2026-05-13) 실행자 3구분 — self|helper|external.
@@ -25,6 +31,10 @@ export const POLICY = {
             'plannedTask', 'actualTask', 'reason', 'notes',
             'linkedScriptureId', 'linkedPrincipleIds', 'linkedGoalId',
             'linkedTransactionIds', 'linkedPersonIds', 'linkedOrgIds',
+            // (경제 트랙 1.a 2026-05-14) 이벤트 도트(kind='event') 전용 payload.
+            //   eventType: 'transaction'(거래) | 'speech'(누가 한 말) | 'other'. 미래 확장 가능.
+            //   eventNote: 자유 텍스트 메모. eventType별 디테일은 linked* 필드로 연결.
+            'eventType', 'eventNote',
             // 도트별 인물/조직 만족도 ({ personId: 1-5 }, { orgId: 1-5 })
             'personRatings', 'orgRatings',
             // (워크플로우 트랙 2026-05-13) 어느 워크플로우 스텝에서 분배됐는가
@@ -402,7 +412,17 @@ export const POLICY = {
         encrypted: [
             'exactAmount', 'description', 'accountId',
             'linkedAssetId', 'linkedLiabilityId',
-            'linkedDotId', 'linkedPersonIds', 'linkedOrgIds'
+            'linkedDotId', 'linkedPersonIds', 'linkedOrgIds',
+            // (경제 트랙 1.a 2026-05-14) 매매 거래(incomeType='trade') 의사결정 흔적.
+            //   "이거 왜 그랬는지 → 무슨 교훈 → 다음에 뭘 조심 → 원칙 세울 수 있게" 사용자 명시.
+            //   tradeReason: 왜 매수·매도했나. tradeLesson: 무엇을 배웠나.
+            //   linkedPrecedentId: 📜 "분별의 자리로" 옵션으로 연결된 판례 id (자동 호출 X).
+            'tradeReason', 'tradeLesson', 'linkedPrecedentId',
+            // (경제 트랙 1.a) 이체 거래(direction='transfer') 전용.
+            //   recipient: 받는 곳 자유 텍스트 (외부 이체 시 메모 필수, 자동완성 캐시 키).
+            //   transferFromAccountId / transferToAccountId: 내부 이체 시 양쪽 통장.
+            //   외부 이체는 transferToAccountId=null + recipient만 채움 → 지출 합계 자동 합산.
+            'recipient', 'transferFromAccountId', 'transferToAccountId'
         ]
     },
     cashflowSnapshots: {
@@ -458,6 +478,9 @@ export const POLICY = {
     economySettings: {
         plaintext: [
             'id', 'smallMax', 'mediumMax', 'largeMax',
+            // (경제 트랙 1.a 2026-05-14) 사용자 기본 통화 — 시작 시 1회 설정 (KRW·EUR·USD·...).
+            //   환율 변환·실시간 시세는 베타 후 트랙 2. 1차는 단일 통화 가정 + 표시만.
+            'defaultCurrency',
             'updatedAt'
         ],
         encrypted: []

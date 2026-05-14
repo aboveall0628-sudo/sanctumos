@@ -27,6 +27,7 @@ import { openModal } from './modalManager.js';
 import { saveTransaction, getAllAccounts } from '../data/economyRepo.js';
 import {
     AMOUNT_BUCKETS, INCOME_CATEGORIES, EXPENSE_CATEGORIES, EXPENSE_TYPES,
+    INCOME_TYPES, DIRECTIONS, TRANSFER_KINDS,
     isGivingCategory, amountToBucket,
 } from '../config/economyBuckets.js';
 
@@ -72,12 +73,35 @@ export async function openQuickAdd(opts = {}) {
                 <div class="econ-qa-row">
                     <label>방향</label>
                     <div class="econ-qa-dir">
-                        <button type="button" class="econ-qa-dir-btn active" data-dir="expense">
-                            나감 (지출)
-                        </button>
-                        <button type="button" class="econ-qa-dir-btn" data-dir="income">
-                            들어옴 (수입)
-                        </button>
+                        <button type="button" class="econ-qa-dir-btn active" data-dir="expense">나감 (지출)</button>
+                        <button type="button" class="econ-qa-dir-btn" data-dir="income">들어옴 (수입)</button>
+                        <button type="button" class="econ-qa-dir-btn" data-dir="transfer">옮김 (이체)</button>
+                    </div>
+                </div>
+
+                <!-- (경제 트랙 1.a) 수입일 때 incomeType 3종 노출 -->
+                <div class="econ-qa-row econ-qa-income-type-row hidden" id="ec-qa-income-type-row">
+                    <label>수입 종류</label>
+                    <div class="econ-qa-income-types">
+                        ${INCOME_TYPES.map((t, i) => `
+                            <button type="button" class="econ-qa-income-type-btn ${i === 0 ? 'active' : ''}" data-id="${t.id}" title="${escapeHTML(t.desc)}">${escapeHTML(t.label)}</button>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <!-- (경제 트랙 1.a) 매매(trade) 의사결정 흔적 — incomeType='trade' 일 때만 -->
+                <div class="econ-qa-row econ-qa-trade-row hidden" id="ec-qa-trade-row">
+                    <label>매매 흔적 <span class="econ-qa-hint">(나중에 같은 패턴 되돌아볼 때)</span></label>
+                    <textarea id="ec-qa-trade-reason" placeholder="왜 매수·매도했나요?" rows="2" maxlength="500"></textarea>
+                    <textarea id="ec-qa-trade-lesson" placeholder="무엇을 배웠나요? (선택)" rows="2" maxlength="500"></textarea>
+                </div>
+
+                <!-- (경제 트랙 1.a) 이체일 때 받는 곳 + transferKind -->
+                <div class="econ-qa-row econ-qa-transfer-row hidden" id="ec-qa-transfer-row">
+                    <label>받는 곳</label>
+                    <input id="ec-qa-recipient" type="text" placeholder="통장명 또는 사람·가게 이름" maxlength="80" autocomplete="off" />
+                    <div class="econ-qa-recipient-hint" id="ec-qa-recipient-hint">
+                        본인 통장이면 <b>내부 이체</b> (지출 합계에 안 잡힘), 다른 사람이면 <b>외부 이체</b> (지출로 합산).
                     </div>
                 </div>
 
@@ -147,11 +171,14 @@ export async function openQuickAdd(opts = {}) {
     overlay.querySelector('.modal-cancel')?.addEventListener('click', () => handle.close());
 
     // 상태 — 수정 모드면 기존 거래에서 prefill
+    // (경제 트랙 1.a 2026-05-14) incomeType / recipient / trade 필드 추가
     let state = {
         direction: editingTx?.direction || 'expense',
         amountBucket: editingTx?.amountBucket || null,
         category: editingTx?.category || null,
         expenseType: editingTx?.expenseType || 'variable',
+        incomeType: editingTx?.incomeType || 'active',  // 수입일 때만 의미
+        recipient: editingTx?.recipient || '',          // 이체일 때만 의미
     };
 
     // prefill: 금액 + 메모 + 통장
@@ -190,6 +217,70 @@ export async function openQuickAdd(opts = {}) {
     }
     updateExpenseTypeVisibility();
 
+    // (경제 트랙 1.a) direction 별 행 토글 — 수입 종류 / 매매 흔적 / 이체 받는 곳
+    function updateDirectionRows() {
+        const incomeRow = overlay.querySelector('#ec-qa-income-type-row');
+        const tradeRow  = overlay.querySelector('#ec-qa-trade-row');
+        const transferRow = overlay.querySelector('#ec-qa-transfer-row');
+        const catRow = overlay.querySelector('#ec-qa-cats')?.closest('.econ-qa-row');
+        if (incomeRow) incomeRow.classList.toggle('hidden', state.direction !== 'income');
+        // 매매 흔적은 수입+trade 일 때만
+        if (tradeRow) tradeRow.classList.toggle('hidden', !(state.direction === 'income' && state.incomeType === 'trade'));
+        // 이체일 때 받는 곳 노출
+        if (transferRow) transferRow.classList.toggle('hidden', state.direction !== 'transfer');
+        // 이체일 때 카테고리 숨김 (수입/지출만 카테고리 사용)
+        if (catRow) catRow.classList.toggle('hidden', state.direction === 'transfer');
+    }
+    updateDirectionRows();
+
+    // incomeType prefill
+    overlay.querySelectorAll('.econ-qa-income-type-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.id === state.incomeType);
+    });
+    // recipient prefill
+    const recipientInput = overlay.querySelector('#ec-qa-recipient');
+    if (recipientInput && state.recipient) recipientInput.value = state.recipient;
+    // trade 필드 prefill
+    if (editingTx?.tradeReason) {
+        const el = overlay.querySelector('#ec-qa-trade-reason');
+        if (el) el.value = editingTx.tradeReason;
+    }
+    if (editingTx?.tradeLesson) {
+        const el = overlay.querySelector('#ec-qa-trade-lesson');
+        if (el) el.value = editingTx.tradeLesson;
+    }
+
+    // incomeType 토글
+    overlay.querySelectorAll('.econ-qa-income-type-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            state.incomeType = btn.dataset.id;
+            overlay.querySelectorAll('.econ-qa-income-type-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            updateDirectionRows();  // trade 선택 시 매매 흔적 노출
+        });
+    });
+
+    // recipient 자동완성 — 1차 기본: 본인 통장 목록만 후보로 노출 (외부 누적은 후속 트랙).
+    // 사용자가 통장명 첫 글자 치면 본인 통장 후보 노출, 신규 입력도 그대로 OK.
+    let recipientHint = overlay.querySelector('#ec-qa-recipient-hint');
+    function detectTransferKind() {
+        const v = (recipientInput?.value || '').trim().toLowerCase();
+        if (!v) return null;
+        const match = accounts.find(a => (a.name || '').toLowerCase().includes(v) || v.includes((a.name || '').toLowerCase()));
+        return match ? { kind: 'internal', accountId: match.id, accountName: match.name } : { kind: 'external' };
+    }
+    recipientInput?.addEventListener('input', () => {
+        const detected = detectTransferKind();
+        if (!recipientHint) return;
+        if (!detected) {
+            recipientHint.innerHTML = '본인 통장이면 <b>내부 이체</b>, 다른 사람이면 <b>외부 이체</b>.';
+        } else if (detected.kind === 'internal') {
+            recipientHint.innerHTML = `🏦 <b>내부 이체</b>로 인식 — ${escapeHTML(detected.accountName)} 통장. 지출 합계 X.`;
+        } else {
+            recipientHint.innerHTML = '👤 <b>외부 이체</b>로 인식 — 지출로 자동 합산돼요. (메모로 왜 보냈는지 남기면 좋아요)';
+        }
+    });
+
     // 카테고리 렌더 (direction 별)
     const catsWrap = overlay.querySelector('#ec-qa-cats');
     function renderCats() {
@@ -220,6 +311,7 @@ export async function openQuickAdd(opts = {}) {
             renderCats();
             updateGivingNote();
             updateExpenseTypeVisibility();
+            updateDirectionRows();  // (경제 트랙 1.a) 수입종류/매매/이체 행 토글
         });
     });
 
@@ -267,16 +359,23 @@ export async function openQuickAdd(opts = {}) {
     // 저장
     overlay.querySelector('#ec-qa-save')?.addEventListener('click', async () => {
         if (!state.amountBucket) { showToast('크기를 골라 주실래요? (소액/중액/고액/거액)'); return; }
-        if (!state.category) { showToast('종류를 골라 주실래요?'); return; }
+        // (경제 트랙 1.a) 카테고리 필수 — 이체일 땐 의무 해제 (받는 곳이 그 역할)
+        if (state.direction !== 'transfer' && !state.category) { showToast('종류를 골라 주실래요?'); return; }
+        // (경제 트랙 1.a) 이체일 때 받는 곳 필수
+        if (state.direction === 'transfer') {
+            const recipient = (overlay.querySelector('#ec-qa-recipient')?.value || '').trim();
+            if (!recipient) { showToast('받는 곳을 적어 주실래요?'); return; }
+        }
 
         const exactStr = overlay.querySelector('#ec-qa-exact')?.value.trim() || '';
         const data = {
             date: overlay.querySelector('#ec-qa-date').value,
             direction: state.direction,
             amountBucket: state.amountBucket,
-            category: state.category,
             description: overlay.querySelector('#ec-qa-desc').value.trim(),
         };
+        // category는 income/expense 만 (transfer는 받는 곳이 그 역할)
+        if (state.direction !== 'transfer') data.category = state.category;
         // 수정 모드: 기존 id 유지 + 기존 연결 보존
         if (isEdit) {
             data.id = editingTx.id;
@@ -285,19 +384,51 @@ export async function openQuickAdd(opts = {}) {
             if (editingTx.linkedOrgIds)       data.linkedOrgIds       = editingTx.linkedOrgIds;
             if (editingTx.linkedAssetId)      data.linkedAssetId      = editingTx.linkedAssetId;
             if (editingTx.linkedLiabilityId)  data.linkedLiabilityId  = editingTx.linkedLiabilityId;
+            if (editingTx.linkedPrecedentId)  data.linkedPrecedentId  = editingTx.linkedPrecedentId;
         }
         if (exactStr) data.exactAmount = Number(exactStr);
         else delete data.exactAmount; // 수정 시 비우면 제거
         if (state.direction === 'expense') data.expenseType = state.expenseType;
+        // (경제 트랙 1.a) 수입 종류 — 활성/비활성/매매
+        if (state.direction === 'income') {
+            data.incomeType = state.incomeType;
+            // 매매(trade) 흔적
+            if (state.incomeType === 'trade') {
+                const reason = (overlay.querySelector('#ec-qa-trade-reason')?.value || '').trim();
+                const lesson = (overlay.querySelector('#ec-qa-trade-lesson')?.value || '').trim();
+                if (reason) data.tradeReason = reason;
+                if (lesson) data.tradeLesson = lesson;
+            }
+        }
+        // (경제 트랙 1.a) 이체 — recipient + 내부/외부 자동 분기
+        if (state.direction === 'transfer') {
+            const recipient = (overlay.querySelector('#ec-qa-recipient')?.value || '').trim();
+            data.recipient = recipient;
+            const detected = detectTransferKind();
+            if (detected?.kind === 'internal') {
+                // 내부 이체 — 출금 통장(현재 선택) + 입금 통장(detected)
+                data.transferToAccountId = detected.accountId;
+                // transferFromAccountId 는 accountId(아래에서 박힘) 와 같지만 명시 보존
+            }
+            // external 은 transferToAccountId 안 박음 — 통계 시 그 자체가 외부 신호
+        }
         if (accounts.length === 1 && !data.accountId) data.accountId = accounts[0].id;
         else if (accounts.length > 1) data.accountId = overlay.querySelector('#ec-qa-account').value;
+        // (경제 트랙 1.a) 이체 시 출금 통장 = accountId
+        if (state.direction === 'transfer' && data.accountId) {
+            data.transferFromAccountId = data.accountId;
+        }
         if (!isEdit && linkedDotId) data.linkedDotId = linkedDotId;
         if (!isEdit && linkedPersonIds && linkedPersonIds.length) data.linkedPersonIds = linkedPersonIds;
         if (!isEdit && linkedOrgIds && linkedOrgIds.length) data.linkedOrgIds = linkedOrgIds;
 
         try {
             const id = await saveTransaction(dek, userId, data);
-            showToast(isEdit ? '거래를 저장했어요' : (state.direction === 'income' ? '수입을 적었어요' : '지출을 적었어요'));
+            showToast(isEdit ? '거래를 저장했어요' : (
+                state.direction === 'income' ? '수입을 적었어요' :
+                state.direction === 'transfer' ? '이체를 적었어요' :
+                '지출을 적었어요'
+            ));
             handle.close();
             const tx = { id, ...data };
             if (typeof onSaved === 'function') onSaved(tx);
