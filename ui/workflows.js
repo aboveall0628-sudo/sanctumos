@@ -140,9 +140,30 @@ function renderStep(wf, step, order) {
     const executorBadge = step.executor && step.executor !== 'self'
         ? `<span class="wf-step-executor">${escapeHtml(step.executor)}</span>` : '';
     const dotCount = Array.isArray(step.linkedDotIds) ? step.linkedDotIds.length : 0;
-    const dotHint = dotCount > 0 ? `<span class="wf-step-dot-count" title="이 스텝에서 만들어진 도트 수">×${dotCount}</span>` : '';
+    const estimated = step.estimatedDots || 0;
+    // (워크플로우 가벼운 손질 2026-05-15) 진척 시각 강화 — N/M 형식 + 진척 바
+    let progressHtml = '';
+    if (estimated > 0) {
+        const pct = Math.min(100, Math.round((dotCount / estimated) * 100));
+        progressHtml = `
+            <div class="wf-step-progress" title="만들어진 도트 ${dotCount}개 / 예상 ${estimated}개">
+                <span class="wf-step-progress-text">${dotCount}/${estimated}</span>
+                <div class="wf-step-progress-bar"><div class="wf-step-progress-fill" style="width:${pct}%"></div></div>
+            </div>`;
+    } else if (dotCount > 0) {
+        progressHtml = `<span class="wf-step-dot-count" title="이 스텝에서 만들어진 도트 수">×${dotCount}</span>`;
+    }
 
-    // 데스크탑 ⋮⋮ 핸들 — actionable 한 스텝만 draggable
+    // (워크플로우 가벼운 손질 2026-05-15) 데스크탑·모바일 통일 — [+ 지금 시간표에 넣기] 버튼
+    //   드래그가 안 보이거나 안 될 때 대안. 클릭 한 번에 현재 시각 슬롯으로 도트 생성.
+    const addBtnHtml = isActionable
+        ? `<button class="wf-step-add-now" type="button"
+                   data-workflow-id="${escapeAttr(wf.id)}"
+                   data-step-id="${escapeAttr(step.id)}"
+                   data-parent-goal-id="${escapeAttr(wf.parentGoalId || '')}"
+                   title="지금 시각에 한 걸음 만들기">+ 지금</button>`
+        : '';
+    // 데스크탑 ⋮⋮ 핸들 — actionable 한 스텝만 draggable (기존 유지)
     const handleHtml = isActionable
         ? `<span class="wf-step-handle desktop-only"
                  draggable="true"
@@ -151,14 +172,6 @@ function renderStep(wf, step, order) {
                  data-parent-goal-id="${escapeAttr(wf.parentGoalId || '')}"
                  title="잡고 시간표로 옮겨 보세요">⋮⋮</span>`
         : '';
-    // 모바일 [+ 박기] — actionable 한 스텝만
-    const mobileBtnHtml = isActionable
-        ? `<button class="wf-step-mobile-add mobile-only" type="button"
-                   data-workflow-id="${escapeAttr(wf.id)}"
-                   data-step-id="${escapeAttr(step.id)}"
-                   data-parent-goal-id="${escapeAttr(wf.parentGoalId || '')}"
-                   title="현재 시각에 박기">+ 시간표에 박기</button>`
-        : '';
 
     return `
         <li class="wf-step ${meta.cls}">
@@ -166,9 +179,9 @@ function renderStep(wf, step, order) {
             <span class="wf-step-order">${order}.</span>
             <span class="wf-step-title">${escapeHtml(step.title || '(제목 없음)')}</span>
             ${executorBadge}
-            ${dotHint}
+            ${progressHtml}
             ${handleHtml}
-            ${mobileBtnHtml}
+            ${addBtnHtml}
         </li>
     `;
 }
@@ -195,9 +208,9 @@ function bindEvents() {
         if (handle) handle.classList.remove('dragging');
     });
 
-    // 모바일 [+ 시간표에 박기]
+    // 모바일 [+ 시간표에 박기] (기존, 호환성 유지) + 데스크탑·모바일 통일 [+ 지금]
     document.addEventListener('click', async (e) => {
-        const btn = e.target.closest('.wf-step-mobile-add');
+        const btn = e.target.closest('.wf-step-mobile-add, .wf-step-add-now');
         if (!btn) return;
         e.preventDefault();
         const workflowId = btn.dataset.workflowId;

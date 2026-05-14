@@ -288,7 +288,21 @@ export async function openWorkflowEdit(opts = {}) {
 
             const id = await saveWorkflow(dek, workflow);
             workflow.id = id;
-            showToast(isEdit ? '등산로를 다시 정리했어요' : '✓ 새 등산로 박혔어요');
+            // (워크플로우 가벼운 손질 2026-05-15) 신규일 때 다음 행동 안내 토스트 — 사용자가 "도트랑 연계 안 됨" 통증 해소.
+            //   토스트 안내 + localStorage 로 첫 워크플로우 만들기 시 한 번만 큰 안내 모달도 옵션.
+            if (isEdit) {
+                showToast('등산로를 다시 정리했어요');
+            } else {
+                showToast('✓ 새 등산로가 생겼어요. 스텝 옆 [+ 지금] 누르면 시간표에 한 걸음이 만들어져요');
+                // 첫 워크플로우 만들기면 1회 큰 안내
+                try {
+                    const firstKey = 'sanctum-first-workflow-guide-shown';
+                    if (!localStorage.getItem(firstKey)) {
+                        localStorage.setItem(firstKey, '1');
+                        setTimeout(() => showFirstTimeGuide(), 600);
+                    }
+                } catch {}
+            }
             handle.close();
             if (typeof onSaved === 'function') onSaved(workflow);
             // 다른 화면들 자동 동기화
@@ -349,3 +363,44 @@ function escapeHtml(s) {
     ));
 }
 function escapeAttr(s) { return escapeHtml(s); }
+
+/**
+ * (워크플로우 가벼운 손질 2026-05-15) 첫 워크플로우 만들기 시 1회 큰 안내.
+ *   localStorage 'sanctum-first-workflow-guide-shown' 으로 중복 차단.
+ *   사용자가 "워크플로우 만들었는데 도트랑 연계 안 됨" 통증 해소가 목적.
+ */
+function showFirstTimeGuide() {
+    const guideId = 'wfe-first-guide-overlay';
+    let el = document.getElementById(guideId);
+    if (el) el.remove();
+    el = document.createElement('div');
+    el.id = guideId;
+    el.className = 'modal-overlay';
+    el.innerHTML = `
+        <div class="modal-card wfe-guide-card">
+            <header class="modal-head">
+                <h3>🛤️ 첫 등산로가 생겼어요</h3>
+                <button class="modal-close" aria-label="닫기">×</button>
+            </header>
+            <div class="modal-body">
+                <p class="wfe-guide-intro">이제 시간표에 한 걸음씩 넣으면, 도트가 자동으로 만들어져요.</p>
+                <ol class="wfe-guide-steps">
+                    <li><b>오늘 화면</b>에서 "등산로 (워크플로우)" 섹션을 찾아주세요.</li>
+                    <li>방금 만든 등산로의 스텝 옆에 <b>[+ 지금]</b> 버튼이 있어요.</li>
+                    <li>누르면 지금 시각에 도트가 만들어져요. 시간표에서 옮기거나 늘릴 수도 있어요.</li>
+                    <li>드래그를 좋아하면 ⋮⋮ 핸들을 잡아서 시간표 빈 칸에 끌어다 놓으세요.</li>
+                </ol>
+                <p class="wfe-guide-note">다음에 또 만들 때는 이 안내가 안 나와요. 잊었으면 다시 보고 싶을 때 [등산로] 헤더에 도움말이 있어요.</p>
+            </div>
+            <footer class="modal-foot">
+                <span style="flex:1"></span>
+                <button class="modal-close primary-btn">알겠어요</button>
+            </footer>
+        </div>
+    `;
+    document.body.appendChild(el);
+    el.querySelectorAll('.modal-close').forEach(b => b.addEventListener('click', () => el.remove()));
+    el.addEventListener('click', (e) => {
+        if (e.target === el) el.remove();
+    });
+}
