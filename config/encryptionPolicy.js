@@ -284,7 +284,11 @@ export const POLICY = {
             // (R19) GA4 익명 식별자 — 베타 사용자 흐름 추적 가명화 토큰
             //   사용자 답·도트·기도 본문은 절대 GA4 로 보내지 않음. 익명 ID 만 페이로드.
             //   사용자 동의(베타 가입 시) 후 발급. 미동의면 null.
-            'gaAnonymousId'
+            'gaAnonymousId',
+            // (S-D 후속 2026-05-15) 사용자가 읽는 성경 번역본 id.
+            //   현재 본문 데이터는 'krv'(개역개정) 단일. 다른 옵션은 자리만(preparing=true).
+            //   기기 동기화용 — 폰·PC 어디서 들어와도 같은 번역본. 평문이라 사이드바·헤더 표기에 빠르게 사용.
+            'bibleVersion'
         ],
         encrypted: [
             'name', 'nicknames', 'avatarUrl',

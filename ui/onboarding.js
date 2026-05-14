@@ -1,31 +1,51 @@
 /**
  * onboarding.js — 신규 사용자 첫 진입 모달 (Day 0 도트 학교 첫 수업)
  *
- * (본인 프로필 재기획 트랙 2026-05-14 S-D)
+ * (본인 프로필 재기획 트랙 2026-05-14 S-D / 2026-05-15 S-D 후속 대확장)
  *
- * 합의 (사용자 명시 2026-05-14):
- *   - 화면 자리 = 풀스크린 모달 (열린 집 위에 큰 카드)
- *   - 카드 안 4 단계 = 이름 → 별명 → 생일 → 큐티 수준
- *   - 한 흐름으로 끝까지 (큐티 분기를 별도로 빼지 않음)
- *   - 어체는 코드 안 3세트 (config/ageTones.js)
- *   - 30초 ~ 1분 안에 끝나는 가벼움. R3 결.
+ * 최종 흐름 (2026-05-15 합의):
+ *   [1/8] 이름
+ *   [2/8] 별명
+ *   [3/8] 생일      → 나이대 어체 자동 적응
+ *   [4/8] 큐티 수준  🌱🌿🌳
+ *   [5/8] 성경 번역본 (개역개정 디폴트, 다른 번역본은 "준비 중")
+ *   [6/8] 폰트 크기 (시스템 + 성경 본문 별도 슬라이더, 즉시 미리보기)
+ *   [7/8] 기본 원칙 (추천 1개 자동 채움 + 수정 가능)
+ *   [8/8] 첫 묵상 한 절 (큐티 수준 따라 추천 본문 1절 + 한 줄 적기)
+ *     ↓
+ *   [마침 카드]
+ *     · 방금 완료 항목 요약
+ *     · 🎯 14일 동안 천천히 열릴 미션 카탈로그 안내
+ *     · [의사결정 한 번 해볼게요] / [오늘로 갈게요]
  *
- * R17 (도트 학교 첫 수업):
- *   생일 입력 직후 나이대 어체 자동 적응 → 도트 시연 멘트 톤 매칭.
- *
- * R18a (큐티 수준 분기):
- *   🌱 처음이에요 (basic)   → essentials100 트랙 추천
- *   🌿 가끔 해요 (intermediate)
- *   🌳 자주 해요 (advanced)
+ * 핵심 결:
+ *   - R3 "빠르고 정확": 30초~3분 안에 끝나는 가벼움 유지
+ *   - 풀사이클(인물·조직·경제·시간표·평가·리포트)은 R7 미션 시스템이 14일 자연 분산
+ *   - 묵상은 "걸어다니는 성경" 정체성을 첫날 한 번 시연하는 자리
  *
  * 자동 라우팅:
- *   app.js 잠금 해제 후 ensureSelfCard → selfCard.name 빈 값이면 즉시 showOnboardingModal 호출.
- *   완료 시 onComplete 콜백 (view-today 진입 + 첫 도트 권유).
+ *   app.js 잠금 해제 후 ensureSelfCard → selfCard.name 빈 값이면 즉시 showOnboardingModal.
  */
 
-import { ensureSelfCard, saveSelfCard } from '../data/personRepo.js';
+import { ensureSelfCard, saveSelfCard, markMissionComplete } from '../data/personRepo.js';
 import { AGE_TONES, ageFromBirthday, toneIdFromAge } from '../config/ageTones.js';
 import { DEFAULT_TRACK_BY_LEVEL } from '../config/devotionalTracks.js';
+import {
+    BIBLE_VERSIONS, DEFAULT_BIBLE_VERSION,
+    RECOMMENDED_PRINCIPLE, firstMeditationForLevel,
+} from '../config/onboardingDefaults.js';
+import {
+    SYSTEM_FONT_SIZES, getSystemFontScale, setSystemFontScale, applySystemFontScale,
+} from '../config/systemFont.js';
+import {
+    FONT_SIZES as SCRIPTURE_FONT_SIZES,
+    getScriptureSettings, setFontSize as setScriptureFontSize, applyFontSizeToCSS as applyScriptureFontToCSS,
+} from './scriptureSettings.js';
+import { savePrinciple } from '../data/principlesRepo.js';
+import { saveRecord } from '../data/baseRepo.js';
+import { getActiveMissionIds, MISSION_CATALOG } from '../config/missionCatalog.js';
+
+const TOTAL_STEPS = 8;
 
 const CUTI_LEVELS = [
     {
@@ -51,7 +71,7 @@ const CUTI_LEVELS = [
     },
 ];
 
-let _state = null;  // { userId, dek, draft, onComplete }
+let _state = null;  // { userId, dek, draft, onComplete, snapshots }
 
 /**
  * 사용자 첫 진입 모달 표시.
@@ -59,8 +79,8 @@ let _state = null;  // { userId, dek, draft, onComplete }
  * @param {Object} opts
  *   - userId: 필수
  *   - dek: 필수 (CryptoKey)
- *   - onComplete: () => void (완료 후 호출, app.js 에서 view-today 진입 트리거)
- *   - existingCard: 옵션 — selfCard 이미 받아왔으면 전달 (한 번 더 안 불러도 됨)
+ *   - onComplete: () => void
+ *   - existingCard: 옵션
  */
 export async function showOnboardingModal({ userId, dek, onComplete, existingCard }) {
     if (!userId || !dek) {
@@ -71,6 +91,11 @@ export async function showOnboardingModal({ userId, dek, onComplete, existingCar
     closeOnboardingModal();
 
     const card = existingCard || await ensureSelfCard(dek, userId);
+
+    // 폰트 미리보기 시작값 저장 — 사용자가 "이전" 누르거나 모달 닫으면 원복 가능하게
+    const initialSystemFont = getSystemFontScale();
+    const initialScriptureFont = getScriptureSettings().fontSize;
+
     _state = {
         userId,
         dek,
@@ -80,8 +105,22 @@ export async function showOnboardingModal({ userId, dek, onComplete, existingCar
             nickname: Array.isArray(card.nicknames) && card.nicknames[0] || '',
             birthday: card.birthday || '',
             devotionalLevel: card.devotionalLevel || null,
+            bibleVersion: card.bibleVersion || DEFAULT_BIBLE_VERSION,
+            systemFont: initialSystemFont,
+            scriptureFont: initialScriptureFont,
+            // 원칙 — 추천 디폴트로 미리 채움
+            principleTitle: RECOMMENDED_PRINCIPLE.title,
+            principleBody: RECOMMENDED_PRINCIPLE.body,
+            // 첫 묵상 — step 8 에서 큐티 수준 따라 자동 셋업
+            meditationNote: '',
+            // step 8 시점 사용자가 본 본문 (저장 시 함께 박힘)
+            meditationScripture: null,
         },
-        cardSnapshot: card,  // 저장 시 다른 필드 보존
+        snapshots: {
+            initialSystemFont,
+            initialScriptureFont,
+        },
+        cardSnapshot: card,
     };
 
     const backdrop = document.createElement('div');
@@ -93,10 +132,9 @@ export async function showOnboardingModal({ userId, dek, onComplete, existingCar
     backdrop.innerHTML = `
       <div class="onboarding-modal age-tone-young" id="onboarding-modal">
         <div class="onboarding-stepper" id="onboarding-stepper" aria-label="진행도">
-          <span class="onboarding-step-dot active" data-step="1"></span>
-          <span class="onboarding-step-dot" data-step="2"></span>
-          <span class="onboarding-step-dot" data-step="3"></span>
-          <span class="onboarding-step-dot" data-step="4"></span>
+          ${Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map(n =>
+            `<span class="onboarding-step-dot${n === 1 ? ' active' : ''}" data-step="${n}"></span>`
+          ).join('')}
         </div>
         <div class="onboarding-body" id="onboarding-body"></div>
       </div>
@@ -121,7 +159,6 @@ function updateStepperDots(currentStep) {
 }
 
 function applyAgeToneClass() {
-    // 생일 입력 후 어체 변경 — 모달 root 클래스만 갱신, CSS에서 폰트·여백 조정.
     const modal = document.getElementById('onboarding-modal');
     if (!modal) return;
     const age = ageFromBirthday(_state?.draft?.birthday);
@@ -136,7 +173,7 @@ function getTone() {
 }
 
 function renderStep(step) {
-    updateStepperDots(step);
+    if (step >= 1 && step <= TOTAL_STEPS) updateStepperDots(step);
     const body = document.getElementById('onboarding-body');
     if (!body) return;
 
@@ -144,9 +181,14 @@ function renderStep(step) {
     else if (step === 2) renderNicknameStep(body);
     else if (step === 3) renderBirthdayStep(body);
     else if (step === 4) renderCutiStep(body);
-    else if (step === 5) renderDemoStep(body);  // 도트 시연 (R17)
+    else if (step === 5) renderBibleVersionStep(body);
+    else if (step === 6) renderFontStep(body);
+    else if (step === 7) renderPrincipleStep(body);
+    else if (step === 8) renderMeditationStep(body);
+    else if (step === 99) renderFinishCard(body);
 }
 
+// ─── Step 1: 이름 ─────────────────────────────────────────
 function renderNameStep(body) {
     const tone = getTone();
     body.innerHTML = `
@@ -165,9 +207,7 @@ function renderNameStep(body) {
     `;
     const input = document.getElementById('onboarding-name');
     const nextBtn = document.getElementById('onboarding-next');
-    const updateBtn = () => {
-        nextBtn.disabled = !input.value.trim();
-    };
+    const updateBtn = () => { nextBtn.disabled = !input.value.trim(); };
     input.addEventListener('input', () => {
         _state.draft.name = input.value.trim();
         updateBtn();
@@ -177,6 +217,7 @@ function renderNameStep(body) {
     nextBtn.addEventListener('click', () => renderStep(2));
 }
 
+// ─── Step 2: 별명 ─────────────────────────────────────────
 function renderNicknameStep(body) {
     body.innerHTML = `
       <div class="onboarding-card">
@@ -205,6 +246,7 @@ function renderNicknameStep(body) {
     document.getElementById('onboarding-next').addEventListener('click', () => renderStep(3));
 }
 
+// ─── Step 3: 생일 ─────────────────────────────────────────
 function renderBirthdayStep(body) {
     body.innerHTML = `
       <div class="onboarding-card">
@@ -230,11 +272,12 @@ function renderBirthdayStep(body) {
         renderStep(4);
     });
     document.getElementById('onboarding-next').addEventListener('click', () => {
-        applyAgeToneClass();  // 나이대 어체 적응
+        applyAgeToneClass();
         renderStep(4);
     });
 }
 
+// ─── Step 4: 큐티 수준 ────────────────────────────────────
 function renderCutiStep(body) {
     const tone = getTone();
     body.innerHTML = `
@@ -276,57 +319,324 @@ function renderCutiStep(body) {
     nextBtn.addEventListener('click', () => renderStep(5));
 }
 
-function renderDemoStep(body) {
-    const tone = getTone();
-    const callee = _state.draft.nickname || _state.draft.name || '친구';
-    const recommendedTrack = DEFAULT_TRACK_BY_LEVEL[_state.draft.devotionalLevel];
-    const trackLine = recommendedTrack === 'essentials100'
-        ? '“성경 필수 구절 100”으로 가볍게 시작해보실 수 있어요.'
-        : (_state.draft.devotionalLevel === 'intermediate'
-            ? '오늘 보고 싶은 본문을 자유롭게 펼쳐 보세요.'
-            : '진도를 이어가거나, 여러 본문을 동시에 묵상하실 수 있어요.');
-
+// ─── Step 5: 성경 번역본 ──────────────────────────────────
+function renderBibleVersionStep(body) {
     body.innerHTML = `
-      <div class="onboarding-card onboarding-card-demo">
-        <div class="onboarding-demo-icon">🌟</div>
-        <h2 class="onboarding-title">${escapeHtml(tone.dotDemoLead(callee))}</h2>
-        <p class="onboarding-sub">${escapeHtml(trackLine)}</p>
-        <p class="onboarding-foot">${escapeHtml(tone.firstDotInvite)}</p>
-        <div class="onboarding-actions">
+      <div class="onboarding-card">
+        <h2 class="onboarding-title">어떤 성경으로 묵상하시나요?</h2>
+        <p class="onboarding-sub">지금은 개역개정으로 만나실 수 있어요. 다른 번역본도 곧 준비 중이에요.</p>
+        <div class="onboarding-bible-list" role="radiogroup" aria-label="성경 번역본">
+          ${BIBLE_VERSIONS.map(v => `
+            <button type="button"
+                    class="onboarding-bible-card${_state.draft.bibleVersion === v.id ? ' selected' : ''}${v.preparing ? ' disabled' : ''}"
+                    data-version="${escapeAttr(v.id)}"
+                    role="radio"
+                    aria-checked="${_state.draft.bibleVersion === v.id}"
+                    ${v.preparing ? 'aria-disabled="true"' : ''}>
+              <span class="onboarding-bible-name">
+                ${escapeHtml(v.label)}
+                ${v.preparing ? '<span class="onboarding-chip">준비 중</span>' : ''}
+              </span>
+              <span class="onboarding-bible-desc">${escapeHtml(v.desc)}</span>
+            </button>
+          `).join('')}
+        </div>
+        <div class="onboarding-actions onboarding-actions-split">
           <button type="button" class="onboarding-btn onboarding-btn-text" id="onboarding-back">이전</button>
-          <button type="button" class="onboarding-btn onboarding-btn-primary" id="onboarding-finish">시작하기</button>
+          <button type="button" class="onboarding-btn onboarding-btn-primary" id="onboarding-next">다음</button>
         </div>
       </div>
     `;
+    document.querySelectorAll('.onboarding-bible-card').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.dataset.version;
+            const opt = BIBLE_VERSIONS.find(v => v.id === id);
+            if (!opt || opt.preparing) return;
+            _state.draft.bibleVersion = id;
+            document.querySelectorAll('.onboarding-bible-card').forEach(b => {
+                b.classList.toggle('selected', b === btn);
+                b.setAttribute('aria-checked', b === btn);
+            });
+        });
+    });
     document.getElementById('onboarding-back').addEventListener('click', () => renderStep(4));
+    document.getElementById('onboarding-next').addEventListener('click', () => renderStep(6));
+}
+
+// ─── Step 6: 폰트 크기 ────────────────────────────────────
+function renderFontStep(body) {
+    body.innerHTML = `
+      <div class="onboarding-card">
+        <h2 class="onboarding-title">글자 크기를 정해볼까요?</h2>
+        <p class="onboarding-sub">고르는 즉시 화면에 미리 보여요. 마음 편한 크기로 정하세요.</p>
+
+        <div class="onboarding-font-group">
+          <label class="onboarding-label">시스템 글자 크기 — 헤더·카드·라벨</label>
+          <div class="onboarding-font-row" id="onboarding-system-font-row">
+            ${Object.entries(SYSTEM_FONT_SIZES).map(([id, cfg]) => `
+              <button type="button"
+                      class="onboarding-font-chip${_state.draft.systemFont === id ? ' selected' : ''}"
+                      data-system="${escapeAttr(id)}">
+                <span class="onboarding-font-label">${escapeHtml(cfg.label)}</span>
+                <span class="onboarding-font-desc">${escapeHtml(cfg.desc)}</span>
+              </button>
+            `).join('')}
+          </div>
+        </div>
+
+        <div class="onboarding-font-group">
+          <label class="onboarding-label">성경 본문 글자 크기 — 묵상 화면</label>
+          <div class="onboarding-font-row" id="onboarding-scripture-font-row">
+            ${Object.entries(SCRIPTURE_FONT_SIZES).map(([id, cfg]) => `
+              <button type="button"
+                      class="onboarding-font-chip${_state.draft.scriptureFont === id ? ' selected' : ''}"
+                      data-scripture="${escapeAttr(id)}">
+                <span class="onboarding-font-label">${escapeHtml(cfg.label)}</span>
+                <span class="onboarding-font-sample" style="font-size:${cfg.verse}px; line-height:${cfg.lineHeight};">
+                  태초에 하나님이 천지를 창조하시니라
+                </span>
+              </button>
+            `).join('')}
+          </div>
+        </div>
+
+        <div class="onboarding-actions onboarding-actions-split">
+          <button type="button" class="onboarding-btn onboarding-btn-text" id="onboarding-back">이전</button>
+          <button type="button" class="onboarding-btn onboarding-btn-primary" id="onboarding-next">다음</button>
+        </div>
+      </div>
+    `;
+    document.querySelectorAll('#onboarding-system-font-row .onboarding-font-chip').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.dataset.system;
+            _state.draft.systemFont = id;
+            applySystemFontScale(id);
+            document.querySelectorAll('#onboarding-system-font-row .onboarding-font-chip').forEach(b => {
+                b.classList.toggle('selected', b === btn);
+            });
+        });
+    });
+    document.querySelectorAll('#onboarding-scripture-font-row .onboarding-font-chip').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.dataset.scripture;
+            _state.draft.scriptureFont = id;
+            applyScriptureFontToCSS(id);
+            document.querySelectorAll('#onboarding-scripture-font-row .onboarding-font-chip').forEach(b => {
+                b.classList.toggle('selected', b === btn);
+            });
+        });
+    });
+    document.getElementById('onboarding-back').addEventListener('click', () => renderStep(5));
+    document.getElementById('onboarding-next').addEventListener('click', () => renderStep(7));
+}
+
+// ─── Step 7: 기본 원칙 ────────────────────────────────────
+function renderPrincipleStep(body) {
+    body.innerHTML = `
+      <div class="onboarding-card">
+        <h2 class="onboarding-title">의사결정 때 기댈 원칙 하나 정해요</h2>
+        <p class="onboarding-sub">기본으로 추천 원칙 하나를 미리 채워둘게요. 그대로 두셔도 좋고, 본인 마음에 맞게 고쳐도 좋아요.</p>
+
+        <label class="onboarding-label" for="onboarding-principle-title">원칙 제목</label>
+        <input type="text" class="onboarding-input" id="onboarding-principle-title"
+               value="${escapeAttr(_state.draft.principleTitle)}"
+               placeholder="짧은 한 줄로" maxlength="80" />
+
+        <label class="onboarding-label" for="onboarding-principle-body">원칙 본문</label>
+        <textarea class="onboarding-textarea" id="onboarding-principle-body"
+                  rows="4" maxlength="400"
+                  placeholder="이 원칙이 어떤 자리에서 작동하는지 한두 문장으로">${escapeHtml(_state.draft.principleBody)}</textarea>
+
+        <div class="onboarding-actions onboarding-actions-split">
+          <button type="button" class="onboarding-btn onboarding-btn-text" id="onboarding-back">이전</button>
+          <button type="button" class="onboarding-btn onboarding-btn-primary" id="onboarding-next">다음</button>
+        </div>
+      </div>
+    `;
+    const titleEl = document.getElementById('onboarding-principle-title');
+    const bodyEl = document.getElementById('onboarding-principle-body');
+    titleEl.addEventListener('input', () => { _state.draft.principleTitle = titleEl.value; });
+    bodyEl.addEventListener('input', () => { _state.draft.principleBody = bodyEl.value; });
+    document.getElementById('onboarding-back').addEventListener('click', () => renderStep(6));
+    document.getElementById('onboarding-next').addEventListener('click', () => renderStep(8));
+}
+
+// ─── Step 8: 첫 묵상 한 절 ────────────────────────────────
+function renderMeditationStep(body) {
+    const tone = getTone();
+    const passage = firstMeditationForLevel(_state.draft.devotionalLevel);
+    _state.draft.meditationScripture = passage;
+    body.innerHTML = `
+      <div class="onboarding-card onboarding-card-meditation">
+        <h2 class="onboarding-title">${escapeHtml(tone.firstDotInvite || '오늘 한 절 만나볼까요?')}</h2>
+        <p class="onboarding-sub">선택하신 큐티 수준에 맞는 추천 본문이에요. 한 줄 적어 보시는 것만으로 첫 묵상이 자리잡아요.</p>
+
+        <div class="onboarding-verse-card">
+          <span class="onboarding-verse-ref">${escapeHtml(passage.ref)}</span>
+          <p class="onboarding-verse-text" id="onboarding-verse-text">${escapeHtml(passage.text)}</p>
+        </div>
+
+        <label class="onboarding-label" for="onboarding-meditation-note">이 한 절을 보며 떠오른 한 줄</label>
+        <textarea class="onboarding-textarea" id="onboarding-meditation-note"
+                  rows="3" maxlength="400"
+                  placeholder="짧은 감상·기도·결단·궁금증 — 무엇이든 한 줄이면 충분해요.">${escapeHtml(_state.draft.meditationNote)}</textarea>
+
+        <div class="onboarding-actions onboarding-actions-split">
+          <button type="button" class="onboarding-btn onboarding-btn-text" id="onboarding-back">이전</button>
+          <div class="onboarding-actions-right">
+            <button type="button" class="onboarding-btn onboarding-btn-secondary" id="onboarding-skip">나중에 적을게요</button>
+            <button type="button" class="onboarding-btn onboarding-btn-primary" id="onboarding-finish">저장하고 마무리</button>
+          </div>
+        </div>
+      </div>
+    `;
+    const noteEl = document.getElementById('onboarding-meditation-note');
+    noteEl.addEventListener('input', () => { _state.draft.meditationNote = noteEl.value; });
+    document.getElementById('onboarding-back').addEventListener('click', () => renderStep(7));
+    document.getElementById('onboarding-skip').addEventListener('click', async () => {
+        _state.draft.meditationNote = '';
+        await persistAll();
+        renderStep(99);
+    });
     document.getElementById('onboarding-finish').addEventListener('click', async () => {
-        const btn = document.getElementById('onboarding-finish');
-        btn.disabled = true;
-        btn.textContent = '저장 중...';
+        const finishBtn = document.getElementById('onboarding-finish');
+        finishBtn.disabled = true;
+        finishBtn.textContent = '저장 중...';
         try {
-            await persistDraft();
-            const cb = _state.onComplete;
-            closeOnboardingModal();
-            try { cb(); } catch (_) { /* 콜백 실패는 무시 */ }
+            await persistAll();
+            renderStep(99);
         } catch (e) {
-            console.error('[onboarding] save failed:', e);
-            btn.disabled = false;
-            btn.textContent = '다시 시도';
+            console.error('[onboarding] persistAll failed:', e);
+            finishBtn.disabled = false;
+            finishBtn.textContent = '다시 시도';
         }
     });
 }
 
-async function persistDraft() {
+// ─── 마침 카드 ────────────────────────────────────────────
+function renderFinishCard(body) {
+    const tone = getTone();
+    const callee = _state.draft.nickname || _state.draft.name || '친구';
+    // 진행도 stepper 자리에 "완료" 시각
+    document.querySelectorAll('#onboarding-stepper .onboarding-step-dot').forEach(el => {
+        el.classList.remove('active');
+        el.classList.add('done');
+    });
+
+    // 14일 안에 자연 열릴 미션 카탈로그 (deferred 제외, 자기 자신 카드 미션은 이미 완료)
+    const missions = getActiveMissionIds()
+        .map(id => ({ id, ...MISSION_CATALOG[id] }))
+        .slice(0, 10);
+
+    body.innerHTML = `
+      <div class="onboarding-card onboarding-card-finish">
+        <div class="onboarding-finish-celebrate">🎉</div>
+        <h2 class="onboarding-title">${escapeHtml(callee)}님, 첫 한 바퀴 끝났어요</h2>
+        <p class="onboarding-sub">방금 자리잡은 것들 — 신분증·추천 원칙·첫 묵상 한 절. 천천히 같이 가요.</p>
+
+        <div class="onboarding-finish-missions">
+          <p class="onboarding-finish-missions-title">🎯 14일 동안 천천히 열릴 미션들</p>
+          <p class="onboarding-finish-missions-sub">하다 보면 자연스럽게 클리어돼요. 부담 갖지 마세요.</p>
+          <div class="onboarding-finish-missions-grid">
+            ${missions.map(m => `
+              <div class="onboarding-mission-mini">
+                <span class="onboarding-mission-icon">${escapeHtml(m.icon)}</span>
+                <div class="onboarding-mission-text">
+                  <span class="onboarding-mission-title">${escapeHtml(m.title)}</span>
+                  <span class="onboarding-mission-hint">${escapeHtml(m.hint)}</span>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <p class="onboarding-finish-cta">방금 정한 원칙으로 첫 의사결정 한 번 해보실래요?</p>
+        <div class="onboarding-actions onboarding-actions-split">
+          <button type="button" class="onboarding-btn onboarding-btn-secondary" id="onboarding-go-today">오늘 화면으로</button>
+          <button type="button" class="onboarding-btn onboarding-btn-primary" id="onboarding-go-decision">의사결정 해볼게요</button>
+        </div>
+      </div>
+    `;
+    document.getElementById('onboarding-go-today').addEventListener('click', () => {
+        const cb = _state.onComplete;
+        closeOnboardingModal();
+        try { cb(); } catch (_) {}
+    });
+    document.getElementById('onboarding-go-decision').addEventListener('click', async () => {
+        const userId = _state.userId;
+        const cb = _state.onComplete;
+        closeOnboardingModal();
+        try { cb(); } catch (_) {}
+        try {
+            const { openDecisionGate } = await import('./decisionGate.js');
+            await openDecisionGate({ userId, mode: 'free' });
+        } catch (e) {
+            console.warn('[onboarding] openDecisionGate failed:', e?.message || e);
+        }
+    });
+}
+
+// ─── 저장 — 마지막 단계에서 일괄 ──────────────────────────
+async function persistAll() {
     const { userId, dek, draft, cardSnapshot } = _state;
+    const today = new Date().toISOString().slice(0, 10);
+
+    // 1) selfCard — name·nickname·birthday·devotionalLevel·bibleVersion 저장
     const nicknames = draft.nickname ? [draft.nickname] : (cardSnapshot.nicknames || []);
-    const payload = {
+    const cardPayload = {
         ...cardSnapshot,
         name: draft.name,
         nicknames,
         birthday: draft.birthday || cardSnapshot.birthday || '',
         devotionalLevel: draft.devotionalLevel || cardSnapshot.devotionalLevel || null,
+        bibleVersion: draft.bibleVersion || DEFAULT_BIBLE_VERSION,
     };
-    await saveSelfCard(dek, userId, payload);
+    await saveSelfCard(dek, userId, cardPayload);
+
+    // 2) 폰트 — localStorage 영속화 (이미 미리보기로 적용된 값 박기)
+    try {
+        setSystemFontScale(draft.systemFont);
+        setScriptureFontSize(draft.scriptureFont);
+    } catch (e) { console.warn('[onboarding] font persist failed:', e?.message || e); }
+
+    // 3) 원칙 — 제목·본문 비어있지 않으면 savePrinciple
+    const pTitle = (draft.principleTitle || '').trim();
+    const pBody = (draft.principleBody || '').trim();
+    if (pTitle && pBody) {
+        try {
+            const id = `principle_${userId}_${Date.now()}`;
+            await savePrinciple(dek, {
+                id,
+                userId,
+                title: pTitle,
+                body: pBody,
+                category: RECOMMENDED_PRINCIPLE.category,
+                strength: RECOMMENDED_PRINCIPLE.strength,
+                source: RECOMMENDED_PRINCIPLE.source,
+                createdBy: RECOMMENDED_PRINCIPLE.createdBy,
+                pinned: true,
+                active: true,
+            });
+        } catch (e) { console.warn('[onboarding] savePrinciple failed:', e?.message || e); }
+    }
+
+    // 4) 첫 묵상 — 한 줄 적었으면 meditations 컬렉션에 저장 (meditation_first_save 미션 자동 클리어는 별도)
+    const note = (draft.meditationNote || '').trim();
+    if (note && draft.meditationScripture) {
+        try {
+            const id = `meditation_${userId}_${today}`;
+            await saveRecord(dek, 'meditations', {
+                id,
+                userId,
+                date: today,
+                scriptureRef: draft.meditationScripture.ref,
+                content: note,
+                prayer: '',
+            }, id);
+            // meditation_first_save 미션 — saveMeditationDoc 안 트리거와 동일 의미로 여기서도 박힘.
+            await markMissionComplete(dek, userId, 'meditation_first_save', { signal: 'onboarding' });
+        } catch (e) { console.warn('[onboarding] saveMeditation failed:', e?.message || e); }
+    }
 }
 
 function escapeHtml(s) {
@@ -342,7 +652,6 @@ function escapeAttr(s) { return escapeHtml(s); }
 
 /**
  * onboarding 필요 여부 판단 — selfCard.name 빈 값이면 true.
- *   app.js init/잠금 해제 후 호출 → true 면 showOnboardingModal.
  */
 export async function needsOnboarding(dek, userId) {
     if (!dek || !userId) return false;

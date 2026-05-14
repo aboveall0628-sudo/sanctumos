@@ -21,6 +21,7 @@ import { initSensitiveMode } from './sensitiveMode.js';
 import { initThemeManager } from './themeManager.js';
 import { renderScriptureForDate, loadBibleData as loadBibleDataModule, bindScriptureSettingsListener } from './scripture.js';
 import { applyFontSizeToCSS as applyScriptureFontSize } from './scriptureSettings.js';
+import { applySystemFontFromStorage } from '../config/systemFont.js';
 import { initTodayView, refreshTodayView } from './todayView.js';
 import { initTimeline, refreshTimeline, scrollTimelineToNow } from './timeline.js';
 // 워크플로우 트랙 STEP 2 (2026-05-13) — 등산로 카드
@@ -320,6 +321,8 @@ async function init() {
     // 말씀 폰트 크기 — localStorage에 저장된 값을 CSS 변수로 박아둠 (잠금 전에도 적용)
     applyScriptureFontSize();
     bindScriptureSettingsListener();
+    // (S-D 후속 2026-05-15) 시스템 폰트 — <html data-system-font> 자동 적용
+    applySystemFontFromStorage();
     setupNavigation();
     renderLucideIcons();
 
@@ -744,8 +747,17 @@ function switchView(viewId) {
         renderReportsView(currentUserId);
     } else if (viewId === 'past') {
         renderPastMeditationsView(currentUserId);
+        // (S-D 후속 2026-05-15) "지난 묵상 다시 보기" 미션 — 진입만 해도 클리어.
+        //   markMissionComplete 가 idempotent 라 매번 들어가도 안전.
+        import('../data/personRepo.js').then(({ markMissionComplete }) =>
+            markMissionComplete(getDEK(), currentUserId, 'past_meditation_revisit', { signal: 'switchView:past' })
+        ).catch(() => {});
     } else if (viewId === 'settings') {
         renderSettingsView(currentUserId, currentUserEmail);
+        // (S-D 후속 2026-05-15) "설정 한 번 둘러보기" 미션 — 진입만 해도 클리어.
+        import('../data/personRepo.js').then(({ markMissionComplete }) =>
+            markMissionComplete(getDEK(), currentUserId, 'settings_explore', { signal: 'switchView:settings' })
+        ).catch(() => {});
     } else if (viewId === 'persons') {
         renderPersonsView(currentUserId);
     } else if (viewId === 'self-profile') {

@@ -65,6 +65,15 @@ export async function saveDot(dek, dotData) {
                 signal: 'saveDot', contextDotId: dotData.id
             });
         }
+        // (S-D 후속 2026-05-15) 경제 거래 이벤트 도트 — "첫 거래 적기" 자연 발화.
+        //   eventType='transaction' 또는 linkedTransactionIds 가 비어있지 않으면 클리어.
+        const isTxEvent = dotData.kind === 'event' && dotData.eventType === 'transaction';
+        const hasTxLink = Array.isArray(dotData.linkedTransactionIds) && dotData.linkedTransactionIds.length > 0;
+        if (isTxEvent || hasTxLink) {
+            await markMissionComplete(dek, dotData.userId, 'economy_first_transaction', {
+                signal: 'saveDot:transaction', contextDotId: dotData.id
+            });
+        }
     } catch (e) {
         console.warn('[saveDot] mission trigger failed:', e?.message || e);
     }

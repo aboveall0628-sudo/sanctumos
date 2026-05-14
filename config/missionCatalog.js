@@ -48,10 +48,10 @@ export const MISSION_CATALOG = {
         icon: '💰',
         title: '첫 거래 적기',
         hint: '오늘 들어오거나 나간 돈 한 줄 적기',
-        unlockCopy: '경제 모듈이 열렸어요',
-        // B4 결정: 경제 모듈은 처음부터 unlocked. 트리거 후크는 1.a 끝난 뒤 박음.
-        trigger: '(deferred — 1.a 트랙 후)',
-        deferred: true,
+        unlockCopy: '경제 미션이 클리어됐어요',
+        // 1.a 트랙(이벤트 도트 + 거래 9종) 박힘 — 트리거는 saveDot(kind='event', eventType='transaction')
+        trigger: 'saveDot(kind=event, eventType=transaction)',
+        deferred: false,
     },
     goal_first_save: {
         moduleId: 'goals',
@@ -88,6 +88,34 @@ export const MISSION_CATALOG = {
         unlockCopy: '묵상 모듈이 열렸어요',
         // 묵상 모듈 자체는 Day 0 부터 활성 — 이 미션은 "묵상 시스템에 노트 발화" 흔적용
         trigger: 'saveMeditationDoc(content·prayer 비어있지 않음)',
+        deferred: false,
+    },
+    // (S-D 후속 2026-05-15) 풀사이클 한 바퀴를 자연 발화로 풀기 위한 3 미션 추가
+    past_meditation_revisit: {
+        moduleId: 'meditation',
+        icon: '📚',
+        title: '지난 묵상 다시 보기',
+        hint: '"지난 묵상" 화면에서 예전에 적은 묵상 1건 열어보기',
+        unlockCopy: '지난 묵상 자리를 알게 됐어요',
+        trigger: 'switchView(past) | 묵상 1건 다시 열기',
+        deferred: false,
+    },
+    notification_setup: {
+        moduleId: 'notifications',
+        icon: '🔔',
+        title: '알림 시각 정하기',
+        hint: '설정에서 매일 묵상 알람 시간 한 번 박기',
+        unlockCopy: '알림이 자리잡았어요',
+        trigger: 'saveNotificationTime',
+        deferred: false,
+    },
+    settings_explore: {
+        moduleId: 'settings',
+        icon: '⚙️',
+        title: '설정 한 번 둘러보기',
+        hint: '설정 화면 진입해서 카드들 살펴보기',
+        unlockCopy: '설정 자리를 둘러봤어요',
+        trigger: 'switchView(settings)',
         deferred: false,
     },
 };

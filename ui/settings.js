@@ -33,6 +33,10 @@ import { BIBLE_METADATA, resolvePlanParts, seedManualPositionsFromCalendar } fro
 // (2026-05-14 #23 후속) 묵상 템플릿 + 마크다운 에디터
 import { getMeditationTemplate, setMeditationTemplate, DEFAULT_TEMPLATE } from './meditationTemplate.js';
 import { bindMarkdownEditor, getMarkdown, setMarkdown } from './markdownEditor.js';
+// (S-D 후속 2026-05-15) 시스템 폰트 + 성경 번역본 옵션
+import { SYSTEM_FONT_SIZES, getSystemFontScale, setSystemFontScale } from '../config/systemFont.js';
+import { BIBLE_VERSIONS, DEFAULT_BIBLE_VERSION } from '../config/onboardingDefaults.js';
+import { ensureSelfCard, saveSelfCard } from '../data/personRepo.js';
 
 let _userId = null;
 let _userEmail = null;
@@ -202,6 +206,34 @@ function injectExtraSections() {
         `;
         diagBox.parentNode.insertBefore(idRow, diagBox.nextSibling);
     }
+
+    // (S-D 후속 2026-05-15) 시스템 글자 크기 카드 — <html data-system-font> 4단계.
+    //   온보딩 모달에서 처음 박힘. 설정에서 언제든 다시 조정.
+    const systemFontCard = document.createElement('div');
+    systemFontCard.id = 'settings-system-font-card';
+    systemFontCard.className = 'card-section';
+    systemFontCard.innerHTML = `
+        <h3 class="section-title"><i class="section-icon" data-lucide="type"></i> 시스템 글자 크기</h3>
+        <p class="section-desc">
+            헤더·카드·라벨 같은 시스템 글자 크기예요. 성경 본문 글자 크기는 따로(아래 "말씀 본문") 정하실 수 있어요.
+        </p>
+        <div id="settings-system-font-row" class="settings-font-chip-row"></div>
+    `;
+    container.appendChild(systemFontCard);
+
+    // (S-D 후속 2026-05-15) 성경 번역본 안내 카드 — 본문 데이터는 개역개정 단일.
+    //   다른 번역본은 자리만 노출 ("준비 중"). 가입 시 selfCard.bibleVersion 박힘.
+    const bibleVersionCard = document.createElement('div');
+    bibleVersionCard.id = 'settings-bible-version-card';
+    bibleVersionCard.className = 'card-section';
+    bibleVersionCard.innerHTML = `
+        <h3 class="section-title"><i class="section-icon" data-lucide="book-open"></i> 성경 번역본</h3>
+        <p class="section-desc">
+            지금은 개역개정으로 만나실 수 있어요. 다른 번역본도 곧 준비 중이에요. 준비 끝나면 알림으로 알려드릴게요.
+        </p>
+        <div id="settings-bible-version-list" class="settings-bible-list"></div>
+    `;
+    container.appendChild(bibleVersionCard);
 
     // 말씀 본문 카드 (Phase E-8/A) — 폰트 크기 + 표시할 파트 on/off
     const scriptureCard = document.createElement('div');
@@ -743,6 +775,12 @@ function bindEvents() {
                         ? `✓ 매일 ${time} 에 알람이 떠요.`
                         : '✓ 알람을 껐어요.';
                 }
+                // (S-D 후속 2026-05-15) "알림 시각 정하기" 미션 자연 발화.
+                try {
+                    const { markMissionComplete } = await import('../data/personRepo.js');
+                    const { getDEK } = await import('./lockScreen.js');
+                    await markMissionComplete(getDEK(), _userId, 'notification_setup', { signal: 'saveDailyAlarm' });
+                } catch (_) { /* 미션 트리거 실패는 저장 성공을 막지 않음 */ }
             } catch (e) {
                 console.error('[settings] daily alarm save failed:', e);
                 if (dailyAlarmStatus) dailyAlarmStatus.textContent = '저장이 잠깐 막혔어요.';
@@ -1092,6 +1130,10 @@ function bindEvents() {
     // ─── Phase E-8/A: 말씀 본문 설정 (폰트/파트) ───
     bindScriptureSettingsEvents();
 
+    // ─── (S-D 후속 2026-05-15) 시스템 글자 크기 + 성경 번역본 안내 ───
+    bindSystemFontSettings();
+    bindBibleVersionSettings();
+
     // ─── 자동 잠금 시간(분) ───
     bindAutoLockMinutes();
 
@@ -1380,6 +1422,88 @@ function bindAnchorRowEvents(panel, plan, parts) {
             renderAnchorPanel();
         });
     });
+}
+
+/**
+ * (S-D 후속 2026-05-15) 시스템 글자 크기 4단계 칩 — 클릭 즉시 적용 + localStorage 저장.
+ */
+function bindSystemFontSettings() {
+    const row = document.getElementById('settings-system-font-row');
+    if (!row) return;
+    const current = getSystemFontScale();
+    row.innerHTML = Object.entries(SYSTEM_FONT_SIZES).map(([id, cfg]) => `
+        <button type="button"
+                class="settings-font-chip${current === id ? ' selected' : ''}"
+                data-system-font="${id}">
+            <span class="settings-font-chip-label">${escapeText(cfg.label)}</span>
+            <span class="settings-font-chip-desc">${escapeText(cfg.desc)}</span>
+        </button>
+    `).join('');
+    row.querySelectorAll('.settings-font-chip').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.dataset.systemFont;
+            if (!SYSTEM_FONT_SIZES[id]) return;
+            setSystemFontScale(id);
+            row.querySelectorAll('.settings-font-chip').forEach(b => {
+                b.classList.toggle('selected', b === btn);
+            });
+        });
+    });
+}
+
+/**
+ * (S-D 후속 2026-05-15) 성경 번역본 카드 — 개역개정 디폴트 + 다른 번역본 "준비 중".
+ *   선택 시 selfCard.bibleVersion 저장 (preparing=true 옵션은 클릭 비활성).
+ */
+async function bindBibleVersionSettings() {
+    const list = document.getElementById('settings-bible-version-list');
+    if (!list || !_userId || _userId === 'anonymous') return;
+    const dek = getDEK();
+    if (!dek) return;
+    let currentVersion = DEFAULT_BIBLE_VERSION;
+    try {
+        const card = await ensureSelfCard(dek, _userId);
+        currentVersion = card?.bibleVersion || DEFAULT_BIBLE_VERSION;
+    } catch (e) { console.warn('[settings] bibleVersion read failed:', e?.message || e); }
+
+    const render = () => {
+        list.innerHTML = BIBLE_VERSIONS.map(v => `
+            <button type="button"
+                    class="settings-bible-card${currentVersion === v.id ? ' selected' : ''}${v.preparing ? ' disabled' : ''}"
+                    data-version="${v.id}"
+                    ${v.preparing ? 'aria-disabled="true"' : ''}>
+                <span class="settings-bible-name">
+                    ${escapeText(v.label)}
+                    ${v.preparing ? '<span class="settings-bible-chip">준비 중</span>' : ''}
+                </span>
+                <span class="settings-bible-desc">${escapeText(v.desc)}</span>
+            </button>
+        `).join('');
+        list.querySelectorAll('.settings-bible-card').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const id = btn.dataset.version;
+                const opt = BIBLE_VERSIONS.find(v => v.id === id);
+                if (!opt || opt.preparing) return;
+                currentVersion = id;
+                render();
+                try {
+                    const card = await ensureSelfCard(dek, _userId);
+                    await saveSelfCard(dek, _userId, { ...card, bibleVersion: id });
+                } catch (e) { console.warn('[settings] bibleVersion save failed:', e?.message || e); }
+            });
+        });
+    };
+    render();
+}
+
+function escapeText(s) {
+    if (s == null) return '';
+    return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
 
 function bindScriptureSettingsEvents() {

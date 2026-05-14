@@ -221,10 +221,14 @@ export async function ensureSelfCard(dek, userId) {
             goals: { completed: false },
             decisions: { completed: false },
             reports: { completed: false },
-            meditation: { completed: false }
+            meditation: { completed: false },
+            notifications: { completed: false },
+            settings: { completed: false },
         },
         // (R19) GA4 가명화 토큰 — 사용자 동의 시 발급. 미동의면 null.
         gaAnonymousId: null,
+        // (S-D 후속 2026-05-15) 사용자가 읽는 성경 번역본 id — 디폴트 'krv'(개역개정).
+        bibleVersion: 'krv',
         // (R10) 간증 — 사용자 명시 글만, 자동 추출 X
         testimony: [],
         // (R15) 관계 추이 timeline — 본인 카드 안에서는 본인 스테이터스 변화 추이 (R12 연결)
