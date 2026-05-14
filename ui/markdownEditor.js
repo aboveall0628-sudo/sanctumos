@@ -240,27 +240,43 @@ function handleListTab(editor, isShift, onChange) {
     }
 }
 
-// (2026-05-14 #23 2차) Enter — 빈 li 에서 누르면 리스트 종료. 그 외는 기본 동작.
+// (2026-05-14 #23 2차) 빈 li 에서 Enter — 노션식 흐름:
+//   · nested 안이면 한 단계 outdent (부모 li 다음 sibling 으로)
+//   · root level 이면 리스트 종료 (일반 div 로 빠져나감)
+// 사용자가 nested 깊이만큼 연속 Enter → 결국 일반 문단으로 빠져나감
 function handleListEnter(editor, onChange) {
     const sel = window.getSelection();
     if (!sel || !sel.rangeCount) return false;
     let node = sel.getRangeAt(0).startContainer;
     if (node.nodeType === 3) node = node.parentElement;
-    // 가장 가까운 LI
     let li = node;
     while (li && li !== editor && li.tagName !== 'LI') li = li.parentElement;
     if (!li || li === editor) return false;
     const text = (li.textContent || '').trim();
     if (text !== '') return false; // 내용 있으면 기본 동작 (새 li)
-    // 빈 li — 리스트 종료
-    const list = li.parentElement; // UL/OL
-    if (!list || !/^(UL|OL)$/.test(list.tagName)) return false;
+    const parentList = li.parentElement; // UL/OL
+    if (!parentList || !/^(UL|OL)$/.test(parentList.tagName)) return false;
+
+    // nested 안인지 체크 — parentList 의 부모가 LI 면 nested
+    const parentLi = parentList.parentElement;
+    if (parentLi && parentLi.tagName === 'LI') {
+        const grandList = parentLi.parentElement;
+        if (grandList && /^(UL|OL)$/.test(grandList.tagName)) {
+            // outdent — 빈 li 를 parentLi 다음 sibling 으로
+            grandList.insertBefore(li, parentLi.nextSibling);
+            if (parentList.querySelectorAll(':scope > li').length === 0) parentList.remove();
+            moveCaretToEnd(sel, li);
+            onChange(getMarkdown(editor));
+            return true;
+        }
+    }
+
+    // root level 빈 li — 리스트 종료
     const empty = document.createElement('div');
     empty.innerHTML = '<br>';
-    list.parentNode.insertBefore(empty, list.nextSibling);
+    parentList.parentNode.insertBefore(empty, parentList.nextSibling);
     li.remove();
-    // 빈 li 만 있던 리스트면 리스트 자체 제거
-    if (list.querySelectorAll(':scope > li').length === 0) list.remove();
+    if (parentList.querySelectorAll(':scope > li').length === 0) parentList.remove();
     const sel2 = window.getSelection();
     const r = document.createRange();
     r.selectNodeContents(empty);
