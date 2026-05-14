@@ -438,9 +438,9 @@ function renderPrincipleStep(body) {
         <p class="onboarding-sub">기본으로 추천 원칙 하나를 미리 채워둘게요. 그대로 두셔도 좋고, 본인 마음에 맞게 고쳐도 좋아요.</p>
 
         <label class="onboarding-label" for="onboarding-principle-title">원칙 제목</label>
-        <input type="text" class="onboarding-input" id="onboarding-principle-title"
-               value="${escapeAttr(_state.draft.principleTitle)}"
-               placeholder="짧은 한 줄로" maxlength="80" />
+        <textarea class="onboarding-textarea onboarding-textarea-compact" id="onboarding-principle-title"
+                  rows="2" maxlength="120"
+                  placeholder="짧게 한두 줄로">${escapeHtml(_state.draft.principleTitle)}</textarea>
 
         <label class="onboarding-label" for="onboarding-principle-body">원칙 본문</label>
         <textarea class="onboarding-textarea" id="onboarding-principle-body"

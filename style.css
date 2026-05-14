@@ -7494,10 +7494,17 @@ body.dg-open { overflow: hidden; }
     line-height: 1.6;
     resize: vertical;
     min-height: 80px;
+    word-break: keep-all;
 }
 .onboarding-textarea:focus {
     outline: none;
     border-color: var(--brand-primary);
+}
+/* 제목용 — 짧게 시작해서 내용 따라 자연스럽게 길어짐 */
+.onboarding-textarea-compact {
+    min-height: 2.6em;
+    line-height: 1.5;
+    font-weight: 500;
 }
 
 /* Step 8: 묵상 본문 카드 */
