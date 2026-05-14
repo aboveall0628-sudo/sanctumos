@@ -28,10 +28,29 @@ function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
 /**
  * 만족도 평균(1~5) → 0~100 스케일 매핑. 표본이 없으면 기본 50.
+ *
+ * (B-4 데이터 인프라 트랙 2026-05-15) 만점 회피 곡선 추가:
+ *   사용자 통찰: "도트에 좋은 점수 많이 주면 언젠가 만점되어서 객관성 없어진다"
+ *   - 현재 점수가 70+ 면 변화율 절반 (둔화)
+ *   - 90+ 면 변화율 1/5 (거의 안 움직임)
+ *   - 0~70 구간은 정상 변화
+ *   currentScore 인자 추가 — 호출 측에서 기존 점수 전달하면 곡선 적용. null 이면 기존 동작 유지.
+ *
+ *   slowFactor 인자 — 본인 카드(isSelf=true) 변화율 절반 적용용. 디폴트 1.
  */
-function avgTo100(avg) {
-    if (avg == null) return 50;
-    return clamp(Math.round(50 + (avg - 3) * 10), 0, 100);
+function avgTo100(avg, currentScore = null, slowFactor = 1) {
+    if (avg == null) return currentScore != null ? currentScore : 50;
+    const target = clamp(Math.round(50 + (avg - 3) * 10), 0, 100);
+    if (currentScore == null) return target;
+
+    // 만점 회피 — 현재 점수 영역별 변화율 감쇠
+    let zoneFactor = 1;
+    if (currentScore >= 90) zoneFactor = 0.2;
+    else if (currentScore >= 70) zoneFactor = 0.5;
+
+    const totalFactor = zoneFactor * slowFactor;
+    const delta = (target - currentScore) * totalFactor;
+    return clamp(Math.round(currentScore + delta), 0, 100);
 }
 
 /**
@@ -66,27 +85,45 @@ function isLocked(lockMap, key) {
 
 /**
  * 인물 카드의 unlocked 축에 derived 값을 적용한다.
+ *
+ * (B-4 데이터 인프라 트랙 2026-05-15) 3가지 보강:
+ *   1) 만점 회피 곡선 — avgTo100 에 currentScore 전달
+ *   2) 본인 카드(isSelf=true) 변화율 절반 (자기합리화 방지)
+ *   3) 변화 감지 시 scoreSnapshots 시퀀스에 시점 자동 추가
+ *      - 어떤 축이라도 ±5 이상 변화 + 마지막 스냅샷 7일+ 지남
+ *
  * @returns {boolean} 실제로 한 칸이라도 갱신됐으면 true
  */
 export function applyDerivedToPerson(person, stats) {
     if (!person) return false;
-    const avg = stats?.avgRating ?? null;
+    // (B-4 데이터 인프라 트랙 2026-05-15) 가중 평균 우선 사용 — cardStats.weightedAvgRating
+    //   최근 3개월 70% / 그 이전 30% 가중. 옛 도트 영향 자연 감쇠 → 사람 변화 반영.
+    //   없으면 (옛 stats 호환) 기존 avgRating fallback.
+    const avg = stats?.weightedAvgRating ?? stats?.avgRating ?? null;
+    const slowFactor = person.isSelf === true ? 0.5 : 1;  // 본인 카드는 변화율 절반
     let changed = false;
+    let deltaPeak = 0;  // 최대 단일 축 변화량 (스냅샷 트리거 판단용)
 
     // Big5 (0~100)
     if (!person.bigFive) person.bigFive = {};
     BIG5_KEYS.forEach(k => {
         if (isLocked(person.bigFiveLocked, k)) return;
-        const next = avgTo100(avg);
-        if (person.bigFive[k] !== next) { person.bigFive[k] = next; changed = true; }
+        const cur = person.bigFive[k];
+        const next = avgTo100(avg, cur, slowFactor);
+        const d = Math.abs(next - (cur ?? 50));
+        if (d > deltaPeak) deltaPeak = d;
+        if (cur !== next) { person.bigFive[k] = next; changed = true; }
     });
 
     // 능력 8축 (0~100)
     if (!person.competencies) person.competencies = {};
     COMPETENCY_KEYS.forEach(k => {
         if (isLocked(person.competenciesLocked, k)) return;
-        const next = avgTo100(avg);
-        if (person.competencies[k] !== next) { person.competencies[k] = next; changed = true; }
+        const cur = person.competencies[k];
+        const next = avgTo100(avg, cur, slowFactor);
+        const d = Math.abs(next - (cur ?? 50));
+        if (d > deltaPeak) deltaPeak = d;
+        if (cur !== next) { person.competencies[k] = next; changed = true; }
     });
 
     // 관계 4지표 (1~5)
@@ -97,7 +134,50 @@ export function applyDerivedToPerson(person, stats) {
         if (person.relationship[k] !== next) { person.relationship[k] = next; changed = true; }
     });
 
+    // (B-4 트랙) 변화 폭이 임계 이상이고 마지막 스냅샷 후 7일 이상 지났으면 시퀀스 추가
+    if (changed && deltaPeak >= 5) {
+        maybeAppendScoreSnapshot(person, deltaPeak);
+    }
+
     return changed;
+}
+
+/**
+ * (B-4 데이터 인프라 트랙 2026-05-15) 점수 시점 스냅샷 시퀀스 추가.
+ *
+ * 조건:
+ *   - 마지막 스냅샷이 7일+ 지났거나 없음
+ *   - deltaPeak >= 5 (호출 측에서 보장)
+ *
+ * 한 시퀀스에 너무 많이 쌓이지 않도록 최대 200개 유지 (오래된 것부터 자름).
+ * 사용자 시야에선 가지 시각화로만 사용 (R15).
+ */
+function maybeAppendScoreSnapshot(person, deltaPeak) {
+    const now = new Date();
+    const snapshots = Array.isArray(person.scoreSnapshots) ? person.scoreSnapshots.slice() : [];
+
+    // 마지막 스냅샷 7일 가드
+    const last = snapshots[snapshots.length - 1];
+    if (last && last.capturedAt) {
+        const lastMs = Date.parse(last.capturedAt);
+        if (!isNaN(lastMs) && (now.getTime() - lastMs) < 7 * 24 * 60 * 60 * 1000) {
+            return; // 7일 안이면 스킵
+        }
+    }
+
+    snapshots.push({
+        capturedAt: now.toISOString(),
+        bigFive: { ...(person.bigFive || {}) },
+        competencies: { ...(person.competencies || {}) },
+        relationship: { ...(person.relationship || {}) },
+        trigger: 'auto_change',
+        deltaPeak,
+    });
+
+    // 시퀀스 상한 200 — 5살 비유 "사진첩 두께 제한"
+    if (snapshots.length > 200) snapshots.splice(0, snapshots.length - 200);
+
+    person.scoreSnapshots = snapshots;
 }
 
 /**

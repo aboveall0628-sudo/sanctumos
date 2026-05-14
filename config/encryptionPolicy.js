@@ -329,6 +329,16 @@ export const POLICY = {
             'profileVisibility',
             // 📷 시점 스냅샷 (1차엔 모델 자리만 — 자동 보존 로직은 5y/10y·B-1 트랙)
             'profileVersionIds',   // [profileVersions docId, ...] — 1차엔 비어 있음
+            // (B-4 데이터 인프라 트랙 2026-05-15) 점수 시점 스냅샷 시퀀스 — R15 추이 시각화 입력.
+            //   shape: [{ capturedAt, bigFive, competencies, relationship, trigger, deltaPeak }]
+            //   - trigger: 'auto_change' | 'manual' | 'weekly_baseline'
+            //   - deltaPeak: 변화 폭 (가장 큰 단일 축 변화량 — 가지 굵기 시각화용)
+            //   - 자동 추가 조건: 어떤 축이라도 ±5 이상 변화 + 마지막 스냅샷 7일 이상 지남
+            //   - 본인 카드(isSelf=true) 도 같은 회로 (단 변화율 절반 — 자기합리화 방지)
+            //   - 시간 가중치 적용: 최근 3개월 도트 70% / 그 이전 30%
+            //   - 만점 회피 곡선: 점수 70+ 면 변화율 둔화 / 90+ 거의 안 움직임
+            //   - "능력" 라벨은 *함께 느낀 만족도* 임을 UI 톤에 표기 권장 (본인 프로필 재기획 트랙 이슈)
+            'scoreSnapshots',
             // ─── (본인 프로필 재기획 트랙 2026-05-14 S-A) 사적 차원 ───
             // (R10) 간증 — 사람·관계에 대한 하나님의 역사 기록. 유다·요셉 비유.
             //   사용자가 명시 박은 글만 (자동 추출 X). AI 가 의사결정 시 과거 사례로 활용 가능.

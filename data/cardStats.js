@@ -21,6 +21,12 @@
  */
 
 const FOUR_WEEKS_MS = 28 * 24 * 60 * 60 * 1000;
+// (B-4 데이터 인프라 트랙 2026-05-15) 시간 가중치 — 최근 3개월 70% / 그 이전 30%
+//   사용자 통찰: 1년 전 도트와 오늘 도트가 같은 무게면 사람 변화 반영 안 됨.
+//   weightedAvgRating 필드를 derivedScores 가 우선 사용 (없으면 기존 avgRating fallback).
+const THREE_MONTHS_MS = 90 * 24 * 60 * 60 * 1000;
+const WEIGHT_RECENT = 0.7;
+const WEIGHT_OLDER = 0.3;
 
 /**
  * 모든 인물에 대해 통계를 한 번에 계산.
@@ -68,6 +74,8 @@ function computeAllStats(dots, linkKey, ratingKey) {
     const now = Date.now();
     const recentCut = now - FOUR_WEEKS_MS;
     const prevCut   = now - 2 * FOUR_WEEKS_MS;
+    // (B-4 트랙) 시간 가중치 분기점 — 3개월 안 vs 그 이전
+    const weightCut = now - THREE_MONTHS_MS;
 
     for (const dot of dots) {
         const ids = dot[linkKey];
@@ -87,6 +95,16 @@ function computeAllStats(dots, linkKey, ratingKey) {
             if (typeof r === 'number' && r >= 1 && r <= 5) {
                 acc.ratingSum += r;
                 acc.ratedCount++;
+                // (B-4 트랙) 시간 가중치 — 3개월 안 vs 그 이전 분리 누적
+                if (dateMs != null) {
+                    if (dateMs >= weightCut) {
+                        acc.weightedRecentSum += r;
+                        acc.weightedRecentCount++;
+                    } else {
+                        acc.weightedOlderSum += r;
+                        acc.weightedOlderCount++;
+                    }
+                }
                 if (dateMs != null) {
                     if (dateMs >= recentCut) {
                         acc.recentSum += r;
@@ -130,10 +148,25 @@ function computeAllStats(dots, linkKey, ratingKey) {
             })
             .slice(0, 3);
 
+        // (B-4 데이터 인프라 트랙 2026-05-15) 시간 가중 평균 — derivedScores 가 우선 사용
+        let weightedAvgRating = null;
+        if (acc.weightedRecentCount > 0 || acc.weightedOlderCount > 0) {
+            const recentAvg = acc.weightedRecentCount > 0 ? acc.weightedRecentSum / acc.weightedRecentCount : null;
+            const olderAvg  = acc.weightedOlderCount  > 0 ? acc.weightedOlderSum  / acc.weightedOlderCount  : null;
+            if (recentAvg != null && olderAvg != null) {
+                // 두 구간 모두 표본 있으면 가중치 적용
+                weightedAvgRating = +(recentAvg * WEIGHT_RECENT + olderAvg * WEIGHT_OLDER).toFixed(2);
+            } else {
+                // 한 구간만 있으면 그쪽 평균 그대로
+                weightedAvgRating = +(recentAvg ?? olderAvg).toFixed(2);
+            }
+        }
+
         out.set(id, {
             meetingCount: acc.meetingCount,
             ratedCount: acc.ratedCount,
             avgRating,
+            weightedAvgRating,  // (B-4 트랙) derivedScores 우선 사용
             totalMinutes: acc.totalMinutes,
             recent4wAvg: recent4w,
             prev4wAvg: prev4w,
@@ -152,6 +185,9 @@ function freshAccumulator() {
         totalMinutes: 0,
         recentSum: 0, recentCount: 0,
         prevSum: 0,   prevCount: 0,
+        // (B-4 데이터 인프라 트랙 2026-05-15) 시간 가중치 누적기
+        weightedRecentSum: 0, weightedRecentCount: 0,  // 최근 3개월
+        weightedOlderSum: 0,  weightedOlderCount: 0,   // 그 이전
         recentDots: [],
     };
 }
