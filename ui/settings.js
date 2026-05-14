@@ -237,6 +237,25 @@ function injectExtraSections() {
     `;
     container.appendChild(templateCard);
 
+    // (2026-05-14 본인 프로필 재기획 S-D 후속) 처음 안내 다시 보기 카드.
+    //   가입할 때 한 번만 뜨는 4 step 온보딩 모달(이름·별명·생일·묵상 수준)을
+    //   설정에서 언제든 다시 열 수 있는 자리예요.
+    //   대부분 안 봐도 괜찮은 자리지만, 친구한테 보여줄 때나 톤·수준을 다시 점검할 때 유용해요.
+    const onboardingReplayCard = document.createElement('div');
+    onboardingReplayCard.id = 'settings-onboarding-replay-card';
+    onboardingReplayCard.className = 'card-section';
+    onboardingReplayCard.innerHTML = `
+        <h3 class="section-title"><i class="section-icon" data-lucide="sparkles"></i> 처음 안내 다시 보기</h3>
+        <p class="section-desc">
+            가입할 때 한 번 보였던 안내 화면이에요. 이름·별명·생일·묵상 수준을 다시 살펴보거나,
+            궁금한 친구분께 흐름을 보여드릴 때 열어보실 수 있어요.
+        </p>
+        <button id="btn-replay-onboarding" class="primary-btn" type="button" style="margin-top:8px;">
+            <i data-lucide="play-circle" class="btn-icon"></i> 다시 보기
+        </button>
+    `;
+    container.appendChild(onboardingReplayCard);
+
     // (2026-05-13 HC#1 N7) 매일 묵상 알람 카드 — 1개 시각, 인앱 종 빨간 점.
     // spiritualLock 도큐먼트의 dailyAlarmEnabled + dailyAlarmTime 사용.
     const dailyAlarmCard = document.createElement('div');
@@ -581,6 +600,28 @@ function bindEvents() {
         btnOpenSelf.addEventListener('click', () => {
             if (typeof window.__sanctumNav === 'function') window.__sanctumNav('self-profile');
             else if (typeof window.__sanctumSwitchView === 'function') window.__sanctumSwitchView('self-profile');
+        });
+    }
+
+    // (2026-05-14 본인 프로필 재기획 S-D 후속) "처음 안내 다시 보기" 버튼 — 온보딩 모달 재시연.
+    //   dynamic import — 아직 한 번도 안 누른 사용자는 onboarding.js 다운로드 안 함 (lazy).
+    //   dek 못 가져오면 조용히 끝. onComplete 는 빈 콜백 — 설정 화면에 그대로 머물러요.
+    const btnReplayOnboarding = document.getElementById('btn-replay-onboarding');
+    if (btnReplayOnboarding) {
+        btnReplayOnboarding.addEventListener('click', async () => {
+            if (!_userId || _userId === 'anonymous') return;
+            const dek = getDEK();
+            if (!dek) return;
+            try {
+                const { showOnboardingModal } = await import('./onboarding.js');
+                await showOnboardingModal({
+                    userId: _userId,
+                    dek,
+                    onComplete: () => {},
+                });
+            } catch (e) {
+                console.warn('[settings] onboarding replay failed:', e);
+            }
         });
     }
 
