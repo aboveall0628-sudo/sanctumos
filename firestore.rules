@@ -64,10 +64,19 @@ service cloud.firestore {
 
     // ─────────────────────────────────────────────────────────────
     //  v2.1 — 루트 컬렉션 (도트, 묵상, 결단, 원칙, 목표, 리포트 등)
-    //  요건: 본인 userId 필드를 가진 문서만 접근 가능
+    //  요건: 본인 userId 필드를 가진 문서만 접근 가능.
+    //
+    //  (2026-05-16 fix) 미존재 문서 (resource == null) 도 read 허용.
+    //    이유: getDoc({existing-id})·getDoc({today-meditation-id}) 같이
+    //    "있으면 가져오고 없으면 만들기" 패턴이 곳곳에 자리잡혀 있어요.
+    //    rules 가 resource.data.userId 만 확인하면 null 일 때 거부돼서
+    //    "리포트를 불러오는 중에 잠깐 막혔어요" 같은 catch 가 사용자에게 노출됐음.
+    //    데이터 누출 위험은 없음 — 미존재 문서는 비어 있어요.
     // ─────────────────────────────────────────────────────────────
     match /{collection}/{docId} {
-      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow read: if request.auth != null
+        && (resource == null || request.auth.uid == resource.data.userId);
+      allow write: if request.auth != null && request.auth.uid == resource.data.userId;
       allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
     }
   }
