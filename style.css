@@ -7907,6 +7907,38 @@ button.mission-progress-block:hover {
     background: var(--surface, #fbfaf6);
 }
 
+/* (S-E7.2) "곧 열려요" — 1차 베타 후 풀릴 자리 (예: 직접 만들기) */
+.onboarding-track-card.disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    background: var(--surface-elev, #f4f1ea);
+}
+.onboarding-track-card.disabled:hover {
+    border-color: transparent;
+    transform: none;
+}
+.onboarding-track-chip-coming {
+    display: inline-block;
+    margin-left: 0.4em;
+    padding: 0.1rem 0.45rem;
+    background: var(--surface-elev, #f4f1ea);
+    color: var(--ink-tertiary, #a8a8a3);
+    border-radius: 0.35rem;
+    font-size: 0.7em;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    vertical-align: middle;
+}
+.onboarding-track-card.disabled .onboarding-track-chip-coming {
+    background: var(--surface, #fbfaf6);
+}
+.onboarding-track-coming-foot {
+    margin-top: 0.35rem;
+    font-size: 0.74em;
+    color: var(--ink-tertiary, #a8a8a3);
+    font-style: italic;
+}
+
 /* ─ 한 권 통독 책 picker ─ */
 .onboarding-book-picker {
     margin-top: 1rem;

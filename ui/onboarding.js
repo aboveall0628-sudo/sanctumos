@@ -400,11 +400,17 @@ function renderTrackStep(body) {
         <p class="onboarding-track-others-head">다른 결도 둘러볼래요?</p>
         <div class="onboarding-track-options">
           ${rec.options.map(opt => `
-            <button type="button" class="onboarding-track-card${_state.draft.selectedTrack === opt.id ? ' selected' : ''}${opt.highlight ? ' onboarding-track-card-highlight' : ''}"
-                    data-track="${escapeAttr(opt.id)}">
+            <button type="button"
+                    class="onboarding-track-card${_state.draft.selectedTrack === opt.id ? ' selected' : ''}${opt.highlight ? ' onboarding-track-card-highlight' : ''}${opt.preparing ? ' disabled' : ''}"
+                    data-track="${escapeAttr(opt.id)}"
+                    ${opt.preparing ? 'aria-disabled="true"' : ''}>
               <span class="onboarding-track-icon" aria-hidden="true">${escapeHtml(opt.icon)}</span>
-              <span class="onboarding-track-label">${escapeHtml(opt.label)}</span>
+              <span class="onboarding-track-label">
+                ${escapeHtml(opt.label)}
+                ${opt.preparing ? '<span class="onboarding-track-chip-coming">곧 열려요</span>' : ''}
+              </span>
               <span class="onboarding-track-desc">${escapeHtml(opt.desc)}</span>
+              ${opt.preparing ? '<span class="onboarding-track-coming-foot">1차 베타 후 열어볼 자리예요.</span>' : ''}
             </button>
           `).join('')}
         </div>
@@ -443,6 +449,8 @@ function renderTrackStep(body) {
 
     document.querySelectorAll('.onboarding-track-card').forEach(btn => {
         btn.addEventListener('click', () => {
+            // (S-E7.2) preparing 트랙은 클릭 무시 — 시각적 비활성 + 안내만.
+            if (btn.classList.contains('disabled')) return;
             const track = btn.dataset.track;
             _state.draft.selectedTrack = track;
             // 다른 트랙 누르면 책 선택 초기화
