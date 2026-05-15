@@ -55,17 +55,24 @@ export async function generateAllAutoReminders(dek, userId, today) {
         if (await generateYesterdayUnratedReminder(dek, userId, today)) result.yesterday = 1;
     } catch (e) { console.warn('[reminderGen] yesterday-unrated failed:', e); }
 
-    try {
-        result.stale = await generateStaleGoalReminders(dek, userId, today);
-    } catch (e) { console.warn('[reminderGen] stale-goal failed:', e); }
-
-    try {
-        result.principle = await generatePrincipleUnusedReminders(dek, userId, today);
-    } catch (e) { console.warn('[reminderGen] principle-unused failed:', e); }
-
-    try {
-        result.emptyCard = await generateEmptyCardReminders(dek, userId, today);
-    } catch (e) { console.warn('[reminderGen] empty-card failed:', e); }
+    // (2026-05-15 베타 1차 선별 — 알람 시스템 재기획 트랙 진입 전 임시 비활성)
+    //   stale-goal·principle-unused·empty-card 3종은 1차 베타에서 끄고
+    //   2차 베타 전 알람 시스템 전체 재기획에서 다시 살림.
+    //   이유: 1차 14일 미션 안에서 목표·핀 원칙·stub 카드 누적이 적어
+    //         발화 빈도가 사용자 피로 위험 vs 가치 비교 시 가치 ↓.
+    //   함수는 그대로 둠 — 재기획 시 다시 호출.
+    //
+    // try {
+    //     result.stale = await generateStaleGoalReminders(dek, userId, today);
+    // } catch (e) { console.warn('[reminderGen] stale-goal failed:', e); }
+    //
+    // try {
+    //     result.principle = await generatePrincipleUnusedReminders(dek, userId, today);
+    // } catch (e) { console.warn('[reminderGen] principle-unused failed:', e); }
+    //
+    // try {
+    //     result.emptyCard = await generateEmptyCardReminders(dek, userId, today);
+    // } catch (e) { console.warn('[reminderGen] empty-card failed:', e); }
 
     // (2026-05-13 HC#1 N7) 매일 묵상 알람 — 사용자 설정 시각 이후 1회 발화.
     try {
@@ -307,8 +314,8 @@ export async function generatePrincipleUnusedReminders(dek, userId, today) {
             id,
             userId,
             type:       'principle-unused',
-            title:      `핀 원칙 "${title}" — 이번 주 도트에 한 번도 안 박혔어요`,
-            body:       '잊고 있었거나, 이번 주에 맞지 않았거나. 묵상에서 한 번 만나 보세요.',
+            title:      `핀 원칙 "${title}" — 이번 주 도트에서 한 번도 못 만났어요`,
+            body:       '잊고 있었거나, 이번 주에 잘 맞지 않았거나. 묵상에서 한 번 만나 보세요.',
             targetView: 'today',
             targetParams: { principleId: p.id },
             dueDate:    today,
