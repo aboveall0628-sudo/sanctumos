@@ -35,6 +35,7 @@ import { getMeditationTemplate, setMeditationTemplate, DEFAULT_TEMPLATE } from '
 import { bindMarkdownEditor, getMarkdown, setMarkdown } from './markdownEditor.js';
 // (S-D 후속 2026-05-15) 시스템 폰트 + 성경 번역본 옵션
 import { SYSTEM_FONT_SIZES, getSystemFontScale, setSystemFontScale } from '../config/systemFont.js';
+import { ACCENT_COLORS, getAccentColor, setAccentColor } from '../config/accentColor.js';
 import { BIBLE_VERSIONS, DEFAULT_BIBLE_VERSION } from '../config/onboardingDefaults.js';
 import { isSwanAdmin } from '../config/adminConfig.js';
 import { ensureSelfCard, saveSelfCard } from '../data/personRepo.js';
@@ -226,6 +227,21 @@ function injectExtraSections() {
         <div id="settings-system-font-row" class="settings-font-chip-row"></div>
     `;
     container.appendChild(systemFontCard);
+
+    // (디자인 시스템 v1 2026-05-15) 강조 색 카드 — 3색 (올리브·베이지·라벤더) 사용자 선택.
+    //   <html data-accent="..."> + style.css [data-accent] 분기로 라이브 전환.
+    //   디폴트 = 올리브 (디자인 시스템 추천). 라이트·다크 둘 다 자연 적응.
+    const accentColorCard = document.createElement('div');
+    accentColorCard.id = 'settings-accent-color-card';
+    accentColorCard.className = 'card-section';
+    accentColorCard.innerHTML = `
+        <h3 class="section-title"><i class="section-icon" data-lucide="palette"></i> 강조 색</h3>
+        <p class="section-desc">
+            앱 안에서 강조 자리(버튼·링크·활성 메뉴)에 사용되는 한 가지 색이에요. 마음에 머무는 톤으로 고르실 수 있어요.
+        </p>
+        <div id="settings-accent-color-row" class="settings-font-chip-row"></div>
+    `;
+    container.appendChild(accentColorCard);
 
     // (S-D 후속 2026-05-15) 성경 번역본 안내 카드 — 본문 데이터는 개역개정 단일.
     //   다른 번역본은 자리만 노출 ("준비 중"). 가입 시 selfCard.bibleVersion 박힘.
@@ -1273,6 +1289,7 @@ function bindEvents() {
 
     // ─── (S-D 후속 2026-05-15) 시스템 글자 크기 + 성경 번역본 안내 ───
     bindSystemFontSettings();
+    bindAccentColorSettings();
     bindBibleVersionSettings();
 
     // ─── 자동 잠금 시간(분) ───
@@ -1585,6 +1602,34 @@ function bindSystemFontSettings() {
             const id = btn.dataset.systemFont;
             if (!SYSTEM_FONT_SIZES[id]) return;
             setSystemFontScale(id);
+            row.querySelectorAll('.settings-font-chip').forEach(b => {
+                b.classList.toggle('selected', b === btn);
+            });
+        });
+    });
+}
+
+/**
+ * (디자인 시스템 v1 2026-05-15) 강조 색 카드 — 3색 사용자 선택.
+ *   시스템 폰트 카드와 같은 패턴 (chip-row + selected 토글).
+ */
+function bindAccentColorSettings() {
+    const row = document.getElementById('settings-accent-color-row');
+    if (!row) return;
+    const current = getAccentColor();
+    row.innerHTML = Object.entries(ACCENT_COLORS).map(([id, cfg]) => `
+        <button type="button"
+                class="settings-font-chip${current === id ? ' selected' : ''}"
+                data-accent-color="${id}">
+            <span class="settings-font-chip-label">${escapeText(cfg.label)}</span>
+            <span class="settings-font-chip-desc">${escapeText(cfg.desc)}</span>
+        </button>
+    `).join('');
+    row.querySelectorAll('.settings-font-chip').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.dataset.accentColor;
+            if (!ACCENT_COLORS[id]) return;
+            setAccentColor(id);
             row.querySelectorAll('.settings-font-chip').forEach(b => {
                 b.classList.toggle('selected', b === btn);
             });

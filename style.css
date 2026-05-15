@@ -18,10 +18,26 @@
     --ink-secondary: #6B6B70;
     --ink-tertiary:  #9A9A9F;
 
-    /* ── Brand ──
-       Sanctum Blue — 차분한 슬레이트 청. 트렌디 SaaS 그라데이션 금지. */
-    --brand-primary: #3E5C76;
-    --brand-soft:    rgba(62, 92, 118, 0.10);
+    /* ── Brand Accent (디자인 시스템 v1 2026-05-15 — 변주 3종) ──
+       모노톤 기조 위에 한 색만 절제 사용. 사용자가 설정에서 자유 선택.
+       Light: olive #7C8B6F / beige #B89E78 / lavender #8F86A6
+       Dark variant 는 [data-theme="dark"] 자리잡힌 자리. */
+    --brand-olive:           #7C8B6F;
+    --brand-olive-soft:      rgba(124, 139, 111, 0.10);
+    --brand-olive-strong:    #5F6F53;
+
+    --brand-beige:           #B89E78;
+    --brand-beige-soft:      rgba(184, 158, 120, 0.12);
+    --brand-beige-strong:    #8E7855;
+
+    --brand-lavender:        #8F86A6;
+    --brand-lavender-soft:   rgba(143, 134, 166, 0.12);
+    --brand-lavender-strong: #6B6388;
+
+    /* 기본 accent = Muted Olive (디자인 시스템 추천). 사용자 선택 시 [data-accent] 로 자연 분기. */
+    --brand-primary: var(--brand-olive);
+    --brand-soft:    var(--brand-olive-soft);
+    --brand-strong:  var(--brand-olive-strong);
 
     /* ── Line ── */
     --line:  #E8E8E5;
@@ -134,8 +150,22 @@ html[data-system-font="xl"] {
     --ink-secondary: #9A9A9F;
     --ink-tertiary:  #6B6B70;
 
-    --brand-primary: #6B8AA8;
-    --brand-soft:    rgba(107, 138, 168, 0.18);
+    /* Brand Accent 다크 변주 — 채도 살짝 낮추고 명도 올림 */
+    --brand-olive:           #9AAD8A;
+    --brand-olive-soft:      rgba(154, 173, 138, 0.14);
+    --brand-olive-strong:    #B9CBA8;
+
+    --brand-beige:           #D4BA90;
+    --brand-beige-soft:      rgba(212, 186, 144, 0.14);
+    --brand-beige-strong:    #E9D2A8;
+
+    --brand-lavender:        #B0A6CC;
+    --brand-lavender-soft:   rgba(176, 166, 204, 0.16);
+    --brand-lavender-strong: #C9C0E0;
+
+    --brand-primary: var(--brand-olive);
+    --brand-soft:    var(--brand-olive-soft);
+    --brand-strong:  var(--brand-olive-strong);
 
     --line:  #2E2E32;
     --hover: rgba(255, 255, 255, 0.05);
@@ -143,6 +173,20 @@ html[data-system-font="xl"] {
     --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
     --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
+
+/* ── Accent 변주 데이터 속성 (UI 라이브 전환) ──
+   디자인 시스템 v1 — 사용자가 설정에서 자유 선택. 라이트·다크 둘 다 자연 적응. */
+[data-accent="beige"] {
+    --brand-primary: var(--brand-beige);
+    --brand-soft:    var(--brand-beige-soft);
+    --brand-strong:  var(--brand-beige-strong);
+}
+[data-accent="lavender"] {
+    --brand-primary: var(--brand-lavender);
+    --brand-soft:    var(--brand-lavender-soft);
+    --brand-strong:  var(--brand-lavender-strong);
+}
+/* [data-accent="olive"] 또는 미지정 = 디폴트 :root 자리 자연 적용 (별도 분기 X) */
 
 /* ═══ Reset ═══ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }

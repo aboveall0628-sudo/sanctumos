@@ -23,6 +23,7 @@ import { initThemeManager } from './themeManager.js';
 import { renderScriptureForDate, loadBibleData as loadBibleDataModule, bindScriptureSettingsListener } from './scripture.js';
 import { applyFontSizeToCSS as applyScriptureFontSize } from './scriptureSettings.js';
 import { applySystemFontFromStorage } from '../config/systemFont.js';
+import { applyAccentFromStorage } from '../config/accentColor.js';
 import { initTodayView, refreshTodayView } from './todayView.js';
 import { initTimeline, refreshTimeline, scrollTimelineToNow } from './timeline.js';
 // 워크플로우 트랙 STEP 2 (2026-05-13) — 등산로 카드
@@ -342,6 +343,8 @@ async function init() {
     bindScriptureSettingsListener();
     // (S-D 후속 2026-05-15) 시스템 폰트 — <html data-system-font> 자동 적용
     applySystemFontFromStorage();
+    // (디자인 시스템 v1 2026-05-15) 강조 색 — <html data-accent> 자동 적용
+    applyAccentFromStorage();
     setupNavigation();
     renderLucideIcons();
 

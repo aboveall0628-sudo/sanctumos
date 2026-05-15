@@ -20,3 +20,4 @@ Thumbs.db
 *.log
 *.tmp
 .vscode/
+docs/backlog/design_handoff/
