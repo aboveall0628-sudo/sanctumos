@@ -85,10 +85,18 @@ export async function generateAllAutoReminders(dek, userId, today) {
     } catch (e) { console.warn('[reminderGen] birthday failed:', e); }
 
     // (B-5 Phase 1.b 2026-05-15) 회복의 자리 자동 트리거 — 약속 어김 패턴 감지
-    try {
-        if (await generateBrokenPromiseRecoveryReminder(dek, userId, today)) result.recovery = 1;
-        else result.recovery = 0;
-    } catch (e) { console.warn('[reminderGen] recovery-broken-promise failed:', e); }
+    // (2026-05-15 베타 1차 안전 결정 — 자동 발화 임시 OFF)
+    //   이유: 트리거 임계(14일×3건+문자열 다름)가 실 사용자에게 정죄로 느껴질지
+    //         미지수. 책상 결정 X — 1차 베타 SWAN 인터뷰·14일 종료 인터뷰에서
+    //         사용자가 *자발적으로* 회복의 자리 진입하는지 + 그때 어떻게 느끼는지
+    //         정성 데이터 모은 후 자동 트리거 부활 여부·기준 결정.
+    //   수동 진입(view-today 안 카드·메뉴)은 그대로 유지.
+    //   함수는 보존 — 알람 시스템 재기획 Phase R1 진단 후 재활성 결정.
+    //
+    // try {
+    //     if (await generateBrokenPromiseRecoveryReminder(dek, userId, today)) result.recovery = 1;
+    //     else result.recovery = 0;
+    // } catch (e) { console.warn('[reminderGen] recovery-broken-promise failed:', e); }
 
     return { generated: result };
 }
