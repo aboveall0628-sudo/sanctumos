@@ -604,16 +604,14 @@ function setupNavigation() {
     //   잠긴 모듈 클릭을 가로채 미션 안내 모달을 띄움. 기존 click 핸들러보다 먼저 동작.
     const missionCtxGetter = () => ({ dek: getDEK(), userId: currentUserId });
     attachSidebarLockGuard(missionCtxGetter);
-    // 미션 클리어 즉시 사이드바·진행도·추천 카드·풋터 갱신 + 조용한 토스트.
-    //   (S-E 2026-05-15) 추천 카드 + 사이드바 풋터 자리 추가.
+    // 미션 클리어 즉시 사이드바·진행도·추천 카드 갱신 + 클리어 알림 카드.
+    //   (S-E6 2026-05-15) 사이드바 풋터 제거 — 대시보드 카드 3 + 잠긴 모달 추천 2 자리로 충분.
     bindMissionUnlockListener(
         missionCtxGetter,
         'mission-progress-block',
         'mission-recommend-cards',
-        'sidebar-mission-footer'
+        null
     );
-    // 첫 로드 시 사이드바 풋터 1회 렌더 — DEK 도착 후 자동 갱신은 unlock listener / switchView 에서 처리.
-    //   초기엔 ctx 없으니 빈 채로 두고, ready 시점에 별도 호출.
 
     // 오늘 화면의 "거래 한 건" 빠른 추가 (Phase F)
     const addTxBtn = document.getElementById('today-add-tx-btn');

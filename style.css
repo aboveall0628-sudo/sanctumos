@@ -352,8 +352,34 @@ small { font-size: var(--fs-small); color: var(--ink-secondary); }
     padding: var(--sp-6) var(--sp-7);
     max-width: 1080px;
 }
-.view { animation: fadeIn var(--ease); }
+/* (S-E6 2026-05-15) 카드 등장 애니메이션 통일 — 사용자 명시
+   "어느 메뉴 들어가도 카드 등장할 때 애니메이션 있도록". */
+.view {
+    animation: viewLift 320ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+@keyframes viewLift {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.card-section,
+.dash-section,
+.mission-progress-block,
+.mission-recommend-wrap {
+    animation: cardLift 280ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+@keyframes cardLift {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .view,
+    .card-section, .dash-section,
+    .mission-progress-block, .mission-recommend-wrap {
+        animation: none;
+    }
+}
 .hidden { display: none !important; }
+/* 다른 자리에서 참조하는 fadeIn 보존 (헤더 dropdown 등). */
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 /* ═══ Page Elements ═══ */
@@ -4522,8 +4548,9 @@ svg.person-radar { display: block; }
 .manual-lock-wrap {
     position: fixed;
     top: calc(14px + env(safe-area-inset-top, 0));
-    /* 알람 종(38px wide, right 18px)의 왼쪽으로 8px gap */
-    right: calc(64px + env(safe-area-inset-right, 0));
+    /* (S-E6 2026-05-15) 종(38px @ right 18px) 왼쪽으로 14px gap → right 70px.
+       이전 64px 은 시각적으로 너무 붙어 사용자가 "겹쳐있다" 느꼈음. */
+    right: calc(70px + env(safe-area-inset-right, 0));
     z-index: 100;
 }
 .manual-lock-wrap.hidden { display: none; }
@@ -4692,8 +4719,9 @@ svg.person-radar { display: block; }
 
 /* 모바일 — 패널이 더 좁게 */
 @media (max-width: 480px) {
+    /* (S-E6 2026-05-15) 모바일도 14px 갭으로 일관성. */
     .reminder-bell-wrap { top: 10px; right: 12px; }
-    .manual-lock-wrap { top: 10px; right: 58px; }
+    .manual-lock-wrap { top: 10px; right: 64px; }
     .reminder-panel {
         width: calc(100vw - 24px);
         right: 0;
@@ -6047,7 +6075,12 @@ body.dg-open { overflow: hidden; }
 
 /* ── 헤더 바로가기 아이콘 (분별의 펜) ── */
 .dg-shortcut-wrap {
-    position: fixed; top: var(--sp-3); right: 56px;
+    /* (S-E6 2026-05-15) 자물쇠(38px @ right 70px) 왼쪽으로 14px gap → right 122px.
+       이전 56px 은 자물쇠 자리(64px)와 30px 침범해 시각적으로 겹쳐있었음.
+       top 도 자물쇠·종과 같게 14px (--sp-3 = 12px) 맞춤. */
+    position: fixed;
+    top: calc(14px + env(safe-area-inset-top, 0));
+    right: calc(122px + env(safe-area-inset-right, 0));
     z-index: 90;
 }
 .dg-shortcut-btn {
@@ -6130,7 +6163,7 @@ body.dg-open { overflow: hidden; }
 @media (max-width: 600px) {
     .dg-overlay.dg-mode-free .dg-panel { width: 100%; }
     .dg-overlay.dg-mode-goal-edit { padding: var(--sp-3); }
-    .dg-shortcut-wrap { right: 56px; top: var(--sp-2); }
+    .dg-shortcut-wrap { right: 116px; top: 10px; }
     .dg-shortcut-btn { width: 32px; height: 32px; }
 }
 
