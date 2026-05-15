@@ -5,7 +5,8 @@
 
 import {
     db, auth, doc, setDoc, getDoc, serverTimestamp,
-    GoogleAuthProvider, signInWithCredential
+    GoogleAuthProvider, signInWithCredential,
+    IS_DEV_ENV, ENV_LABEL,
 } from '../data/firebase.js';
 import { setupNewVault, unlockVault, recoverWithWords, KDF_PARAMS } from '../crypto/keyManager.js';
 import { initLockScreen, setUnlocked, lock, showLockError, showLockScreen, hideLockScreen, getDEK } from './lockScreen.js';
@@ -176,6 +177,13 @@ function disablePasswordManagerOnNonPasswordInputs() {
 
 // ─── 초기화 ───
 async function init() {
+    // (S-F1 2026-05-15) DEV 환경이면 상단 빨간 배지 노출. 헷갈림 방지.
+    if (IS_DEV_ENV) {
+        const badge = document.getElementById('dev-env-badge');
+        if (badge) badge.classList.remove('hidden');
+        document.title = `[DEV] ${document.title}`;
+    }
+
     // 0-a. 비로그인 첫 진입 가드 — Firebase 세션 없으면 landing.html로
     //      ?login=true 가 붙어 있으면 랜딩에서 돌아온 것이므로 통과 후 자동 로그인 트리거
     const _params = new URLSearchParams(location.search);
