@@ -190,8 +190,15 @@ export function showLockScreen() {
         console.error('[lockScreen] showLockScreen 호출됐는데 lock-screen-overlay div가 없음');
         return false;
     }
+    // 진행 중이던 fade-out timer 정리 (showLockScreen 빠르게 다시 호출되는 경우).
+    if (el._hideTimer) { clearTimeout(el._hideTimer); el._hideTimer = null; }
     el.classList.remove('hidden');
     el.style.display = 'flex';
+    // (S-E5 2026-05-15) 부드러운 등장 — display:flex 박은 다음 프레임에 .is-visible 박아야
+    //   CSS transition 이 0 → 1 으로 잘 탐. 같은 프레임에 두면 transition 안 먹힘.
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => el.classList.add('is-visible'));
+    });
     const input = document.getElementById('lock-password-input');
     if (input) { input.value = ''; input.focus(); }
     // (2026-05-13 #55) 진입 시 "열기" 버튼 상태 강제 reset — 이전 세션의 "여는 중..." 잔존 차단
@@ -205,5 +212,19 @@ export function showLockScreen() {
 
 export function hideLockScreen() {
     const el = document.getElementById('lock-screen-overlay');
-    if (el) { el.classList.add('hidden'); el.style.display = 'none'; }
+    if (!el) return;
+    // (S-E5 2026-05-15) fade-out 후 display:none — 갑자기 사라지지 않고 자연스럽게 빠짐.
+    if (!el.classList.contains('is-visible')) {
+        // 아직 한 번도 안 보였던 상태면 transition 없이 즉시 숨김.
+        el.classList.add('hidden');
+        el.style.display = 'none';
+        return;
+    }
+    el.classList.remove('is-visible');
+    if (el._hideTimer) clearTimeout(el._hideTimer);
+    el._hideTimer = setTimeout(() => {
+        el.classList.add('hidden');
+        el.style.display = 'none';
+        el._hideTimer = null;
+    }, 240);  // CSS opacity transition 280ms 보다 살짝 짧게.
 }

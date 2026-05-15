@@ -998,8 +998,25 @@ button .btn-icon { vertical-align: text-bottom; }
     position: fixed; inset: 0; z-index: 2000;
     background: var(--bg); display: flex;
     align-items: center; justify-content: center;
+    /* (S-E5 2026-05-15) 부드러운 등장 — 갑자기 나오던 느낌 해소.
+       .is-visible 일 때만 opacity 1 + interactive. 진입 280ms / 소멸 220ms. */
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 280ms ease-out;
 }
-.lock-screen-box { text-align: center; max-width: 340px; width: 90%; }
+.lock-screen-overlay.is-visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+.lock-screen-box {
+    text-align: center; max-width: 340px; width: 90%;
+    /* 살짝 아래에서 올라오는 진입 — 디자인 톤 따라 미미하게 (8px). */
+    transform: translateY(8px);
+    transition: transform 320ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.lock-screen-overlay.is-visible .lock-screen-box {
+    transform: translateY(0);
+}
 .lock-icon {
     display: inline-flex; align-items: center; justify-content: center;
     width: 56px; height: 56px;
