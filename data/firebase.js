@@ -35,15 +35,17 @@ const PROD_CONFIG = {
     measurementId: "G-BG79MS3FZP"
 };
 
-// (S-F1) sanctum-dev 프로젝트 config — Swan 이 Firebase Console 신설 후 채울 자리.
-//   placeholder 상태에서 dev 환경 접속하면 Firebase 초기화 실패. dev 도메인 셋업 전까진 영향 X.
+// (S-F1) sanctum-dev-447e1 프로젝트 config — 2026-05-15 Swan 이 Firebase Console 신설 완료.
+//   원래 sanctum-dev 만들려 했으나 다른 사용자 점유 → Firebase 자동 -447e1 접미사 부여.
+//   dev 도메인 셋업·OAuth Authorized Domain 추가 후 dev.sanctumos.kr 에서 동작.
 const DEV_CONFIG = {
-    apiKey: "__SANCTUM_DEV_API_KEY__",
-    authDomain: "sanctum-dev.firebaseapp.com",
-    projectId: "sanctum-dev",
-    storageBucket: "sanctum-dev.firebasestorage.app",
-    messagingSenderId: "__SANCTUM_DEV_SENDER_ID__",
-    appId: "__SANCTUM_DEV_APP_ID__",
+    apiKey: "AIzaSyD3M8-vN1N6vo6F_Lk7tp1FJFmqdoNt0Is",
+    authDomain: "sanctum-dev-447e1.firebaseapp.com",
+    projectId: "sanctum-dev-447e1",
+    storageBucket: "sanctum-dev-447e1.firebasestorage.app",
+    messagingSenderId: "756096089693",
+    appId: "1:756096089693:web:2647d5178e2c733d6417b4",
+    measurementId: "G-VJKVM8V9TR",
 };
 
 const firebaseConfig = IS_DEV_ENV ? DEV_CONFIG : PROD_CONFIG;
