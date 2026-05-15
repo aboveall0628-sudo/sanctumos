@@ -273,17 +273,25 @@ export async function saveSelfCard(dek, userId, data) {
 // ─── (본인 프로필 재기획 트랙 2026-05-14 S-A) 미션 진행 헬퍼 3개 ───
 
 /**
- * 모듈 ID → 미션 ID 추론 단순 매핑 (1차).
- *   미션 카탈로그(`config/missionCatalog.js`)가 S-B 에 박히면 그쪽에서 단일 출처로.
+ * missionId → moduleId 매핑 (1차 S-B).
+ *   잠금 가드(`missionStatus[moduleId]`)는 모듈 단위로 박히지만,
+ *   미션 자체는 missionId 단위로 추적 (tutorialState[missionId]).
+ *
+ *   (S-E3 2026-05-15 매핑 누락 fix) past_meditation_revisit / notification_setup /
+ *   settings_explore 가 빠져서 markMissionComplete 첫 줄에서 return false 되던 버그 수정.
+ *   같은 moduleId 두 미션(meditation_first_save & past_meditation_revisit)은 둘 다 'meditation' 잠금 풀기.
  */
 const MODULE_FROM_MISSION_ID = {
-    'person_first_dot':        'persons',
-    'org_first_dot':           'organizations',
+    'person_first_dot':          'persons',
+    'org_first_dot':             'organizations',
     'economy_first_transaction': 'economy',
-    'goal_first_save':         'goals',
-    'decision_first_record':   'decisions',
-    'report_first_weekly':     'reports',
-    'meditation_first_save':   'meditation'
+    'goal_first_save':           'goals',
+    'decision_first_record':     'decisions',
+    'report_first_weekly':       'reports',
+    'meditation_first_save':     'meditation',
+    'past_meditation_revisit':   'meditation',
+    'notification_setup':        'notifications',
+    'settings_explore':          'settings',
 };
 
 /**
@@ -303,19 +311,23 @@ export async function markMissionComplete(dek, userId, missionId, opts = {}) {
     const self = await getSelfCard(dek, userId);
     if (!self) return false;
 
-    const missionStatus = self.missionStatus || {};
-    const moduleEntry = missionStatus[moduleId] || { completed: false };
-    if (moduleEntry.completed) return false;  // idempotent
+    const tutorialState = self.tutorialState || {};
+    // (S-E3 2026-05-15) idempotent 체크는 tutorialState[missionId] 기준 — missionStatus 는 moduleId 단위라
+    //   같은 모듈 두 미션(meditation_first_save / past_meditation_revisit) 이 1번 클리어로 묶이는 버그가 있었음.
+    //   이제는 missionId 단위로 정확히 추적.
+    if (tutorialState[missionId]?.completedAt) return false;
 
+    const missionStatus = self.missionStatus || {};
     const now = new Date().toISOString();
     const next = {
         ...self,
         missionStatus: {
             ...missionStatus,
-            [moduleId]: { completed: true, unlockedAt: now }
+            // moduleId 단위는 잠금 가드용 — 이미 박혀있어도 갱신 OK (결과 동일).
+            [moduleId]: { completed: true, unlockedAt: missionStatus[moduleId]?.unlockedAt || now }
         },
         tutorialState: {
-            ...(self.tutorialState || {}),
+            ...tutorialState,
             [missionId]: {
                 completedAt: now,
                 signal: opts.signal || null,

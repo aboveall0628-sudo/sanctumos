@@ -216,30 +216,24 @@ export async function renderMissionProgressBlock(containerId, dek, userId) {
         return;
     }
 
-    let openMissions;
+    // (S-E3 2026-05-15) missionId 단위 완료 판단 — moduleId 기준 부정확함 해소.
+    let completedIds;
     try {
-        openMissions = await getOpenMissions(dek, userId);
+        completedIds = await getCompletedMissionIds(dek, userId);
     } catch (e) {
-        console.warn('[missionGate] getOpenMissions failed:', e?.message || e);
+        console.warn('[missionGate] getCompletedMissionIds failed:', e?.message || e);
         container.innerHTML = '';
         return;
     }
-
-    // missionStatus key 는 moduleId. catalog 의 missionId 와 join.
-    const statusByModule = {};
-    openMissions.forEach(m => { statusByModule[m.moduleId] = !!m.completed; });
+    const completedSet = new Set(completedIds);
 
     const activeIds = getActiveMissionIds(); // deferred 제외
-    const completedCount = activeIds.filter(mid => {
-        const moduleId = MISSION_CATALOG[mid]?.moduleId;
-        return moduleId && statusByModule[moduleId];
-    }).length;
-
+    const completedCount = activeIds.filter(mid => completedSet.has(mid)).length;
     const allDone = completedCount >= activeIds.length;
 
     const dotsHtml = activeIds.map(mid => {
         const m = MISSION_CATALOG[mid];
-        const done = !!statusByModule[m.moduleId];
+        const done = completedSet.has(mid);
         const cls = done ? 'mission-dot mission-dot-done' : 'mission-dot';
         const tip = `${m.icon} ${m.title}${done ? ' — 완료' : ` — ${m.hint}`}`;
         return `<span class="${cls}" title="${escapeHtml(tip)}" data-mission-id="${mid}" aria-label="${escapeHtml(tip)}"></span>`;
@@ -449,10 +443,10 @@ export function bindMissionUnlockListener(getCtx, progressContainerId, recommend
     if (window.__sanctumMissionUnlockBound) return;
     window.__sanctumMissionUnlockBound = true;
     window.addEventListener('sanctum:mission-unlocked', (e) => {
-        // 미션 카탈로그에서 title 가져와 토스트 발화 — repo 레이어 의존 X.
+        // (S-E3 2026-05-15) 토스트 → 중간 카드. "분명하게 보이게" 사용자 명시.
         const missionId = e?.detail?.missionId;
         if (missionId && MISSION_CATALOG[missionId]) {
-            showMissionToast(`${MISSION_CATALOG[missionId].title} 미션 완료`);
+            showMissionAchievement(MISSION_CATALOG[missionId]);
         }
 
         const ctx = getCtx();
@@ -587,50 +581,69 @@ function routeToMission(missionId) {
 // ─── 헬퍼: 완료 missionId 목록 ──────────────────────────────────────
 
 /**
- * selfCard.missionStatus 를 missionId 단위 완료 목록으로 변환.
- *   missionStatus 키는 moduleId — 같은 모듈에 미션 2개(meditation_first_save / past_meditation_revisit)인 경우
- *   moduleId 1번 클리어로 두 미션을 다 끝낸 것으로 안 보고 missionId 별로 따로 추적해야 하지만,
- *   현재 markMissionComplete 가 moduleId 기준으로만 status 저장하므로 1차는 moduleId 매칭으로 추정.
- *   (tutorialState 안 missionId 키도 보조로 사용 — 더 정밀.)
+ * selfCard.tutorialState 에서 완료된 missionId 목록 추출.
+ *   (S-E3 2026-05-15) tutorialState[missionId] 단일 기준 — missionStatus moduleId fallback 제거.
+ *   같은 모듈 두 미션이 한 번에 묶여서 거짓 완료로 잡히는 문제 해결.
+ *
+ *   사용자가 실제로 트리거 시점을 거치지 않은 미션은 아직 미완료로 표시. 정확함.
  */
 async function getCompletedMissionIds(dek, userId) {
     const self = await getSelfCard(dek, userId);
     if (!self) return [];
     const tutorialState = self.tutorialState || {};
-    const missionStatus = self.missionStatus || {};
 
     const done = [];
     for (const [missionId, mission] of Object.entries(MISSION_CATALOG)) {
         if (mission.deferred) continue;
-        // 1) tutorialState 안 missionId 키가 있으면 그것 우선 (정밀).
         if (tutorialState[missionId]?.completedAt) {
-            done.push(missionId);
-            continue;
-        }
-        // 2) fallback — moduleId 기준 missionStatus. 같은 모듈에 미션 여러 개면 모두 완료로 잡힘 (1차 한계).
-        if (missionStatus[mission.moduleId]?.completed) {
             done.push(missionId);
         }
     }
     return done;
 }
 
-// ─── 헬퍼: 조용한 토스트 ────────────────────────────────────────────
+// ─── 헬퍼: 미션 클리어 중간 카드 (S-E3 토스트 대체) ──────────────────
 
 /**
- * 미션 클리어 토스트 — 1.3초 자동 소멸. ui/quickReview.js 의 .sanctum-toast 와 같은 클래스 재사용.
- *   여러 미션 동시 클리어 시 element 가 따로따로 생기지만 1.3초 후 둘 다 자연 소멸.
+ * 미션 클리어 알림 카드 — 화면 위 중앙에 3초 노출.
+ *   아이콘 크게 + 제목 + 힌트 + X 닫기 버튼. 3초 후 자동 fade-out.
+ *   사용자 명시 (S-E3 2026-05-15) "분명하게 알 수 있는 장치" — 1.5초 토스트로는 부족.
+ *
+ *   동시 발화 시 element 가 쌓이지 않게 기존 카드 제거 후 새로 띄움.
  */
-function showMissionToast(msg) {
+function showMissionAchievement(mission) {
     if (typeof document === 'undefined') return;
     try {
-        const toast = document.createElement('div');
-        toast.className = 'sanctum-toast';
-        toast.textContent = String(msg);
-        document.body.appendChild(toast);
-        setTimeout(() => toast.classList.add('show'), 10);
-        setTimeout(() => toast.remove(), 1500);
-    } catch (_) { /* 토스트 실패는 무시 */ }
+        // 기존 카드 제거
+        document.querySelectorAll('.mission-achievement').forEach(el => el.remove());
+
+        const card = document.createElement('div');
+        card.className = 'mission-achievement';
+        card.setAttribute('role', 'status');
+        card.setAttribute('aria-live', 'polite');
+        card.innerHTML = `
+          <span class="mission-achievement-icon" aria-hidden="true">${escapeHtml(mission.icon || '🎯')}</span>
+          <div class="mission-achievement-body">
+            <div class="mission-achievement-head">미션 완료</div>
+            <div class="mission-achievement-title">${escapeHtml(mission.title || '')}</div>
+            <div class="mission-achievement-hint">${escapeHtml(mission.unlockCopy || '')}</div>
+          </div>
+          <button type="button" class="mission-achievement-close" aria-label="닫기">×</button>
+        `;
+        document.body.appendChild(card);
+        // 다음 프레임에 .show — 진입 애니메이션
+        requestAnimationFrame(() => card.classList.add('show'));
+
+        const dismiss = () => {
+            card.classList.remove('show');
+            setTimeout(() => card.remove(), 240);
+        };
+        card.querySelector('.mission-achievement-close').addEventListener('click', dismiss);
+        // 3초 자동 닫기
+        const autoTimer = setTimeout(dismiss, 3000);
+        // 사용자 X 눌렀을 때 타이머 정리
+        card.addEventListener('remove', () => clearTimeout(autoTimer), { once: true });
+    } catch (_) { /* 알림 실패는 무시 */ }
 }
 
 function escapeHtml(s) {

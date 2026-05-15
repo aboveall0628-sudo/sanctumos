@@ -7514,6 +7514,97 @@ button.mission-progress-block:hover {
     }
 }
 
+/* ─────────────────────────────────────────────────────────────
+   (S-E3 2026-05-15) 미션 클리어 중간 카드 알림 — 토스트 대체
+   화면 위 중앙. 3초 자동 / X 버튼 / 진입·소멸 부드러운 transition.
+   사용자 명시 "분명하게 알 수 있는 장치"
+   ───────────────────────────────────────────────────────────── */
+
+.mission-achievement {
+    position: fixed;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-12px);
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    min-width: 280px;
+    max-width: 380px;
+    padding: 14px 16px 14px 14px;
+    background: var(--surface, #fbfaf6);
+    border: 1px solid var(--border-soft, #e3e1d8);
+    border-radius: 14px;
+    box-shadow: 0 12px 32px rgba(36, 36, 32, 0.14);
+    z-index: 9200;       /* 허브 모달(9100) 보다 위, 온보딩(9500) 보다 아래 */
+    opacity: 0;
+    transition: opacity 220ms ease-out, transform 240ms ease-out;
+    pointer-events: auto;
+}
+.mission-achievement.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+.mission-achievement-icon {
+    font-size: 28px;
+    line-height: 1;
+    flex: 0 0 auto;
+    margin-top: 2px;
+}
+.mission-achievement-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+}
+.mission-achievement-head {
+    color: var(--accent, #6d7666);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+.mission-achievement-title {
+    color: var(--ink-primary, #2c2c28);
+    font-size: 14.5px;
+    font-weight: 600;
+    line-height: 1.35;
+}
+.mission-achievement-hint {
+    color: var(--ink-secondary, #6f7068);
+    font-size: 12px;
+    line-height: 1.45;
+}
+.mission-achievement-close {
+    background: transparent;
+    border: 0;
+    font-size: 20px;
+    line-height: 1;
+    color: var(--ink-tertiary, #a8a8a3);
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 6px;
+    transition: background 140ms, color 140ms;
+    flex: 0 0 auto;
+}
+.mission-achievement-close:hover {
+    background: var(--surface-elev, #f4f1ea);
+    color: var(--ink-primary, #2c2c28);
+}
+
+@media (max-width: 640px) {
+    .mission-achievement {
+        left: 12px;
+        right: 12px;
+        transform: translateY(-12px);
+        min-width: 0;
+        max-width: none;
+    }
+    .mission-achievement.show {
+        transform: translateY(0);
+    }
+}
+
 /* ────────────────────────────────────────────────────────────────
    (본인 프로필 재기획 트랙 2026-05-14 S-D) 온보딩 모달 — Day 0 첫 진입
    - 풀스크린 모달 + 4 stepper + 카드 안 한 흐름
