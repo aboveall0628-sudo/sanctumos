@@ -10,7 +10,12 @@
       "Bash(xxd \"/c/Users/MSI/.claude/projects/c--Users-MSI-Desktop----Sanctum-OS/7b1d272f-b89e-4127-bb96-4d7cd118823f/tool-results/webfetch-1778473897623-l049g0.bin\")",
       "Bash(mkdir -p \"/c/Users/MSI/Desktop/개발/Sanctum OS/.claude/design-import\")",
       "Bash(tar -xf \"/c/Users/MSI/.claude/projects/c--Users-MSI-Desktop----Sanctum-OS/7b1d272f-b89e-4127-bb96-4d7cd118823f/tool-results/unpacked.dat\" -C \"/c/Users/MSI/Desktop/개발/Sanctum OS/.claude/design-import\")",
-      "Bash(findstr -i firebase)"
+      "Bash(findstr -i firebase)",
+      "Bash(node --check ui/swanFeedback.js)",
+      "Bash(node --check ui/feedbackAdmin.js)",
+      "Bash(node --check ui/aiClient.js)",
+      "Bash(node --check ui/todayView.js)",
+      "Bash(node --check data/feedbacksRepo.js)"
     ]
   }
 }

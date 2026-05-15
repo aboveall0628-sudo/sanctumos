@@ -7,67 +7,114 @@
    ═══════════════════════════════════════════════════════════════ */
 
 :root {
-    /* ── Surface (Light) ──
-       종이 노트북 같은 따뜻한 오프화이트. 한국식 차분함. */
-    --surface-canvas:   #FAFAF7;
-    --surface-card:     #FFFFFF;
-    --surface-elevated: #F4F4F0;
+    /* ════════════════════════════════════════════════════════════
+       디자인 시스템 v1 — 전면 적용 (2026-05-16)
+       산출물: docs/backlog/디자인_시스템_결과_v1.md
+       기존 변수는 모두 새 토큰을 가리키도록 alias 매핑 — 기존 CSS 호환.
+       ════════════════════════════════════════════════════════════ */
 
-    /* ── Ink (Light) ── */
-    --ink-primary:   #2C2C2E;
-    --ink-secondary: #6B6B70;
-    --ink-tertiary:  #9A9A9F;
+    /* ── Color (Light) — warm beige 결 ── */
+    --color-bg:               #F7F5F2;
+    --color-surface:          #FFFFFF;
+    --color-surface-elevated: #F4F1ED;
+    --color-surface-quiet:    rgba(120,100,80,0.03);
+    --color-border:           #E8E3DC;
+    --color-ink-primary:      #1A1A1A;       /* 대비 16.4:1 AAA */
+    --color-ink-secondary:    #76706A;       /* 대비 7.2:1 AA */
+    --color-ink-tertiary:     #A39E97;       /* 대비 4.5:1 AA, 큰 텍스트만 */
+    --color-success:          #4A7B5C;
+    --color-warn:             #A6864C;
+    --color-danger:           #9B5555;
 
-    /* ── Brand Accent (디자인 시스템 v1 2026-05-15 — 변주 3종) ──
-       모노톤 기조 위에 한 색만 절제 사용. 사용자가 설정에서 자유 선택.
-       Light: olive #7C8B6F / beige #B89E78 / lavender #8F86A6
-       Dark variant 는 [data-theme="dark"] 자리잡힌 자리. */
-    --brand-olive:           #7C8B6F;
-    --brand-olive-soft:      rgba(124, 139, 111, 0.10);
-    --brand-olive-strong:    #5F6F53;
+    /* ── Brand accent — Muted Olive 디폴트 + 변주 3종 ──
+       3색 카드 자리: 사용자가 설정에서 자유 선택. [data-accent] 분기는 :root 아래. */
+    --brand-olive:           #5F6F4A;        /* 대비 6.1:1 AA (산출물 1 spec) */
+    --brand-olive-soft:      rgba(95,111,74,0.08);
+    --brand-olive-strong:    #4F5D3D;
+    --brand-olive-border:    rgba(95,111,74,0.25);
 
     --brand-beige:           #B89E78;
-    --brand-beige-soft:      rgba(184, 158, 120, 0.12);
+    --brand-beige-soft:      rgba(184,158,120,0.10);
     --brand-beige-strong:    #8E7855;
+    --brand-beige-border:    rgba(184,158,120,0.25);
 
     --brand-lavender:        #8F86A6;
-    --brand-lavender-soft:   rgba(143, 134, 166, 0.12);
+    --brand-lavender-soft:   rgba(143,134,166,0.10);
     --brand-lavender-strong: #6B6388;
+    --brand-lavender-border: rgba(143,134,166,0.25);
 
-    /* 기본 accent = Muted Olive (디자인 시스템 추천). 사용자 선택 시 [data-accent] 로 자연 분기. */
+    /* 기본 accent = Muted Olive. [data-accent="beige|lavender"] 로 자연 분기. */
     --brand-primary: var(--brand-olive);
     --brand-soft:    var(--brand-olive-soft);
     --brand-strong:  var(--brand-olive-strong);
+    --brand-border:  var(--brand-olive-border);
 
-    /* ── Line ── */
-    --line:  #E8E8E5;
-    --hover: rgba(55, 53, 47, 0.05);
+    --accent:        var(--brand-primary);
+    --accent-hover:  var(--brand-strong);
+    --accent-soft:   var(--brand-soft);
+    --accent-border: var(--brand-border);
+    --color-info:    var(--accent);
 
-    /* ── Legacy alias (기존 클래스 호환) ── */
-    --bg:             var(--surface-canvas);
-    --bg-card:        var(--surface-card);
-    --bg-elev:        var(--surface-elevated);
-    --text-primary:   var(--ink-primary);
-    --text-secondary: var(--ink-secondary);
-    --accent:         var(--brand-primary);
-    --accent-soft:    var(--brand-soft);
-    --border:         var(--line);
+    /* ── Legacy alias 매핑 — 기존 클래스 호환 (전면 적용 전엔 따로 박혀 있던 자리) ── */
+    --surface-canvas:   var(--color-bg);
+    --surface-card:     var(--color-surface);
+    --surface-elevated: var(--color-surface-elevated);
+    --ink-primary:      var(--color-ink-primary);
+    --ink-secondary:    var(--color-ink-secondary);
+    --ink-tertiary:     var(--color-ink-tertiary);
+    --line:             var(--color-border);
+    --hover:            var(--color-surface-quiet);
+    --bg:               var(--color-bg);
+    --bg-card:          var(--color-surface);
+    --bg-elev:          var(--color-surface-elevated);
+    --bg-soft:          var(--color-surface-quiet);
+    --bg-quiet:         var(--color-surface-quiet);
+    --text-primary:     var(--color-ink-primary);
+    --text-secondary:   var(--color-ink-secondary);
+    --border:           var(--color-border);
+    --surface-quiet:    var(--color-surface-quiet);
+    --brand-primary-soft: var(--brand-soft);   /* 일부 컴포넌트가 -soft 별칭 사용 */
 
     /* ── Dot Semantic Palette (theme-invariant) ──
-       6색은 의미. 평가/판단을 위한 시멘틱 컬러 — 사실 진술의 색. */
-    --dot-gray:   #C7CDD3;  /* 미평가 — 아직 보지 않은 시간 */
-    --dot-yellow: #F5C84B;  /* 보통 — 그저 흐른 시간 */
-    --dot-green:  #6BBF7B;  /* 잘됨 — 마음에 머문 시간 */
-    --dot-orange: #F0935A;  /* 아쉬움 — 다른 길이 있었던 시간 */
-    --dot-red:    #E5654A;  /* 흘림 — 손가락 사이로 빠진 시간 */
-    --dot-purple: #9B7ED9;  /* 특별 — 표시해 두고 싶은 시간 */
+       사실 진술 색 — 평가가 아닌 시간의 결. */
+    --dot-gray:   #C7CDD3;
+    --dot-yellow: #F5C84B;
+    --dot-green:  #6BBF7B;
+    --dot-orange: #F0935A;
+    --dot-red:    #E5654A;
+    --dot-purple: #9B7ED9;
 
-    /* ── Typography ──
-       Pretendard Variable. 한글·영문·숫자 한 폰트.
-       굵기 4단계만: 400(본문) / 500(라벨) / 600(소제목) / 700(제목). */
-    --font: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
-            system-ui, "Noto Sans KR", sans-serif;
+    /* ── Typography (산출물 1) ──
+       Serif (Noto Serif KR) = 영적·헤더 자리. Sans (Pretendard) = 본문·생산성.
+       굵기 4단계: 400 본문 / 500 라벨 / 600 소제목 / 700 제목. */
+    --font-serif: 'Noto Serif KR', 'Nanum Myeongjo', serif;
+    --font-sans:  'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
+                  system-ui, 'Noto Sans KR', sans-serif;
+    --font-mono:  ui-monospace, 'Cascadia Code', Menlo, monospace;
 
+    /* legacy alias */
+    --font: var(--font-sans);
+
+    /* 1.125 ratio 8단 — rem 기반 (정식 산출물) */
+    --text-xs:   0.72rem;
+    --text-sm:   0.81rem;
+    --text-base: 0.92rem;
+    --text-md:   1.03rem;
+    --text-lg:   1.16rem;
+    --text-xl:   1.31rem;
+    --text-2xl:  1.47rem;
+    --text-3xl:  1.66rem;
+
+    --font-weight-regular:  400;
+    --font-weight-medium:   500;
+    --font-weight-semibold: 600;
+    --font-weight-bold:     700;
+
+    --leading-tight:   1.3;
+    --leading-normal:  1.55;
+    --leading-relaxed: 1.7;
+
+    /* 기존 px 기반 7단 — 시스템 폰트 4단계 동작 그대로 살림 */
     --fs-hero:    30px;
     --fs-display: 24px;
     --fs-heading: 22px;
@@ -80,26 +127,75 @@
     --lh-heading: 1.25;
     --ls-heading: -0.01em;
     --ls-body:    0;
-    /* legacy alias */
-    --lh: var(--lh-body);
+    --lh:         var(--lh-body);
 
-    /* ── Spacing scale (7단) ── */
+    /* ── Spacing (산출물 1, 9단 rem) ── */
+    --space-1:  0.25rem;
+    --space-2:  0.5rem;
+    --space-3:  0.75rem;
+    --space-4:  1rem;
+    --space-5:  1.25rem;
+    --space-6:  1.5rem;
+    --space-8:  2rem;
+    --space-12: 3rem;
+    --space-16: 4rem;
+
+    /* legacy px 7단 그대로 */
     --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px; --sp-4: 16px;
     --sp-5: 24px; --sp-6: 40px; --sp-7: 64px;
 
-    /* ── Radius ──
-       sm 8px (작은 칩·인풋 보조), 12px (기본), lg 16px (큰 카드·모달), pill (필터 칩). */
-    --radius-sm:   8px;
-    --radius:      12px;
-    --radius-lg:   16px;
-    --radius-pill: 9999px;
+    /* ── Radius (5단 + full) ── */
+    --radius-xs:   0.25rem;
+    --radius-sm:   0.5rem;
+    --radius-md:   0.65rem;
+    --radius-lg:   0.85rem;
+    --radius-xl:   1.2rem;
+    --radius-full: 9999px;
 
-    /* ── Shadow ── 두 단계만. inner shadow / glow / neon 없음. */
-    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
-    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08);
+    /* legacy */
+    --radius:      var(--radius-md);
+    --radius-pill: var(--radius-full);
 
-    /* ── Motion — single token ── */
-    --ease: 200ms ease-out;
+    /* ── Shadow (절제, 4종) ── */
+    --shadow-none:     none;
+    --shadow-soft:     0 1px 2px rgba(0,0,0,0.04);
+    --shadow-elevated: 0 4px 12px rgba(0,0,0,0.06);
+    --shadow-focus:    0 0 0 3px var(--accent-soft);
+
+    /* legacy */
+    --shadow-sm: var(--shadow-soft);
+    --shadow-lg: var(--shadow-elevated);
+
+    /* ── z-index (100 단위, 8단) ── */
+    --z-base:           0;
+    --z-sticky:         100;
+    --z-dropdown:       200;
+    --z-tooltip:        300;
+    --z-modal-backdrop: 900;
+    --z-modal:          1000;
+    --z-modal-nested:   1100;
+    --z-toast:          1200;
+
+    /* ── Motion ── */
+    --motion-fast:   150ms;
+    --motion-normal: 250ms;
+    --motion-slow:   400ms;
+    --motion-pulse:  2400ms;
+    --ease-out:   cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-in:    cubic-bezier(0.4, 0, 1, 1);
+    --ease-pulse: ease-in-out;
+
+    /* legacy single token */
+    --ease: var(--motion-normal) var(--ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --motion-fast:   0ms;
+        --motion-normal: 0ms;
+        --motion-slow:   0ms;
+        --motion-pulse:  0ms;
+    }
 }
 
 /* ── System Font Scale (4단계) ──
@@ -142,36 +238,45 @@ html[data-system-font="xl"] {
 
 [data-theme="dark"] {
     /* 라이트와 다크 모두 동등하게 아름다워야 함. 다크가 곁다리 아님. */
-    --surface-canvas:   #1A1A1C;
-    --surface-card:     #232325;
-    --surface-elevated: #2A2A2D;
-
-    --ink-primary:   #ECECEE;
-    --ink-secondary: #9A9A9F;
-    --ink-tertiary:  #6B6B70;
+    /* (디자인 시스템 v1 2026-05-16) warm dark — 정 가운데 따뜻한 톤 */
+    --color-bg:               #1A1815;
+    --color-surface:          #221F1B;
+    --color-surface-elevated: #2A2722;
+    --color-surface-quiet:    rgba(255,250,240,0.04);
+    --color-border:           #3A352F;
+    --color-ink-primary:      #F0EBE0;       /* 대비 12.6:1 AAA */
+    --color-ink-secondary:    #B8B0A6;       /* 대비 7.0:1 AA */
+    --color-ink-tertiary:     #807870;       /* 대비 4.6:1 AA */
+    --color-success:          #6FA384;
+    --color-warn:             #D4A86C;
+    --color-danger:           #D48282;
 
     /* Brand Accent 다크 변주 — 채도 살짝 낮추고 명도 올림 */
-    --brand-olive:           #9AAD8A;
-    --brand-olive-soft:      rgba(154, 173, 138, 0.14);
-    --brand-olive-strong:    #B9CBA8;
+    --brand-olive:           #8FA078;        /* 대비 5.4:1 AA (산출물 1 dark spec) */
+    --brand-olive-soft:      rgba(143,160,120,0.12);
+    --brand-olive-strong:    #A0B089;
+    --brand-olive-border:    rgba(143,160,120,0.30);
 
     --brand-beige:           #D4BA90;
-    --brand-beige-soft:      rgba(212, 186, 144, 0.14);
+    --brand-beige-soft:      rgba(212,186,144,0.14);
     --brand-beige-strong:    #E9D2A8;
+    --brand-beige-border:    rgba(212,186,144,0.30);
 
     --brand-lavender:        #B0A6CC;
-    --brand-lavender-soft:   rgba(176, 166, 204, 0.16);
+    --brand-lavender-soft:   rgba(176,166,204,0.14);
     --brand-lavender-strong: #C9C0E0;
+    --brand-lavender-border: rgba(176,166,204,0.30);
 
     --brand-primary: var(--brand-olive);
     --brand-soft:    var(--brand-olive-soft);
     --brand-strong:  var(--brand-olive-strong);
+    --brand-border:  var(--brand-olive-border);
 
-    --line:  #2E2E32;
-    --hover: rgba(255, 255, 255, 0.05);
-
-    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
-    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+    /* shadow 보강 — 다크 모드는 더 진하게 */
+    --shadow-soft:     0 1px 2px rgba(0,0,0,0.4);
+    --shadow-elevated: 0 4px 12px rgba(0,0,0,0.5);
+    --shadow-sm: var(--shadow-soft);
+    --shadow-lg: var(--shadow-elevated);
 }
 
 /* ── Accent 변주 데이터 속성 (UI 라이브 전환) ──
@@ -180,11 +285,13 @@ html[data-system-font="xl"] {
     --brand-primary: var(--brand-beige);
     --brand-soft:    var(--brand-beige-soft);
     --brand-strong:  var(--brand-beige-strong);
+    --brand-border:  var(--brand-beige-border);
 }
 [data-accent="lavender"] {
     --brand-primary: var(--brand-lavender);
     --brand-soft:    var(--brand-lavender-soft);
     --brand-strong:  var(--brand-lavender-strong);
+    --brand-border:  var(--brand-lavender-border);
 }
 /* [data-accent="olive"] 또는 미지정 = 디폴트 :root 자리 자연 적용 (별도 분기 X) */
 
@@ -446,6 +553,8 @@ small { font-size: var(--fs-small); color: var(--ink-secondary); }
     flex-wrap: wrap;
 }
 .page-header h1 {
+    /* (디자인 시스템 v1 2026-05-16) 큰 페이지 헤더 = 영적·헤더 자리 → serif */
+    font-family: var(--font-serif);
     font-size: var(--fs-hero); font-weight: 700; letter-spacing: -0.01em;
     display: inline-flex; align-items: center; gap: var(--sp-3);
 }
@@ -665,9 +774,10 @@ button .btn-icon { vertical-align: text-bottom; }
 
 /* ── Meditation note ── */
 .note-editor {
+    /* (디자인 시스템 v1 2026-05-16) 묵상·기도 본문 = 영적 자리 → serif */
     min-height: 100px; padding: var(--sp-4);
     border: 1px solid var(--border); border-radius: var(--radius);
-    font-family: var(--font); font-size: var(--fs-body); line-height: var(--lh);
+    font-family: var(--font-serif); font-size: var(--fs-body); line-height: var(--leading-relaxed);
     outline: none; transition: border-color var(--ease);
     background: var(--bg-elev); color: var(--text-primary);
 }
