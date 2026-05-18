@@ -330,9 +330,7 @@ function renderSaturdayLayers(body) {
         <div id="today-month-report-inline"></div>
         <div id="today-quarter-report-inline"></div>
         <div id="today-year-report-inline"></div>
-        <div style="text-align:center; margin-top:10px">
-            <button class="primary-btn" id="today-go-next-day-btn">🌅 내일 묵상 시작하기 →</button>
-        </div>
+        <!-- (2026-05-18 후속) 사용자 명시 "위 버튼 없애줘" — 페이지 하단 #next-day-btn 만 유지 -->
     `;
     body.appendChild(section);
 
@@ -348,12 +346,7 @@ function renderSaturdayLayers(body) {
         });
     });
 
-    // "내일 묵상 시작하기" — 페이지 하단 next-day-btn과 동일 동작
-    section.querySelector('#today-go-next-day-btn')?.addEventListener('click', () => {
-        if (typeof window.__sanctumGoToNextDay === 'function') {
-            window.__sanctumGoToNextDay();
-        }
-    });
+    // (2026-05-18 후속) 위 [내일 묵상 시작하기] 자리 제거 — 페이지 하단 #next-day-btn 만 유지
 }
 
 /**
