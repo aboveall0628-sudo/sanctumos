@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#FAF7F2" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="#1A1814" media="(prefers-color-scheme: dark)">
     <title>개인정보처리방침 — Sanctum OS</title>
-    <meta name="description" content="Sanctum OS 개인정보처리방침 — 수집 항목·민감정보·국외이전·자동화된 결정·보유 기간·사용자 권리">
+    <meta name="description" content="Sanctum OS 개인정보처리방침">
     <meta name="robots" content="index, follow">
     <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
@@ -30,8 +30,8 @@
             --ink-faint: #8A857C;
             --border: #E8E2D6;
             --accent: #7C8B6F;
-            --warn-bg: #F4EEE0;
-            --warn-border: #D9C9A0;
+            --note-bg: #F4F1EA;
+            --note-border: #D9D2C2;
         }
         [data-theme="dark"] {
             --bg: #1A1814;
@@ -41,8 +41,8 @@
             --ink-faint: #7A7568;
             --border: #3A352C;
             --accent: #9AAD8A;
-            --warn-bg: #2A2519;
-            --warn-border: #4A3E22;
+            --note-bg: #232019;
+            --note-border: #3A352C;
         }
         * { box-sizing: border-box; }
         html, body {
@@ -52,13 +52,13 @@
             color: var(--ink);
             font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif;
             font-size: 16px;
-            line-height: 1.7;
+            line-height: 1.75;
             -webkit-font-smoothing: antialiased;
         }
         .legal-root {
             max-width: 760px;
             margin: 0 auto;
-            padding: 48px 24px 96px;
+            padding: 56px 24px 96px;
         }
         .legal-back {
             display: inline-flex;
@@ -67,7 +67,7 @@
             color: var(--ink-faint);
             text-decoration: none;
             font-size: 14px;
-            margin-bottom: 32px;
+            margin-bottom: 40px;
         }
         .legal-back:hover { color: var(--accent); }
         .legal-header {
@@ -132,12 +132,12 @@
             margin: 8px 0 16px;
             color: var(--ink-soft);
         }
-        section.legal-section ul {
+        section.legal-section ul, section.legal-section ol {
             margin: 8px 0 16px;
             padding-left: 22px;
             color: var(--ink-soft);
         }
-        section.legal-section ul li { margin: 4px 0; }
+        section.legal-section li { margin: 4px 0; }
         section.legal-section strong { color: var(--ink); font-weight: 600; }
         .legal-table {
             width: 100%;
@@ -157,16 +157,17 @@
             color: var(--ink);
         }
         .legal-table td { color: var(--ink-soft); }
-        .legal-callout {
-            background: var(--warn-bg);
-            border: 1px solid var(--warn-border);
-            border-left: 3px solid var(--accent);
+        .legal-note {
+            background: var(--note-bg);
+            border: 1px solid var(--note-border);
             border-radius: 8px;
             padding: 16px 20px;
             margin: 16px 0;
-            font-size: 15px;
+            font-size: 14.5px;
+            color: var(--ink-soft);
         }
-        .legal-callout strong { color: var(--ink); }
+        .legal-note strong { color: var(--ink); }
+        .legal-note p { margin: 4px 0; }
         .legal-law {
             display: inline-block;
             font-size: 12px;
@@ -189,7 +190,7 @@
         .legal-footer p { margin: 4px 0; }
         .legal-footer a { color: var(--ink-soft); text-decoration: underline; }
         @media (max-width: 600px) {
-            .legal-root { padding: 32px 20px 80px; }
+            .legal-root { padding: 40px 20px 80px; }
             .legal-header h1 { font-size: 24px; }
             section.legal-section h2 { font-size: 18px; }
             .legal-table { font-size: 13px; }
@@ -203,41 +204,43 @@
 
         <header class="legal-header">
             <h1>개인정보처리방침</h1>
-            <div class="legal-meta">시행일 2026년 5월 18일 · v1.0</div>
+            <div class="legal-meta">시행일 2026년 5월 18일 · 버전 1.0</div>
         </header>
 
         <nav class="legal-toc" aria-label="목차">
             <h2>목차</h2>
             <ol>
-                <li><a href="#s1">운영 주체</a></li>
-                <li><a href="#s2">수집 항목·이용 목적</a></li>
-                <li><a href="#s3">민감정보 처리</a></li>
-                <li><a href="#s4">개인정보 국외이전</a></li>
-                <li><a href="#s5">자동화된 결정</a></li>
-                <li><a href="#s6">보유 기간·파기 절차</a></li>
-                <li><a href="#s7">사용자 권리</a></li>
-                <li><a href="#s8">방침 변경 안내</a></li>
+                <li><a href="#s1">총칙 및 운영자</a></li>
+                <li><a href="#s2">수집하는 개인정보 항목 및 이용 목적</a></li>
+                <li><a href="#s3">민감정보의 처리</a></li>
+                <li><a href="#s4">개인정보의 국외 이전</a></li>
+                <li><a href="#s5">자동화된 결정에 관한 사항</a></li>
+                <li><a href="#s6">개인정보의 보유 기간 및 파기 절차</a></li>
+                <li><a href="#s7">정보주체의 권리 및 행사 방법</a></li>
+                <li><a href="#s8">개인정보 보호책임자</a></li>
+                <li><a href="#s9">개인정보 처리방침의 변경</a></li>
             </ol>
         </nav>
 
         <section class="legal-section" id="s1">
-            <h2>1. 운영 주체</h2>
+            <h2>제1조 (총칙 및 운영자)</h2>
+            <p>Sanctum OS(이하 "본 서비스")는 「개인정보 보호법」 및 관련 법령을 준수하며, 정보주체의 개인정보 및 권익을 보호하기 위하여 본 개인정보처리방침을 수립하여 공개합니다.</p>
             <ul>
                 <li><strong>운영자</strong> — Swan Jung (개인 운영)</li>
                 <li><strong>연락처</strong> — aboveall0628@gmail.com</li>
-                <li><strong>서비스</strong> — Sanctum OS (https://sanctumos.kr)</li>
+                <li><strong>서비스 주소</strong> — https://sanctumos.kr</li>
             </ul>
-            <p>본 서비스는 개인이 운영하는 단계입니다. 정식 사업자 등록 후 본 정보는 갱신됩니다.</p>
+            <p>본 서비스는 개인이 운영하는 단계이며, 사업자 등록 후 본 정보를 갱신합니다.</p>
         </section>
 
         <section class="legal-section" id="s2">
-            <h2>2. 수집 항목·이용 목적<span class="legal-law">제15조</span></h2>
-            <p>Sanctum OS는 서비스 제공에 필요한 최소 정보만 수집합니다.</p>
+            <h2>제2조 (수집하는 개인정보 항목 및 이용 목적)<span class="legal-law">개인정보 보호법 제15조</span></h2>
+            <p>본 서비스는 서비스 제공에 필요한 최소한의 개인정보를 다음과 같이 수집·이용합니다.</p>
             <table class="legal-table">
                 <thead>
                     <tr>
-                        <th>분류</th>
-                        <th>항목</th>
+                        <th>구분</th>
+                        <th>수집 항목</th>
                         <th>수집 방법</th>
                         <th>이용 목적</th>
                     </tr>
@@ -245,129 +248,152 @@
                 <tbody>
                     <tr>
                         <td>회원 식별</td>
-                        <td>이메일·이름·프로필 사진·Google 계정 ID</td>
+                        <td>이메일 주소, 이름, 프로필 사진, Google 계정 식별자</td>
                         <td>Google OAuth 로그인</td>
-                        <td>회원 식별·로그인·서비스 제공</td>
+                        <td>회원 식별, 로그인, 본인 확인</td>
                     </tr>
                     <tr>
                         <td>묵상 기록</td>
-                        <td>묵상 본문·기도·적용 다짐</td>
-                        <td>사용자 직접 입력</td>
-                        <td>묵상 보관·회고·AI 보조</td>
+                        <td>묵상 본문, 기도 제목, 적용 사항</td>
+                        <td>이용자 직접 입력</td>
+                        <td>묵상 보관 및 회고, AI 보조 기능 제공</td>
                     </tr>
                     <tr>
                         <td>일상 기록</td>
-                        <td>도트·목표·인물·원칙·판례·거래</td>
-                        <td>사용자 직접 입력</td>
-                        <td>일상 관리·통계 생성·AI 보조</td>
+                        <td>일정 평가(도트), 목표, 인물, 원칙, 판례, 거래</td>
+                        <td>이용자 직접 입력</td>
+                        <td>일상 관리, 통계 생성, AI 보조 기능 제공</td>
                     </tr>
                     <tr>
-                        <td>기기·접속 정보</td>
-                        <td>브라우저·기기 식별자·접속 시각·IP 일부</td>
-                        <td>자동 수집</td>
-                        <td>보안 관리·오류 분석·이상 접속 차단</td>
+                        <td>접속 정보</td>
+                        <td>브라우저 종류, 기기 식별자, 접속 시각, IP 주소 일부</td>
+                        <td>서비스 이용 과정에서 자동 생성</td>
+                        <td>보안 관리, 부정 이용 방지, 오류 분석</td>
                     </tr>
                     <tr>
-                        <td>캘린더 연동</td>
-                        <td>Google Calendar 이벤트 (선택)</td>
+                        <td>캘린더 연동 (선택)</td>
+                        <td>Google Calendar 이벤트 정보</td>
                         <td>Google Calendar API</td>
-                        <td>도트·목표·캘린더 동기화</td>
+                        <td>일정 및 목표 동기화</td>
                     </tr>
                 </tbody>
             </table>
         </section>
 
         <section class="legal-section" id="s3">
-            <h2>3. 민감정보 처리<span class="legal-law">제23조 · ⚠️ 별도 동의</span></h2>
-            <p>Sanctum OS는 사용자의 <strong>묵상 텍스트·기도 제목·적용 다짐</strong> 등 종교적 신념 관련 정보를 처리합니다. 이는 개인정보보호법 제23조에 따른 민감정보로 분류되며, 가입 시 별도 동의를 받습니다.</p>
+            <h2>제3조 (민감정보의 처리)<span class="legal-law">개인정보 보호법 제23조</span></h2>
+            <p>본 서비스는 이용자의 <strong>묵상 본문, 기도 제목, 적용 사항</strong> 등 종교적 신념과 관련된 정보를 처리합니다. 이는 「개인정보 보호법」 제23조에 따른 민감정보에 해당하며, 본 서비스는 회원 가입 시 별도의 동의를 받아 이를 처리합니다.</p>
 
-            <div class="legal-callout">
-                <strong>🔐 Zero-Knowledge 정책</strong>
+            <div class="legal-note">
+                <p><strong>제로 지식(Zero-Knowledge) 정책</strong></p>
+                <p>본 서비스는 다음과 같이 민감정보를 보호합니다.</p>
                 <ul>
-                    <li>모든 민감정보는 사용자의 마스터 비밀번호로 클라이언트에서 <strong>AES-GCM 256bit</strong> 암호화 후 서버에 저장됩니다.</li>
-                    <li>운영자·서버 관리자·제3자 누구도 평문으로 열람할 수 없습니다.</li>
-                    <li>비밀번호 분실 시 24단어 복구 키 또는 등록한 이메일 매직 링크로 복구할 수 있습니다.</li>
-                    <li>운영자도 사용자 비밀번호를 복구해 줄 수 없는 구조입니다.</li>
+                    <li>모든 민감정보는 이용자의 마스터 비밀번호를 기반으로 한 클라이언트 측 암호화(AES-GCM 256bit)를 거쳐 서버에 저장됩니다.</li>
+                    <li>운영자, 서버 관리자 및 제3자는 어떠한 경우에도 평문 상태의 민감정보에 접근할 수 없습니다.</li>
+                    <li>이용자가 마스터 비밀번호를 분실한 경우, 가입 시 발급된 24단어 복구 키 또는 등록된 이메일을 통한 매직 링크를 통해 복호화 키를 복구할 수 있습니다.</li>
+                    <li>운영자가 이용자의 비밀번호를 직접 복구해 줄 수 없는 구조이므로, 이용자는 비밀번호와 복구 키를 안전하게 보관할 책임을 부담합니다.</li>
                 </ul>
             </div>
 
-            <h3>거부 시 동작</h3>
-            <p>민감정보 처리에 동의하지 않으면 묵상 기능이 핵심이라 회원가입이 진행되지 않습니다.</p>
+            <h3>동의 거부 시 처리</h3>
+            <p>민감정보 처리에 동의하지 않는 경우, 본 서비스의 핵심 기능인 묵상 기록 기능을 제공할 수 없으므로 회원 가입이 제한됩니다.</p>
         </section>
 
         <section class="legal-section" id="s4">
-            <h2>4. 개인정보 국외이전<span class="legal-law">제28조의8 · ⚠️ 별도 동의</span></h2>
-            <p>Sanctum OS는 AI 기반 묵상 보조 기능 제공을 위해 일부 데이터를 국외로 이전합니다.</p>
+            <h2>제4조 (개인정보의 국외 이전)<span class="legal-law">개인정보 보호법 제28조의8</span></h2>
+            <p>본 서비스는 AI 기반 묵상 보조 기능 제공을 위하여 일부 개인정보를 다음과 같이 국외로 이전합니다.</p>
             <table class="legal-table">
                 <tbody>
-                    <tr><th>이전받는 자</th><td>Google LLC (대한민국 외 미국)</td></tr>
-                    <tr><th>이전 국가</th><td>미국 (USA)</td></tr>
-                    <tr><th>이전 항목</th><td>사용자가 AI 기능 호출 시점에 한해 묵상 텍스트·도트 메타·질문 입력 일부</td></tr>
-                    <tr><th>이전 목적</th><td>AI 기반 묵상 패턴 분석·주간 리포트 생성·SWAN 채팅 응답</td></tr>
-                    <tr><th>이전 시기·방법</th><td>사용자가 해당 기능을 직접 호출하는 시점에 TLS 1.2+ 암호화 전송</td></tr>
-                    <tr><th>보유 기간</th><td>AI 응답 생성 후 즉시 폐기 (Google Cloud Enterprise DPA 기준)</td></tr>
+                    <tr><th>이전받는 자</th><td>Google LLC</td></tr>
+                    <tr><th>이전 국가</th><td>미합중국</td></tr>
+                    <tr><th>이전 항목</th><td>이용자가 AI 기능을 호출하는 시점에 한하여 묵상 본문, 일정 평가 메타데이터, 질의 입력의 일부</td></tr>
+                    <tr><th>이전 목적</th><td>AI 기반 묵상 분석, 주간 회고 보고서 생성, 채팅형 응답 제공</td></tr>
+                    <tr><th>이전 시기 및 방법</th><td>이용자가 해당 기능을 직접 호출하는 시점에 TLS 1.2 이상의 암호화 통신을 통해 전송</td></tr>
+                    <tr><th>보유 및 이용 기간</th><td>응답 생성 후 즉시 폐기 (Google Cloud Enterprise DPA 기준)</td></tr>
                     <tr><th>이용 모델</th><td>Google Gemini 2.5 Flash</td></tr>
                 </tbody>
             </table>
-            <h3>거부 시 동작</h3>
-            <p>국외이전에 동의하지 않으면 SWAN·주간 리포트·AI 자동 분류 기능이 비활성화됩니다. 묵상 기록·도트·일반 기능은 정상 이용할 수 있습니다.</p>
+            <h3>동의 거부 시 처리</h3>
+            <p>국외 이전에 동의하지 않는 경우, AI 기반 부가 기능(채팅, 주간 보고서, 자동 분류 등)의 이용이 제한됩니다. 다만 묵상 기록 및 일반 기능은 정상적으로 이용할 수 있습니다.</p>
         </section>
 
         <section class="legal-section" id="s5">
-            <h2>5. 자동화된 결정<span class="legal-law">제37조의2</span></h2>
-            <p>Sanctum OS는 사용자 데이터 일부에 대해 자동화된 결정을 수행합니다.</p>
+            <h2>제5조 (자동화된 결정에 관한 사항)<span class="legal-law">개인정보 보호법 제37조의2</span></h2>
+            <p>본 서비스는 다음과 같이 이용자 데이터의 일부에 대하여 자동화된 분석 및 결정을 수행합니다.</p>
             <ul>
-                <li><strong>주간 리포트</strong> — 한 주 묵상·도트·목표 데이터를 AI가 분석해서 회고를 도와줍니다.</li>
-                <li><strong>도트 평가 추천</strong> — 사용자가 도트를 평가할 때 AI가 만족도 후보를 추천합니다.</li>
-                <li><strong>SWAN</strong> — 1:1 채팅으로 사용자 피드백·설문을 자연 대화로 모읍니다.</li>
-                <li><strong>자동 분류</strong> — 사용자 입력을 카테고리·인물·원칙 등으로 자동 매핑합니다.</li>
+                <li><strong>주간 회고 보고서</strong> — 1주간의 묵상, 일정 평가, 목표 데이터를 AI가 분석하여 회고용 보고서를 생성합니다.</li>
+                <li><strong>일정 평가 추천</strong> — 이용자가 일정을 평가할 때 AI가 만족도 후보 값을 추천합니다.</li>
+                <li><strong>채팅형 응답</strong> — 이용자의 피드백 및 설문 입력을 대화 형식으로 처리합니다.</li>
+                <li><strong>자동 분류</strong> — 이용자의 입력을 카테고리, 인물, 원칙 등으로 자동 매핑합니다.</li>
             </ul>
 
-            <h3>사용자 권리</h3>
+            <h3>정보주체의 권리</h3>
             <ul>
-                <li>자동화된 결정 거부 — 설정 안 AI 기능 토글로 모든 AI 보조 비활성</li>
-                <li>결정 결과 설명 요청 — aboveall0628@gmail.com</li>
-                <li>결정에 대한 이의 제기·수정 요청</li>
+                <li><strong>자동화된 결정의 거부</strong> — 설정 화면 내 AI 기능 토글을 통해 모든 AI 보조 기능을 비활성화할 수 있습니다.</li>
+                <li><strong>결과에 대한 설명 요구</strong> — aboveall0628@gmail.com 으로 설명을 요구할 수 있습니다.</li>
+                <li><strong>이의 제기 및 결과의 수정 요구</strong> — 동일한 방법으로 이의를 제기할 수 있습니다.</li>
             </ul>
         </section>
 
         <section class="legal-section" id="s6">
-            <h2>6. 보유 기간·파기 절차</h2>
+            <h2>제6조 (개인정보의 보유 기간 및 파기 절차)</h2>
+            <h3>보유 기간</h3>
             <ul>
-                <li><strong>회원 탈퇴 시</strong> — 모든 개인정보·민감정보 즉시 영구 파기</li>
-                <li><strong>법령 보존 의무</strong> — 베타 단계 무결제로 별도 보존 의무 없음</li>
-                <li><strong>장기 미접속</strong> — 마지막 접속 후 1년 경과 시 안내 이메일 발송, 1개월 후 자동 파기</li>
-                <li><strong>파기 방법</strong> — Firestore 문서 영구 삭제 + 백업본 30일 내 폐기</li>
+                <li>본 서비스는 이용자가 회원 자격을 유지하는 동안 개인정보를 보유합니다.</li>
+                <li>회원 탈퇴 시 모든 개인정보 및 민감정보를 지체 없이 영구 파기합니다.</li>
+                <li>관련 법령에 따른 보존 의무가 있는 경우 해당 기간 동안 분리 보관 후 파기합니다.</li>
+                <li>장기 미접속 회원(최종 접속 후 1년 경과)에 대해서는 안내 이메일 발송 후 1개월이 경과한 시점에 개인정보를 자동 파기합니다.</li>
             </ul>
 
-            <div class="legal-callout">
-                <strong>베타 단계 데이터 안내</strong>
-                <p>1차·2차 베타 단계에서 입력한 데이터는 정식 출시 후에도 그대로 사용자 데이터로 연속 보관됩니다. 사용자는 언제든 설정 안 데이터 백업·복구에서 직접 다운로드 또는 삭제할 수 있습니다.</p>
-            </div>
+            <h3>파기 방법</h3>
+            <ul>
+                <li>전자적 파일 형태의 정보는 복구가 불가능한 방법으로 영구 삭제합니다.</li>
+                <li>백업본은 백업 주기에 따라 30일 이내에 폐기합니다.</li>
+            </ul>
         </section>
 
         <section class="legal-section" id="s7">
-            <h2>7. 사용자 권리</h2>
+            <h2>제7조 (정보주체의 권리 및 행사 방법)</h2>
+            <p>정보주체는 본 서비스에 대하여 언제든지 다음과 같은 권리를 행사할 수 있습니다.</p>
             <ul>
-                <li><strong>열람·정정·삭제</strong> — 앱 안 설정 → 내 데이터 백업·복구에서 직접 가능</li>
-                <li><strong>동의 철회</strong> — 회원 탈퇴로 일괄 처리</li>
-                <li><strong>처리 정지 요청</strong> — aboveall0628@gmail.com</li>
-                <li><strong>침해 신고</strong> — 한국인터넷진흥원 개인정보침해신고센터 (privacy.kisa.or.kr, 국번 없이 118)</li>
+                <li>개인정보 열람, 정정, 삭제 요구</li>
+                <li>개인정보 처리의 정지 요구</li>
+                <li>개인정보 처리에 대한 동의 철회</li>
+            </ul>
+            <p>위 권리는 본 서비스의 설정 화면을 통해 직접 행사하거나, 운영자 이메일(aboveall0628@gmail.com)로 요청할 수 있습니다. 본 서비스는 정당한 요청이 있는 경우 지체 없이 조치합니다.</p>
+
+            <h3>권익침해 구제 방법</h3>
+            <p>정보주체는 개인정보 침해와 관련하여 아래 기관에 분쟁 해결 및 상담을 신청할 수 있습니다.</p>
+            <ul>
+                <li>개인정보 침해신고센터 — privacy.kisa.or.kr (국번 없이 118)</li>
+                <li>개인정보 분쟁조정위원회 — kopico.go.kr (1833-6972)</li>
+                <li>대검찰청 사이버범죄수사단 — spo.go.kr (1301)</li>
+                <li>경찰청 사이버수사국 — ecrm.cyber.go.kr (국번 없이 182)</li>
             </ul>
         </section>
 
         <section class="legal-section" id="s8">
-            <h2>8. 방침 변경 안내</h2>
+            <h2>제8조 (개인정보 보호책임자)</h2>
+            <p>본 서비스는 개인정보 처리에 관한 업무를 총괄하여 책임지고, 개인정보 처리와 관련한 정보주체의 불만 처리 및 피해 구제를 위하여 아래와 같이 개인정보 보호책임자를 지정합니다.</p>
             <ul>
-                <li>본 방침은 법령·정책·서비스 변경에 따라 수정될 수 있습니다.</li>
-                <li>중요한 변경 시 7일 전 앱 안 공지 또는 이메일로 안내합니다.</li>
-                <li>현재 버전 — v1.0 (시행일 2026-05-18)</li>
+                <li>성명 — Swan Jung</li>
+                <li>직책 — 운영자</li>
+                <li>연락처 — aboveall0628@gmail.com</li>
+            </ul>
+        </section>
+
+        <section class="legal-section" id="s9">
+            <h2>제9조 (개인정보 처리방침의 변경)</h2>
+            <ul>
+                <li>본 방침은 법령, 정책 또는 보안 기술의 변경에 따라 수정될 수 있습니다.</li>
+                <li>본 방침의 중요한 변경이 있을 경우 시행 7일 전에 서비스 내 공지사항 또는 이메일을 통해 안내합니다.</li>
+                <li>현재 시행 버전 — v1.0 (시행일 2026-05-18)</li>
             </ul>
         </section>
 
         <footer class="legal-footer">
             <p>Sanctum OS · 운영자 Swan Jung · <a href="mailto:aboveall0628@gmail.com">aboveall0628@gmail.com</a></p>
-            <p><a href="/terms.html">서비스 이용약관</a> · <a href="/">앱으로 돌아가기</a></p>
+            <p><a href="/terms.html">서비스 이용약관</a> · <a href="/">서비스로 돌아가기</a></p>
         </footer>
     </main>
 </body>

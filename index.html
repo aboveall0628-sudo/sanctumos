@@ -137,6 +137,12 @@
                 <!-- (2026-05-18 v73) 피드백 관리 사이드바 자리 폐기 — 설정 운영자 카테고리 안 카드로 흡수. -->
                 <button class="sidebar-item" id="nav-settings"><i class="icon" data-lucide="settings"></i> 설정</button>
                 <div id="boot-status" class="boot-status">초기화 중...</div>
+                <!-- (2026-05-18 v77) 법적 안내 푸터 — 누구나 쉽게 진입 가능 -->
+                <div class="sidebar-legal-footer">
+                    <a href="privacy.html" target="_blank" rel="noopener">개인정보처리방침</a>
+                    <span class="sidebar-legal-sep">·</span>
+                    <a href="terms.html" target="_blank" rel="noopener">서비스 이용약관</a>
+                </div>
             </div>
 
             <!-- ── 설정 모드 nav (2026-05-18 v69) ──
@@ -630,6 +636,26 @@
                         <h2 class="settings-group-title">안내</h2>
                         <div class="settings-group-body" id="settings-group-body-modes">
                             <!-- (settings.js append) 처음 안내 다시 보기 / 히든 미션 ✨ -->
+
+                            <!-- (2026-05-18 v77) 법적 안내 — 개인정보처리방침 + 서비스 이용약관 진입 -->
+                            <div class="card-section legal-card">
+                                <div class="section-header-flex">
+                                    <h3 class="section-title"><i class="section-icon" data-lucide="file-text"></i> 법적 안내</h3>
+                                </div>
+                                <p class="section-desc">
+                                    개인정보가 어떻게 처리되는지, 서비스 이용 조건이 어떻게 되는지 확인할 수 있어요.
+                                </p>
+                                <div class="legal-link-list">
+                                    <a href="privacy.html" target="_blank" rel="noopener" class="legal-link-row">
+                                        <span class="legal-link-label">개인정보처리방침</span>
+                                        <i class="icon" data-lucide="external-link"></i>
+                                    </a>
+                                    <a href="terms.html" target="_blank" rel="noopener" class="legal-link-row">
+                                        <span class="legal-link-label">서비스 이용약관</span>
+                                        <i class="icon" data-lucide="external-link"></i>
+                                    </a>
+                                </div>
+                            </div>
                         </div>
                     </section>
 
