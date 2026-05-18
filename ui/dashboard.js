@@ -161,6 +161,7 @@ function renderYesterdayQuestionsCard(report, sourceDate, baseDate) {
     const section = document.getElementById('section-yesterday-questions');
     const listEl = document.getElementById('yesterday-questions-list');
     const titleEl = section?.querySelector('.section-title');
+    const introEl = section?.querySelector('.yesterday-questions-intro');
     if (!section || !listEl) return;
 
     const questions = (report?.questionsForMeditation || []).filter(q => q && q.trim());
@@ -170,24 +171,39 @@ function renderYesterdayQuestionsCard(report, sourceDate, baseDate) {
         return;
     }
 
-    // (2026-05-16 fix) 라벨 자연 자리잡기 — baseDate-1 자리면 "어제", 더 이전이면 날짜 명시.
-    const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    // (2026-05-16 fix) baseDate ↔ sourceDate 거리 자연 계산. 며칠 건너뛴 자리도 부드럽게.
     const base = baseDate instanceof Date ? baseDate : new Date();
-    const yest = new Date(base);
-    yest.setDate(yest.getDate() - 1);
-    const yesterdayStr = fmt(yest);
-
-    let label = '어제 묵상이 남긴 질문';
-    if (sourceDate && sourceDate !== yesterdayStr) {
-        const d = new Date(sourceDate + 'T00:00:00');
-        if (!isNaN(d.getTime())) {
-            const m = d.getMonth() + 1;
-            const dd = d.getDate();
-            label = `지난 묵상이 남긴 질문 · ${m}월 ${dd}일`;
+    let daysDiff = 1;
+    let sourceObj = null;
+    if (sourceDate) {
+        sourceObj = new Date(sourceDate + 'T00:00:00');
+        if (!isNaN(sourceObj.getTime())) {
+            const baseMs = new Date(base.getFullYear(), base.getMonth(), base.getDate()).getTime();
+            const srcMs  = new Date(sourceObj.getFullYear(), sourceObj.getMonth(), sourceObj.getDate()).getTime();
+            daysDiff = Math.round((baseMs - srcMs) / (1000 * 60 * 60 * 24));
         }
     }
+
+    // 라벨 + 안내 카피 분기 — daysDiff 1자리면 "어제", 2자리+ 면 거리감 명시 + 부드러운 권유.
+    let label, intro;
+    if (daysDiff <= 1) {
+        label = '어제 묵상이 남긴 질문';
+        intro = '하루 돌이켜보며 감사·회개로 잠깐 머물러 보세요. 그 자리에서 오늘의 말씀으로 자연스럽게 이어가요.';
+    } else if (sourceObj) {
+        const m = sourceObj.getMonth() + 1;
+        const dd = sourceObj.getDate();
+        label = `지난 묵상이 남긴 질문 · ${m}월 ${dd}일 (${daysDiff}일 전)`;
+        intro = '그 사이 마음이 달라졌을 수 있어요. 지금 다시 마주해 봐도 좋고, 그냥 지나가도 돼요.';
+    } else {
+        label = '지난 묵상이 남긴 질문';
+        intro = '그 사이 마음이 달라졌을 수 있어요. 지금 다시 마주해 봐도 좋고, 그냥 지나가도 돼요.';
+    }
+
     if (titleEl) {
         titleEl.innerHTML = `<i class="section-icon" data-lucide="sparkles"></i> ${escapeHtml(label)}`;
+    }
+    if (introEl) {
+        introEl.textContent = intro;
     }
 
     section.classList.remove('hidden');
