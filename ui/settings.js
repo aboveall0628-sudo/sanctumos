@@ -38,6 +38,8 @@ import { SYSTEM_FONT_SIZES, getSystemFontScale, setSystemFontScale } from '../co
 import { ACCENT_COLORS, getAccentColor, setAccentColor } from '../config/accentColor.js';
 // 베타 슬림 v1 (2026-05-18) — tier 토글
 import { TIERS, getTier, setTier } from '../config/featureFlags.js';
+// (2026-05-18 후속) 브라우저 알림 권한 상태·요청 + 매일 묵상 시각 자동 발화 재스케줄
+import { getNotificationPermission, requestNotificationPermission, scheduleDailyMeditationNotification } from './notifications.js';
 import { BIBLE_VERSIONS, DEFAULT_BIBLE_VERSION } from '../config/onboardingDefaults.js';
 import { isSwanAdmin } from '../config/adminConfig.js';
 import { ensureSelfCard, saveSelfCard } from '../data/personRepo.js';
@@ -402,7 +404,6 @@ function injectExtraSections() {
         <h3 class="section-title"><i class="section-icon" data-lucide="bell-ring"></i> 매일 묵상 알람</h3>
         <p class="section-desc">
             매일 정해진 시각에 우측 상단 종에 빨간 점이 켜져요. 묵상하기로 약속한 시간에 시스템이 살짝 알려줘요.
-            (브라우저 푸시 알림 X — 앱을 열어두셨을 때만 보여요.)
         </p>
         <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:12px;">
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
@@ -414,6 +415,18 @@ function injectExtraSections() {
             <button id="btn-save-daily-alarm" class="text-btn">저장</button>
             <span id="daily-alarm-status" style="font-size:12px;color:var(--text-secondary);"></span>
         </div>
+        <!-- (2026-05-18 후속) 브라우저 알림 권한 자리 -->
+        <div id="notif-permission-row" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid var(--line, #e4e0d8);">
+            <span style="font-size:13px;color:var(--ink-secondary, #6a6a6a);">
+                📣 브라우저 알림 권한:
+            </span>
+            <span id="notif-permission-status" style="font-size:13px;font-weight:600;">확인 중...</span>
+            <button id="btn-enable-notif" class="text-btn" style="display:none;">알림 허용하기</button>
+        </div>
+        <p style="font-size:12px;color:var(--ink-secondary, #6a6a6a);margin:8px 0 0;line-height:1.55;">
+            허용하시면 정한 시각에 OS 알림으로도 보여드려요. PWA(홈 화면에 추가)하시면 더 잘 작동해요.
+            <br>※ 1차 베타엔 앱이 열려 있어야 작동해요. 진짜 백그라운드 푸시는 곧 준비할게요.
+        </p>
     `;
     appendToGroup('settings-group-body-meditation', dailyAlarmCard, container);
 
@@ -1020,6 +1033,8 @@ function bindEvents() {
                         ? `✓ 매일 ${time} 에 알람이 떠요.`
                         : '✓ 알람을 껐어요.';
                 }
+                // (2026-05-18 후속) 시각 바뀐 즉시 브라우저 알림 재스케줄
+                try { scheduleDailyMeditationNotification(_userId); } catch (_) {}
                 // (S-D 후속 2026-05-15) "알림 시각 정하기" 미션 자연 발화.
                 try {
                     const { markMissionComplete } = await import('../data/personRepo.js');
@@ -1029,6 +1044,41 @@ function bindEvents() {
             } catch (e) {
                 console.error('[settings] daily alarm save failed:', e);
                 if (dailyAlarmStatus) dailyAlarmStatus.textContent = '저장이 잠깐 막혔어요.';
+            }
+        });
+    }
+
+    // (2026-05-18 후속) 브라우저 알림 권한 상태 표시 + 허용 버튼
+    const notifStatus = document.getElementById('notif-permission-status');
+    const btnEnableNotif = document.getElementById('btn-enable-notif');
+    const updateNotifPermissionRow = () => {
+        if (!notifStatus) return;
+        const p = getNotificationPermission();
+        if (p === 'granted') {
+            notifStatus.textContent = '✓ 허용됨';
+            notifStatus.style.color = 'var(--accent-strong, #5a6850)';
+            if (btnEnableNotif) btnEnableNotif.style.display = 'none';
+        } else if (p === 'denied') {
+            notifStatus.textContent = '✕ 차단됨 (브라우저 설정에서 변경 가능)';
+            notifStatus.style.color = 'var(--dot-red, #E5654A)';
+            if (btnEnableNotif) btnEnableNotif.style.display = 'none';
+        } else if (p === 'unsupported') {
+            notifStatus.textContent = '이 브라우저는 알림 미지원';
+            notifStatus.style.color = 'var(--ink-secondary, #6a6a6a)';
+            if (btnEnableNotif) btnEnableNotif.style.display = 'none';
+        } else {
+            notifStatus.textContent = '아직 허용 안 했어요';
+            notifStatus.style.color = 'var(--ink-secondary, #6a6a6a)';
+            if (btnEnableNotif) btnEnableNotif.style.display = '';
+        }
+    };
+    updateNotifPermissionRow();
+    if (btnEnableNotif) {
+        btnEnableNotif.addEventListener('click', async () => {
+            const result = await requestNotificationPermission();
+            updateNotifPermissionRow();
+            if (result === 'granted') {
+                try { scheduleDailyMeditationNotification(_userId); } catch (_) {}
             }
         });
     }

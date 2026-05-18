@@ -12,7 +12,7 @@
  * 캐시 이름에 VERSION 박음. 새 버전 deploy 시 이 줄만 올리면 옛 캐시 정리됨.
  */
 
-const VERSION = 'sanctum-v11-2026-05-18-admin-page';
+const VERSION = 'sanctum-v12-2026-05-18-notifications';
 const STATIC_CACHE = `sanctum-static-${VERSION}`;
 
 // 사전 캐시할 가벼운 정적 자산
@@ -39,6 +39,21 @@ self.addEventListener('activate', (event) => {
             )
         ).then(() => self.clients.claim())
     );
+});
+
+// (2026-05-18 후속) 알림 클릭 — 열린 탭 있으면 포커스, 없으면 새 탭으로 앱 열기
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    const url = (event.notification.data && event.notification.data.url) || '/';
+    event.waitUntil((async () => {
+        const allClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        for (const c of allClients) {
+            if (c.url.includes(url) || c.url.endsWith('/')) {
+                try { await c.focus(); return; } catch (_) {}
+            }
+        }
+        if (self.clients.openWindow) await self.clients.openWindow(url);
+    })());
 });
 
 self.addEventListener('fetch', (event) => {

@@ -50,6 +50,8 @@ import { getBucketSettings } from '../data/economyRepo.js';
 // Phase E-7: 우측 상단 알람 종 + 자동 알람 생성기
 import { initRemindersUI, refreshRemindersUI } from './reminders.js';
 import { generateAllAutoReminders } from '../data/reminderGenerator.js';
+// (2026-05-18 후속) 브라우저 알림 — 매일 묵상 시각 자동 발화
+import { scheduleDailyMeditationNotification } from './notifications.js';
 // B-1 의사결정 시스템 (2026-05-13): 분별의 자리 — 헤더 아이콘 + view-today 카드
 import { mountDecisionGate } from './decisionGate.js';
 // 단축키 / 모달 매니저 — Phase E-9 (Step 1)
@@ -507,6 +509,12 @@ async function onVaultUnlocked(dek) {
             if (total > 0) refreshRemindersUI();
         })
         .catch(e => console.warn('auto reminders failed:', e));
+
+    // (2026-05-18 후속) 브라우저 푸시 — 매일 묵상 시각 도래 시 자동 발화 스케줄.
+    //   권한 'granted' 상태 + 매일 묵상 알람 ON 일 때만 작동.
+    //   1차 한계: 앱(또는 PWA 홈)이 열려 있는 동안만. 진짜 백그라운드 푸시(FCM)는 별도 트랙.
+    scheduleDailyMeditationNotification(currentUserId)
+        .catch(e => console.warn('[notifications] schedule failed:', e));
 
     showToast('🔓 안전하게 열렸어요');
 
