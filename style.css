@@ -59,6 +59,7 @@
     --surface-canvas:   var(--color-bg);
     --surface-card:     var(--color-surface);
     --surface-elevated: var(--color-surface-elevated);
+    --surface-elev:     var(--color-surface-elevated);   /* (2026-05-18) 미션 추천 카드 등 옛 이름 호환 */
     --ink-primary:      var(--color-ink-primary);
     --ink-secondary:    var(--color-ink-secondary);
     --ink-tertiary:     var(--color-ink-tertiary);
