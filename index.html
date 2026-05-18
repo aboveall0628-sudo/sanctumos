@@ -190,7 +190,7 @@
                 </div>
 
                 <!-- 분별의 자리 카드 (B-1 의사결정 시스템, 2026-05-13) — 매일 노출, 권유 톤 -->
-                <button type="button" id="dg-today-card" class="dg-today-card">
+                <button type="button" id="dg-today-card" class="dg-today-card" data-slim="hidden">
                     <span class="dg-today-card-icon"><i data-lucide="scale"></i></span>
                     <span class="dg-today-card-body">
                         <span class="dg-today-card-title">오늘 마음에 걸리는 결정이 있나요?</span>
@@ -256,8 +256,9 @@
                     <div id="prayer-note" class="note-editor collapsible-body" contenteditable="true" spellcheck="false" data-placeholder="오늘 떠오른 기도를 자유롭게 적어 보세요. 비워둬도 괜찮아요."></div>
                 </section>
 
-                <!-- 등산로(워크플로우) — 워크플로우 트랙 STEP 2 (2026-05-13) -->
-                <section id="section-workflows" class="card-section">
+                <!-- 등산로(워크플로우) — 워크플로우 트랙 STEP 2 (2026-05-13)
+                     베타 슬림 v1 (2026-05-18): 슬림 모드에서 숨김 — 사용자 명시 "베타에 등산로 빼기" -->
+                <section id="section-workflows" class="card-section" data-slim="hidden">
                     <div class="section-header-flex">
                         <h2 class="section-title"><i class="section-icon" data-lucide="mountain"></i> 등산로 (워크플로우)</h2>
                         <button class="collapsible-toggle" data-target="workflows-body">접기</button>
@@ -306,8 +307,9 @@
                     </div>
                 </section>
 
-                <!-- 오늘의 돈 흐름 (Phase F) — 경제 모듈 빠른 진입 -->
-                <section id="section-today-economy" class="card-section">
+                <!-- 오늘의 돈 흐름 (Phase F) — 경제 모듈 빠른 진입
+                     베타 슬림 v1 (2026-05-18): 슬림 모드에서 숨김 — 사용자 명시 "베타에 오늘의 현금흐름 빼기" -->
+                <section id="section-today-economy" class="card-section" data-slim="hidden">
                     <div class="section-header-flex">
                         <h2 class="section-title"><i class="section-icon" data-lucide="wallet"></i> 오늘의 현금흐름</h2>
                         <div class="page-header-actions">
