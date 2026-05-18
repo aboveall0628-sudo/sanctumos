@@ -65,11 +65,11 @@ export async function callLLM(task, plain, opts = {}) {
     if (callable) {
         try {
             const model = opts.deep ? 'gemini-2.5-pro' : 'gemini-2.5-flash';
-            // (2026-05-18 후속) 45초 timeout — Cloud Function 응답 안 오면 fallback 으로 자연 진입.
-            //   기존엔 httpsCallable 디폴트 70초 → 사용자 "만드는 중이에요..." 너무 오래 stuck.
+            // (2026-05-18 후속 v2) Function 540초 자리에 맞춰 클라이언트도 180초(3분) 자리.
+            //   주간 리포트는 큰 stats + 긴 Gemini 응답 → 1~3분 자리 자연. 그 이상은 fallback.
             const callPromise = callable({ task, payload: JSON.parse(masked), model });
             const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('timeout_45s')), 45_000)
+                setTimeout(() => reject(new Error('timeout_180s')), 180_000)
             );
             const res = await Promise.race([callPromise, timeoutPromise]);
             const text = res?.data?.text;
