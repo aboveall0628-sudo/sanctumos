@@ -681,7 +681,9 @@ button .btn-icon { vertical-align: text-bottom; }
     padding: 0 var(--sp-2) var(--sp-3);
 }
 .sidebar-settings-item {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 10px;
     width: 100%;
     padding: 10px 14px;
     background: transparent;
@@ -693,6 +695,18 @@ button .btn-icon { vertical-align: text-bottom; }
     color: var(--text-secondary);
     cursor: pointer;
     transition: background var(--ease), color var(--ease);
+}
+.sidebar-settings-item .icon {
+    width: 16px;
+    height: 16px;
+    stroke-width: 1.75;
+    flex-shrink: 0;
+}
+.sidebar-settings-back .icon {
+    width: 14px;
+    height: 14px;
+    stroke-width: 1.75;
+    flex-shrink: 0;
 }
 .sidebar-settings-item:hover {
     background: var(--accent-soft);

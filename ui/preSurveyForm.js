@@ -81,13 +81,14 @@ const QUESTIONS = [
                 mode: 'single',
                 hint: '주력으로 쓰는 거 하나만 골라요',
                 allowOther: true,
-                chips: ['생명의삶', '큐티인', '데일리성경', 'YouVersion', 'Glorify', 'Hallow', '종이 QT', '성경 본문만 읽어요', '아무것도 안 써요'],
+                chips: ['생명의삶', '매일성경', '큐티인', '데일리성경', 'YouVersion', 'Glorify', 'Hallow', '종이 QT', '성경 본문만 읽어요', '아무것도 안 써요'],
             },
             {
                 mode: 'multi',
+                optional: true,
                 hint: '그 외 가끔 쓰는 게 있다면 (여러 개 OK, 선택)',
-                allowOther: false,
-                chips: ['생명의삶', '큐티인', '데일리성경', 'YouVersion', 'Glorify', 'Hallow', '종이 QT'],
+                allowOther: true,
+                chips: ['생명의삶', '매일성경', '큐티인', '데일리성경', 'YouVersion', 'Glorify', 'Hallow', '종이 QT'],
             },
         ],
         freeTextBlocks: [
@@ -147,7 +148,7 @@ const QUESTIONS = [
             mode: 'multi',
             hint: '여러 개 골라도 좋아요',
             allowOther: true,
-            chips: ['묵상 습관이 진짜로 자리잡혀야', '깊이 있는 통찰을 줘야', '묵상과 삶이 이어져야', '시간 절약·효율', '공동체와의 연결', '기도 깊이 더해줘야', '신앙 정체기 회복 도와야'],
+            chips: ['묵상 습관 자연스럽게 들이기', '말씀이 깊이 와닿기', '묵상이 일상으로 이어지기', '묵상 시간 아껴주기', '다른 사람과 같이 나누기', '기도가 더 깊어지기', '신앙 정체기에서 회복하기'],
         }],
         freeTextBlocks: [
             { label: '그런 가치가 있다면 한 달에 얼마까지 쓰실 의향 있어요? (필수)', required: true, rows: 2 },
@@ -157,8 +158,8 @@ const QUESTIONS = [
         id: 'Q10',
         title: '이번 2주 동안 본인이<br>가장 알아보고 싶은 게 뭐예요?',
         chipBlocks: [{
-            mode: 'single',
-            hint: '하나만 골라요',
+            mode: 'multi',
+            hint: '여러 개 골라도 좋아요',
             allowOther: true,
             chips: ['묵상 습관이 정말 들지', '묵상과 삶이 이어지는지', '이 도구가 도움이 되는지', '다른 사람한테 추천할 만한지', '단순 호기심'],
         }],
@@ -470,9 +471,11 @@ function initResponse(q) {
 }
 
 function isCardValid(q, response) {
-    // 모든 칩 블록 = 최소 1 선택 또는 기타 입력
+    // 모든 칩 블록 = 최소 1 선택 또는 기타 입력. optional: true 블록은 건너뜀.
     if (q.chipBlocks) {
         for (let i = 0; i < q.chipBlocks.length; i++) {
+            const block = q.chipBlocks[i];
+            if (block.optional) continue;
             const storedBlock = response.chipBlocks[i] || { selected: [], other: '' };
             const hasSelection = storedBlock.selected.length > 0 || storedBlock.other.trim().length > 0;
             if (!hasSelection) return false;
