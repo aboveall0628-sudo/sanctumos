@@ -178,17 +178,30 @@ async function handleEmailRecoveryRegister() {
 /**
  * index.html에 정의되지 않은 추가 카드(비밀번호 변경, v1 식별자 입력)를 동적 주입
  * 한 번만 주입.
+ *
+ * (2026-05-18 설정 카드 메뉴 정리 트랙) 옵션 A 카테고리 묶음.
+ *   - index.html 의 .settings-group 7 자리(보이는 방식·묵상 자리·보안·복구·모드·진입·정리·더보기·운영)
+ *     안의 .settings-group-body 로 카드를 분기해 넣음.
+ *   - 그룹이 없으면(테스트·구버전) 컨테이너 끝에 폴백 append.
+ *   - 슬림 모드 분기는 그룹 단위 data-slim="hidden" 으로 처리, 개별 카드는 손대지 않음.
  */
+function appendToGroup(groupBodyId, card, containerFallback) {
+    const body = document.getElementById(groupBodyId);
+    if (body) body.appendChild(card);
+    else if (containerFallback) containerFallback.appendChild(card);
+}
+
 function injectExtraSections() {
     const container = document.getElementById('settings-container');
     if (!container || document.getElementById('settings-extra-injected')) return;
 
-    // (B-4 본인 프로필 트랙 2026-05-13) "내 프로필" 진입 카드 — 가장 위 자리.
-    //   사이드바 메뉴와 더불어 설정 안에서도 한 번 더 진입 가능.
+    // (B-4 본인 프로필 트랙 2026-05-13) "내 프로필" 진입 카드 — 가장 위 단독 자리.
+    //   사이드바에서도 진입 가능해서, 설정 안에서는 풀모드만 노출. (slim 에선 카테고리 그룹 흐름이 깔끔)
     if (!document.getElementById('settings-self-profile-card')) {
         const selfCard = document.createElement('div');
         selfCard.id = 'settings-self-profile-card';
         selfCard.className = 'card-section';
+        selfCard.dataset.slim = 'hidden';
         selfCard.innerHTML = `
             <h3 class="section-title"><i class="section-icon" data-lucide="user-circle"></i> 내 프로필</h3>
             <p class="section-desc">
@@ -228,7 +241,7 @@ function injectExtraSections() {
         </p>
         <div id="settings-system-font-row" class="settings-font-chip-row"></div>
     `;
-    container.appendChild(systemFontCard);
+    appendToGroup('settings-group-body-appearance', systemFontCard, container);
 
     // (디자인 시스템 v1 2026-05-15) 강조 색 카드 — 3색 (올리브·베이지·라벤더) 사용자 선택.
     //   <html data-accent="..."> + style.css [data-accent] 분기로 라이브 전환.
@@ -243,23 +256,24 @@ function injectExtraSections() {
         </p>
         <div id="settings-accent-color-row" class="settings-font-chip-row"></div>
     `;
-    container.appendChild(accentColorCard);
+    appendToGroup('settings-group-body-appearance', accentColorCard, container);
 
     // (베타 슬림 v1 2026-05-18) tier 토글 카드 — 6 화면 루프만 보이는 모드.
-    //   <html data-tier="slim"> + [data-slim="hidden"] 사이드바 분기로 라이브 전환.
-    //   디폴트 = 'full' (현재 모든 메뉴 노출 그대로).
-    //   사업기획서 §4.2 — 1차 베타 14명은 'beta_unlimited' 자동 발급, 실무는 'slim' 으로 노출 조정.
-    const tierCard = document.createElement('div');
-    tierCard.id = 'settings-tier-card';
-    tierCard.className = 'card-section';
-    tierCard.innerHTML = `
-        <h3 class="section-title"><i class="section-icon" data-lucide="layers"></i> 베타 슬림 모드</h3>
-        <p class="section-desc">
-            지금은 1차 베타라서 사용자분이 직접 두 모드를 오갈 수 있어요. 슬림은 묵상 → 다짐 → 시간표 → 했/안함 → 주간 거울만 보이고, 전체는 도트·인물·가계부·의사결정까지 같이 보여요.
-        </p>
-        <div id="settings-tier-row" class="settings-tier-row"></div>
-    `;
-    container.appendChild(tierCard);
+    //   (2026-05-18 fix) 사용자 명시: 베타 사용자는 메인 전환 X, 관리자만.
+    //   isSwanAdmin 일 때만 카드 자체 노출. 베타 사용자는 카드 안 보임 → 슬림 디폴트 유지.
+    if (isSwanAdmin(_userId)) {
+        const tierCard = document.createElement('div');
+        tierCard.id = 'settings-tier-card';
+        tierCard.className = 'card-section';
+        tierCard.innerHTML = `
+            <h3 class="section-title"><i class="section-icon" data-lucide="layers"></i> 베타 / 전체 모드 (운영자 전용)</h3>
+            <p class="section-desc">
+                베타는 핵심 6 화면(묵상 → 다짐 → 시간표 → 했/안함 → 주간 거울)만, 전체는 도트·인물·가계부·의사결정까지 같이 보여요. 베타 사용자에겐 이 카드 자체가 안 보여요.
+            </p>
+            <div id="settings-tier-row" class="settings-tier-row"></div>
+        `;
+        appendToGroup('settings-group-body-appearance', tierCard, container);
+    }
 
     // (S-D 후속 2026-05-15) 성경 번역본 안내 카드 — 본문 데이터는 개역개정 단일.
     //   다른 번역본은 자리만 노출 ("준비 중"). 가입 시 selfCard.bibleVersion 박힘.
@@ -273,14 +287,14 @@ function injectExtraSections() {
         </p>
         <div id="settings-bible-version-list" class="settings-bible-list"></div>
     `;
-    container.appendChild(bibleVersionCard);
+    appendToGroup('settings-group-body-meditation', bibleVersionCard, container);
 
     // 말씀 본문 카드 (Phase E-8/A) — 폰트 크기 + 표시할 파트 on/off
     const scriptureCard = document.createElement('div');
     scriptureCard.id = 'settings-scripture-card';
     scriptureCard.className = 'card-section';
     scriptureCard.innerHTML = renderScriptureSettingsHTML();
-    container.appendChild(scriptureCard);
+    appendToGroup('settings-group-body-meditation', scriptureCard, container);
 
     // (2026-05-14 #23 후속) 묵상 템플릿 카드 — settings/spiritualLock 의 meditationTemplate 필드.
     //   사용자가 자유 markdown 입력. {{scripture}} 마커 위치에 절 본문 삽입.
@@ -307,7 +321,7 @@ function injectExtraSections() {
             ※ "오늘의 말씀"에서 절 선택 → "묵상 노트에 붙여넣기" 누르시면 <strong>📖 말씀 본문</strong> 칩 자리에 자동 삽입돼요. (칩 없으면 끝에 추가)
         </p>
     `;
-    container.appendChild(templateCard);
+    appendToGroup('settings-group-body-meditation', templateCard, container);
 
     // (2026-05-14 본인 프로필 재기획 S-D 후속) 처음 안내 다시 보기 카드.
     //   가입할 때 한 번만 뜨는 4 step 온보딩 모달(이름·별명·생일·묵상 수준)을
@@ -326,7 +340,7 @@ function injectExtraSections() {
             <i data-lucide="play-circle" class="btn-icon"></i> 다시 보기
         </button>
     `;
-    container.appendChild(onboardingReplayCard);
+    appendToGroup('settings-group-body-modes', onboardingReplayCard, container);
 
     // (2026-05-13 HC#1 N7) 매일 묵상 알람 카드 — 1개 시각, 인앱 종 빨간 점.
     // spiritualLock 도큐먼트의 dailyAlarmEnabled + dailyAlarmTime 사용.
@@ -350,7 +364,7 @@ function injectExtraSections() {
             <span id="daily-alarm-status" style="font-size:12px;color:var(--text-secondary);"></span>
         </div>
     `;
-    container.appendChild(dailyAlarmCard);
+    appendToGroup('settings-group-body-meditation', dailyAlarmCard, container);
 
     // (#58 후속 2026-05-14) 생일 알람 카드 — 며칠 전 발화할지 체크박스 4개
     const birthdayAlarmCard = document.createElement('div');
@@ -385,7 +399,7 @@ function injectExtraSections() {
             <span id="birthday-alarm-status" style="font-size:12px;color:var(--text-secondary);"></span>
         </div>
     `;
-    container.appendChild(birthdayAlarmCard);
+    appendToGroup('settings-group-body-meditation', birthdayAlarmCard, container);
 
     // 비밀번호 변경 카드
     const pwCard = document.createElement('div');
@@ -406,7 +420,7 @@ function injectExtraSections() {
             <button id="btn-change-pw" class="primary-btn" style="align-self:flex-start;">비밀번호 바꾸기</button>
         </div>
     `;
-    container.appendChild(pwCard);
+    appendToGroup('settings-group-body-security', pwCard, container);
 
     // 이메일 복구 카드 (트랙 2 / Phase 2) — Phase 3 (서버측 인증) 도입 후 활성화
     const emailRecoveryCard = document.createElement('div');
@@ -443,7 +457,7 @@ function injectExtraSections() {
             서버는 평문 시드를 절대 갖지 않아요. (E2EE 유지)
         </p>
     `;
-    container.appendChild(emailRecoveryCard);
+    appendToGroup('settings-group-body-security', emailRecoveryCard, container);
 
     // Phase B-3: 예전 결단 정리 카드 — 새 흐름(daily 목표) 전 데이터 정돈
     const cleanupCard = document.createElement('div');
@@ -463,7 +477,7 @@ function injectExtraSections() {
             <button id="btn-decisions-cleanup" class="primary-btn" style="background:var(--dot-orange)" disabled>예전 결단 정리하기</button>
         </div>
     `;
-    container.appendChild(cleanupCard);
+    appendToGroup('settings-group-body-cleanup', cleanupCard, container);
 
     // 단축키 설정 카드 (Phase E-9 / Step 1)
     const shortcutCard = document.createElement('div');
@@ -496,7 +510,7 @@ function injectExtraSections() {
             <i data-lucide="keyboard" class="btn-icon"></i> 단축키 도움말 열기
         </button>
     `;
-    container.appendChild(shortcutCard);
+    appendToGroup('settings-group-body-more', shortcutCard, container);
 
     // 경제 임계값 카드 (Phase F)
     const economyCard = document.createElement('div');
@@ -536,7 +550,7 @@ function injectExtraSections() {
             <button id="econ-thr-save-btn" class="primary-btn">저장하기</button>
         </div>
     `;
-    container.appendChild(economyCard);
+    appendToGroup('settings-group-body-more', economyCard, container);
 
     // (CS AI 트랙 §9-6, 2026-05-15) Swan 관리자 전용 진입 카드 — 피드백 관리 + 사전 설문 시작.
     //   isSwanAdmin 아닐 때는 카드 자체 안 그림. 사이드바 메뉴와 같은 게이트.
@@ -551,7 +565,9 @@ function injectExtraSections() {
                 <button type="button" id="settings-start-pre-survey" class="secondary-btn">사전 설문 미리 해보기</button>
             </div>
         `;
-        container.appendChild(adminCard);
+        appendToGroup('settings-group-body-admin', adminCard, container);
+        const adminGroup = document.getElementById('settings-group-admin');
+        if (adminGroup) adminGroup.hidden = false;
 
         adminCard.querySelector('#settings-open-feedback-admin')?.addEventListener('click', () => {
             if (typeof window.__sanctumSwitchView === 'function') {
@@ -582,7 +598,7 @@ function injectExtraSections() {
             </div>
         </div>
     `;
-    container.appendChild(hiddenMissionCard);
+    appendToGroup('settings-group-body-modes', hiddenMissionCard, container);
 }
 
 /**

@@ -9,7 +9,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-app.js";
 import {
     getFirestore, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc,
-    collection, collectionGroup, query, where, orderBy, limit, serverTimestamp
+    collection, collectionGroup, query, where, orderBy, limit, serverTimestamp,
+    onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore.js";
 import {
     getAuth, GoogleAuthProvider, signInWithCredential, signOut,
@@ -63,5 +64,6 @@ export {
     db, auth,
     doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc,
     collection, collectionGroup, query, where, orderBy, limit, serverTimestamp,
+    onSnapshot,
     GoogleAuthProvider, signInWithCredential, signOut, onAuthStateChanged
 };

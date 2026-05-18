@@ -58,7 +58,7 @@ import { initShortcuts } from '../shortcuts/router.js';
 import { mountSwanFeedback, openSwanPreSurvey } from './swanFeedback.js';
 import { installConsoleErrorCapture } from '../infra/feedbackContext.js';
 import { getSelfCard } from '../data/personRepo.js';
-import { renderFeedbackAdminView } from './feedbackAdmin.js';
+import { renderFeedbackAdminView, startFeedbackUnreadBadgeWatch } from './feedbackAdmin.js';
 import { isSwanAdmin } from '../config/adminConfig.js';
 
 // 옛 형식(v1) 데이터를 처음 만난 순간에 한 번만 사용자에게 알림.
@@ -549,6 +549,8 @@ async function onVaultUnlocked(dek) {
     if (isSwanAdmin(currentUserId)) {
         const adminBtn = document.getElementById('nav-feedback-admin');
         if (adminBtn) adminBtn.classList.remove('hidden');
+        // (2026-05-18) 미확인 피드백 뱃지 실시간 갱신 — 사용자 풍선 보내면 즉시 빨간 숫자.
+        try { startFeedbackUnreadBadgeWatch(currentUserId); } catch (e) { console.warn('[feedbackBadge] start failed:', e); }
     }
     // 설정 페이지·외부 진입에서 사전 설문 시작할 수 있도록 전역 노출.
     window.__sanctumOpenPreSurvey = openSwanPreSurvey;

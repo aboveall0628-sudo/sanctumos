@@ -10185,3 +10185,24 @@ html[data-onboarding-large-font="true"] .onboarding-modal .onboarding-label { fo
     flex: 1;
 }
 
+/* (2026-05-18) 사이드바 피드백 관리 미확인 뱃지 — 빨간 원 + 숫자 */
+.feedback-unread-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 6px;
+    margin-left: auto;
+    border-radius: 9999px;
+    background: #E5654A;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.feedback-unread-badge.hidden {
+    display: none;
+}
+

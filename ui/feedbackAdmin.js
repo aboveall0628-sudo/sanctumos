@@ -24,6 +24,7 @@ import {
     updateSwanNote,
 } from '../data/feedbacksRepo.js';
 import { isSwanAdmin } from '../config/adminConfig.js';
+import { db, collectionGroup, onSnapshot } from '../data/firebase.js';
 import { showToast } from './quickReview.js';
 
 // ─── 모듈 상태 ───────────────────────────────────────────────
@@ -604,4 +605,49 @@ function escapeHtml(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({
         '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;',
     }[ch]));
+}
+
+// ─── (2026-05-18) 사이드바 미확인 뱃지 — onSnapshot listener ────────
+let _badgeUnsubscribe = null;
+
+/**
+ * SWAN 관리자 사이드바 자리 — 미확인 피드백 수를 실시간 표시.
+ * 베타 사용자가 풍선 보내면 즉시 갱신. onSnapshot 정렬·필터 없이 단순 자리 (인덱스 의존 X).
+ */
+export function startFeedbackUnreadBadgeWatch(userId) {
+    if (!isSwanAdmin(userId)) return;
+    if (_badgeUnsubscribe) { try { _badgeUnsubscribe(); } catch (_) {} }
+    try {
+        const q = collectionGroup(db, 'feedbacks');
+        _badgeUnsubscribe = onSnapshot(q, (snap) => {
+            let unread = 0;
+            snap.forEach(d => {
+                const data = d.data() || {};
+                if (data.status === 'unread') unread++;
+            });
+            _updateBadge(unread);
+        }, (err) => {
+            console.warn('[feedbackBadge] onSnapshot error:', err?.message || err);
+        });
+    } catch (e) {
+        console.warn('[feedbackBadge] watch start failed:', e?.message || e);
+    }
+}
+
+export function stopFeedbackUnreadBadgeWatch() {
+    if (_badgeUnsubscribe) {
+        try { _badgeUnsubscribe(); } catch (_) {}
+        _badgeUnsubscribe = null;
+    }
+}
+
+function _updateBadge(count) {
+    const badge = document.getElementById('feedback-unread-badge');
+    if (!badge) return;
+    if (count > 0) {
+        badge.textContent = count > 99 ? '99+' : String(count);
+        badge.classList.remove('hidden');
+    } else {
+        badge.classList.add('hidden');
+    }
 }
