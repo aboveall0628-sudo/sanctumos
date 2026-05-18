@@ -177,7 +177,14 @@ async function startSession({ kind = 'feedback' } = {}) {
     document.body.appendChild(overlay);
     if (window.lucide?.createIcons) window.lucide.createIcons({ icons: window.lucide.icons });
 
-    if (openingTurn) appendTurnDOM(listEl, openingTurn);
+    // (v74) 첫 인사도 typing breath 적용 — 모달 진입 직후 자연 흐름
+    //   fire-and-forget — 사용자 즉시 입력 시작 가능. 두 흐름 자연 stacking.
+    if (openingTurn) {
+        appendSwanTurnTyping(listEl, openingTurn).catch(e => {
+            console.warn('[swanFeedback] opening typing failed, fallback to instant:', e);
+            appendTurnDOM(listEl, openingTurn);
+        });
+    }
 
     // (v73) feedback 모드 — FAQ chip row 클릭 핸들러 바인딩 (preSurvey 시 chip row 자체 X)
     if (kind === 'feedback') bindFaqChips(overlay, listEl);
@@ -313,14 +320,19 @@ function bindFaqChips(overlay, listEl) {
             const faqId = chip.dataset.faqId;
             const faq = findFaqById(faqId);
             if (!faq) return;
-            // 사용자 turn + SWAN 답 turn (DOM 표시만, Firestore 저장 X — 단순 도움말 자리)
             const now = new Date().toISOString();
+            // 사용자 질문 turn — 즉시 (typing 의미 X, 본인이 누른 자리)
             appendTurnDOM(listEl, { role: 'user', text: faq.question, at: now });
-            appendTurnDOM(listEl, { role: 'swan', text: faq.answer, at: now });
+            // SWAN 답 turn — typing breath 자연 노출 (다른 SWAN 응답과 일관)
+            //   fire-and-forget — await X. 사용자가 바로 다른 칩 누르면 두 typing 자연 stacking.
+            const swanTurn = { role: 'swan', text: faq.answer, at: now };
+            appendSwanTurnTyping(listEl, swanTurn).catch(e => {
+                console.warn('[swanFeedback] faq typing failed, fallback to instant:', e);
+            });
             // _session.turns 에도 push — AI 호출 시 컨텍스트로 자연 전달
             if (_session) {
                 _session.turns.push({ role: 'user', text: faq.question, at: now });
-                _session.turns.push({ role: 'swan', text: faq.answer, at: now });
+                _session.turns.push(swanTurn);
             }
             // (v74) FAQ 칩 한 번 누르면 도움말 자리 자연 빠짐 — 채팅 흐름 우선
             hideFaqBar();
