@@ -10147,7 +10147,7 @@ html[data-accent="beige"] .onboarding-swan-bubble {
 }
 .onboarding-swan-text {
     flex: 1 1 auto;
-    font-size: 14px;
+    font-size: 0.95em;  /* (v83) px → em 결 — systemFont scale 자연 따라가요 */
     line-height: 1.55;
     color: var(--ink, #2a2a2a);
 }
@@ -10200,7 +10200,7 @@ html[data-accent="beige"] .onboarding-swan-bubble {
  *   범위: .onboarding-modal 안만 — 사이드바·메인 영향 없음. */
 html[data-onboarding-large-font="true"] .onboarding-modal { font-size: 17px; }
 html[data-onboarding-large-font="true"] .onboarding-modal .onboarding-swan-text {
-    font-size: 16.5px;
+    font-size: 1em;
     line-height: 1.6;
 }
 html[data-onboarding-large-font="true"] .onboarding-modal .onboarding-swan-hero-greeting {
@@ -10225,6 +10225,21 @@ html[data-onboarding-large-font="true"] .onboarding-modal .onboarding-btn {
     padding-bottom: 12px;
 }
 html[data-onboarding-large-font="true"] .onboarding-modal .onboarding-label { font-size: 13.5px; }
+
+/* (2026-05-18 후속) 슬림 모드 — quickReview 모달 자동 압축.
+ *   사용자 명시 "이때 뭐 했는데 어땠어 정도만".
+ *   slim mode면 자세히·라벨·인물·조직·AI 브리핑 자리 자동 숨김. */
+html[data-tier="slim"] #qr-detail-toggle,
+html[data-tier="slim"] #qr-detail-section,
+html[data-tier="slim"] .qr-label-chips,
+html[data-tier="slim"] .qr-person-section,
+html[data-tier="slim"] .qr-org-section,
+html[data-tier="slim"] #qr-ai-briefing-panel,
+html[data-tier="slim"] .qr-rating-axes,
+html[data-tier="slim"] .qr-category-chips,
+html[data-tier="slim"] .qr-tx-section {
+    display: none !important;
+}
 
 /* (2026-05-18 후속) 운영자 페이지 — view-admin 카드 톤 */
 #view-admin .admin-card {
