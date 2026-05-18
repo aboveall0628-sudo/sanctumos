@@ -749,6 +749,7 @@ function injectExtraSections() {
                 <button type="button" id="settings-start-pre-survey" class="secondary-btn">사전 설문 미리 해보기 (채팅 v1)</button>
                 <button type="button" id="settings-start-pre-survey-form" class="secondary-btn">사전 설문 폼 v2 시안</button>
                 <button type="button" id="settings-start-onboarding-presurvey" class="secondary-btn">온보딩 → 사전 설문 한 흐름 테스트</button>
+                <button type="button" id="settings-test-full-signup-flow" class="primary-btn">🎯 전체 회원가입 루트 테스트 (동의 → 온보딩 → 사전 설문)</button>
             </div>
         `;
         appendToGroup('settings-group-body-admin', adminCard, container);
@@ -788,6 +789,42 @@ function injectExtraSections() {
                 });
             } catch (e) {
                 console.warn('[settings] onboarding → presurvey 흐름 진입 실패:', e);
+            }
+        });
+
+        // (2026-05-18 v81) 전체 회원가입 루트 테스트 — 동의 모달 → 온보딩 → 사전 설문 풀 흐름.
+        //   운영자가 진짜 신규 가입자처럼 처음부터 끝까지 자연 체험.
+        //   ⚠️ consents 컬렉션에 실제 기록이 누적되니, 운영자 본인 자리 정리는 별도.
+        adminCard.querySelector('#settings-test-full-signup-flow')?.addEventListener('click', async () => {
+            if (!_userId || _userId === 'anonymous') return;
+            const dek = getDEK();
+            if (!dek) return;
+            try {
+                // 1단계 — 동의 모달
+                const { showConsentModal } = await import('./consentModal.js');
+                const result = await showConsentModal({ userId: _userId });
+                if (!result.agreed) {
+                    showToast('동의 안 함 결로 흐름 마침');
+                    return;
+                }
+                // 2단계 — 온보딩 (마침 시 사전 설문 자연 진입)
+                const { showOnboardingModal } = await import('./onboarding.js');
+                await showOnboardingModal({
+                    userId: _userId,
+                    dek,
+                    onComplete: () => {
+                        // 사전 설문 자연 진입은 onboarding 안에서 자리잡혀 있어요 (v79 결).
+                        // 혹시 자연 흐름 안 잡힐 자리 대비해서 600ms 후 명시 호출.
+                        setTimeout(() => {
+                            if (typeof window.__sanctumOpenPreSurveyForm === 'function') {
+                                window.__sanctumOpenPreSurveyForm();
+                            }
+                        }, 600);
+                    },
+                });
+            } catch (e) {
+                console.warn('[settings] 전체 회원가입 루트 테스트 흐름 실패:', e);
+                showToast('흐름 진입 실패 — 콘솔 확인');
             }
         });
     }
