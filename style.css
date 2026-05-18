@@ -619,7 +619,7 @@ button .btn-icon { vertical-align: text-bottom; }
 
 /* ── Settings 카테고리 묶음 (2026-05-18) ──
  * 한 화면 안에서 7개 카테고리로 시각 분리 (옵션 A).
- * 슬림 모드는 [data-slim="hidden"] 그룹만 자동 숨김. */
+ * 슬림 모드는 [data-slim="hidden"] 그룹/nav 항목만 자동 숨김. */
 .settings-group {
     margin-top: var(--sp-6);
 }
@@ -650,6 +650,84 @@ button .btn-icon { vertical-align: text-bottom; }
 /* 그룹 안의 카드 — 외부 간격이 그룹 단위로 잡혀있어서 하단 여백만 살짝 */
 .settings-group .card-section { margin-bottom: var(--sp-3); }
 .settings-group .card-section:last-child { margin-bottom: 0; }
+
+/* ── Windows 설정 스타일 2단 레이아웃 (2026-05-18 v68) ──
+ * 데스크탑(≥ 768px): 좌측 카테고리 nav 220px + 우측 한 카테고리만 노출.
+ * 모바일(< 768px): nav 숨김, 모든 그룹 세로 스택(기존 옵션 A 그대로). */
+.settings-windows-layout {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: var(--sp-5);
+    align-items: start;
+}
+.settings-side-nav {
+    position: sticky;
+    top: var(--sp-3);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    background: var(--surface-card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: var(--sp-2);
+    box-shadow: var(--shadow-sm);
+}
+.settings-nav-item {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    width: 100%;
+    padding: 10px var(--sp-3);
+    background: transparent;
+    border: none;
+    border-left: 3px solid transparent;
+    border-radius: var(--radius);
+    text-align: left;
+    font-family: var(--font-sans);
+    font-size: var(--fs-base);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: background var(--ease), color var(--ease), border-color var(--ease);
+}
+.settings-nav-item:hover {
+    background: var(--accent-soft);
+    color: var(--text-primary);
+}
+.settings-nav-item.active {
+    background: var(--accent-soft);
+    color: var(--text-primary);
+    border-left-color: var(--accent);
+    font-weight: 600;
+}
+.settings-nav-item .nav-emoji {
+    font-size: 1.05em;
+    line-height: 1;
+    width: 18px;
+    text-align: center;
+}
+.settings-nav-divider {
+    height: 1px;
+    background: var(--line);
+    margin: 4px 6px;
+    border: 0;
+}
+.settings-pane {
+    min-width: 0;
+}
+/* 데스크탑에서는 한 그룹만 보이고 나머지는 숨김. .active 만 노출. */
+@media (min-width: 768px) {
+    .settings-pane > .settings-group { display: none; margin-top: 0; }
+    .settings-pane > .settings-group.active { display: block; }
+    /* 우측에 단독으로 보이는 그룹의 첫 카드는 상단 여백 없이 자연 자리 */
+    .settings-pane > .settings-group.active > .settings-group-body > :first-child { margin-top: 0; }
+    /* 데스크탑에서는 카테고리 제목 자체는 nav 가 대신함 — 우측에는 본문만. */
+    .settings-pane > .settings-group > .settings-group-title { display: none; }
+}
+/* 모바일 — nav 숨김, 옵션 A 자연 작동 (모든 그룹 세로 스택) */
+@media (max-width: 767px) {
+    .settings-windows-layout { display: block; }
+    .settings-side-nav { display: none; }
+}
 
 /* ── Card section ── */
 .card-section {
@@ -9281,6 +9359,37 @@ button.mission-progress-block:hover {
 }
 .fbadmin-btn:hover {
     background: var(--surface-quiet, rgba(0,0,0,0.04));
+}
+
+/* (2026-05-18) 전체 선택 체크박스 + 페이지 메타 */
+.fbadmin-select-all-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border, rgba(0,0,0,0.12));
+    background: var(--bg-card, #fff);
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--ink-primary, #1a1814);
+    white-space: nowrap;
+}
+.fbadmin-select-all-row:hover {
+    background: var(--surface-quiet, rgba(0,0,0,0.04));
+}
+.fbadmin-select-all-row input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+    accent-color: var(--accent, var(--brand-primary));
+}
+
+.fbadmin-list-meta {
+    font-size: 12px;
+    color: var(--ink-tertiary, #9c9893);
+    margin: 4px 0 8px;
+    padding: 0 2px;
 }
 
 .fbadmin-list {

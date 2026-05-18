@@ -34,6 +34,7 @@ let _state = {
     kindTab:  'feedback',      // 'feedback' | 'preSurvey' | 'postSurvey'
     rows:     [],              // 현재 탭의 모든 피드백 (서버 fetch 결과)
     filtered: [],              // 검색·필터 적용 후 표시 대상
+    visible:  [],              // 페이지 크기 적용 후 실제 그려지는 자리
     selectedIds: new Set(),    // 묶음 복사용 체크박스
     detailId: null,            // 현재 상세 보고 있는 feedbackId
     // 필터 상태
@@ -41,6 +42,7 @@ let _state = {
     statusF:  'all',           // 'all' | 'unread' | 'read'
     categoryF: 'all',          // 'all' | 'error' | 'ux_ui' | 'feature_request' | 'other'
     sortDir:  'desc',          // 'desc' (최신) | 'asc' (오래된)
+    pageSize: 10,              // (2026-05-18) 페이지 크기 — 10·50·100 옵션
 };
 
 // ─── 진입점 ──────────────────────────────────────────────────
@@ -138,9 +140,15 @@ async function refreshAndRender() {
 function renderList(container) {
     const filtered = applyFilters(_state.rows, _state.kindTab, _state);
     _state.filtered = filtered;
+    // (2026-05-18) 페이지 크기 적용 — 클라이언트 자르기
+    const visible = filtered.slice(0, _state.pageSize);
+    _state.visible = visible;
 
     // 탭별 카운트
     const counts = countByKind(_state.rows);
+    // (2026-05-18) 전체 선택 체크박스 자리 — 현재 보이는 자리 모두 선택됐는지
+    const allSelected = visible.length > 0 && visible.every(r => _state.selectedIds.has(r.id));
+    const someSelected = visible.some(r => _state.selectedIds.has(r.id));
 
     container.innerHTML = `
         <header class="fbadmin-header">
@@ -175,17 +183,38 @@ function renderList(container) {
                 <option value="desc" ${_state.sortDir==='desc'?'selected':''}>최신순</option>
                 <option value="asc"  ${_state.sortDir==='asc'?'selected':''}>오래된순</option>
             </select>
+            <select id="fbadmin-page-size" class="fbadmin-select" aria-label="페이지 크기">
+                <option value="10"  ${_state.pageSize===10?'selected':''}>10줄 보기</option>
+                <option value="50"  ${_state.pageSize===50?'selected':''}>50줄 보기</option>
+                <option value="100" ${_state.pageSize===100?'selected':''}>100줄 보기</option>
+            </select>
+            <label class="fbadmin-select-all-row">
+                <input type="checkbox" id="fbadmin-select-all"
+                       ${allSelected ? 'checked' : ''}
+                       ${(!allSelected && someSelected) ? 'data-indeterminate="1"' : ''}>
+                <span>전체 선택</span>
+            </label>
             <button type="button" id="fbadmin-bulk-copy" class="fbadmin-btn">
                 📋 묶음 복사 (<span id="fbadmin-bulk-count">${_state.selectedIds.size}</span>)
             </button>
         </div>
 
+        <div class="fbadmin-list-meta">
+            전체 ${filtered.length}건 · 지금 ${visible.length}건 표시${filtered.length > visible.length ? ` (${filtered.length - visible.length}건 더 있음)` : ''}
+        </div>
+
         <div class="fbadmin-list">
             ${filtered.length === 0
                 ? `<div class="fbadmin-empty"><p>아직 ${tabLabel(_state.kindTab)} 자료가 없어요.</p></div>`
-                : filtered.map(row => renderListRow(row, _state.kindTab)).join('')}
+                : visible.map(row => renderListRow(row, _state.kindTab)).join('')}
         </div>
     `;
+
+    // indeterminate 상태는 HTML attribute 로 안 박힘 — JS 로 자리잡기
+    const selectAllEl = container.querySelector('#fbadmin-select-all');
+    if (selectAllEl && !allSelected && someSelected) {
+        selectAllEl.indeterminate = true;
+    }
 
     // 이벤트 바인딩
     container.querySelectorAll('.fbadmin-tab').forEach(btn => {
@@ -217,6 +246,23 @@ function renderList(container) {
     container.querySelector('#fbadmin-sort')?.addEventListener('change', (e) => {
         _state.sortDir = e.target.value;
         refreshAndRender();   // 서버에서 다시 정렬 받아옴
+    });
+    // (2026-05-18) 페이지 크기 select — 클라이언트 자르기, refetch X
+    container.querySelector('#fbadmin-page-size')?.addEventListener('change', (e) => {
+        const n = Number(e.target.value);
+        if ([10, 50, 100].includes(n)) {
+            _state.pageSize = n;
+            renderList(container);
+        }
+    });
+    // (2026-05-18) 전체 선택 체크박스 — 현재 보이는 자리 모두 토글
+    container.querySelector('#fbadmin-select-all')?.addEventListener('change', (e) => {
+        if (e.target.checked) {
+            _state.visible.forEach(r => _state.selectedIds.add(r.id));
+        } else {
+            _state.visible.forEach(r => _state.selectedIds.delete(r.id));
+        }
+        renderList(container);
     });
     container.querySelector('#fbadmin-bulk-copy')?.addEventListener('click', handleBulkCopy);
 
