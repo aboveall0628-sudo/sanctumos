@@ -10653,6 +10653,25 @@ html[data-onboarding-large-font="true"] .onboarding-modal .onboarding-label { fo
     flex-wrap: wrap;
     gap: 0.5rem;
 }
+.presurvey-scale-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.82em;
+    color: var(--ink-tertiary, #a8a8a3);
+    padding: 0 0.2rem;
+    margin: 0;
+}
+.presurvey-chip-grid--scale {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.4rem;
+}
+.presurvey-chip-scale {
+    text-align: center;
+    padding: 0.7rem 0;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+}
 .presurvey-chip {
     padding: 0.55rem 0.95rem;
     border-radius: 999px;

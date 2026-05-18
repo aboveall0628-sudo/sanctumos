@@ -179,9 +179,12 @@ const QUESTIONS = [
             },
             {
                 mode: 'single',
+                type: 'scale',
                 hint: '그 자리들이 본인 묵상·신앙 흐름에 도움이 되나요?',
+                scaleMinLabel: '전혀 도움 안 됨',
+                scaleMaxLabel: '아주 큰 도움',
                 allowOther: false,
-                chips: ['전혀 도움 안 됨', '별로 도움 안 됨', '보통', '도움 됨', '아주 큰 도움'],
+                chips: ['1', '2', '3', '4', '5'],
             },
         ],
         freeTextBlocks: [
@@ -308,7 +311,8 @@ function renderChipBlocks(q, stored) {
         const storedBlock = stored.chipBlocks[blockIdx] || { selected: [], other: '' };
         const chipsHtml = block.chips.map((label) => {
             const isActive = storedBlock.selected.includes(label);
-            return `<button type="button" class="presurvey-chip${isActive ? ' presurvey-chip-active' : ''}" data-block="${blockIdx}" data-chip="${escapeAttr(label)}" aria-pressed="${isActive}">${escapeHtml(label)}</button>`;
+            const scaleClass = block.type === 'scale' ? ' presurvey-chip-scale' : '';
+            return `<button type="button" class="presurvey-chip${scaleClass}${isActive ? ' presurvey-chip-active' : ''}" data-block="${blockIdx}" data-chip="${escapeAttr(label)}" aria-pressed="${isActive}">${escapeHtml(label)}</button>`;
         }).join('');
 
         const otherActive = storedBlock.other.length > 0;
@@ -319,10 +323,19 @@ function renderChipBlocks(q, stored) {
             </div>
         ` : '';
 
+        const isScale = block.type === 'scale';
+        const scaleLabels = isScale ? `
+            <div class="presurvey-scale-labels">
+                <span>${escapeHtml(block.scaleMinLabel || '')}</span>
+                <span>${escapeHtml(block.scaleMaxLabel || '')}</span>
+            </div>
+        ` : '';
+
         return `
             <div class="presurvey-block">
                 ${block.hint ? `<p class="presurvey-chip-hint">${escapeHtml(block.hint)}</p>` : ''}
-                <div class="presurvey-chip-grid" data-block="${blockIdx}" data-mode="${block.mode}">
+                ${scaleLabels}
+                <div class="presurvey-chip-grid${isScale ? ' presurvey-chip-grid--scale' : ''}" data-block="${blockIdx}" data-mode="${block.mode}">
                     ${chipsHtml}
                     ${otherHtml}
                 </div>
