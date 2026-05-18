@@ -617,6 +617,40 @@ button .btn-icon { vertical-align: text-bottom; }
 .evening-banner-dismiss:hover { background: var(--surface-soft, var(--hover)); color: var(--text-primary); }
 .evening-banner-dismiss i { width: 16px; height: 16px; stroke-width: 1.75; }
 
+/* ── Settings 카테고리 묶음 (2026-05-18) ──
+ * 한 화면 안에서 7개 카테고리로 시각 분리 (옵션 A).
+ * 슬림 모드는 [data-slim="hidden"] 그룹만 자동 숨김. */
+.settings-group {
+    margin-top: var(--sp-6);
+}
+.settings-group:first-of-type { margin-top: var(--sp-3); }
+.settings-group-title {
+    display: flex; align-items: baseline; gap: var(--sp-2);
+    font-family: var(--font-serif);
+    font-size: var(--fs-modal);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 var(--sp-3);
+    padding: 0 0 var(--sp-2);
+    border-bottom: 1px solid var(--line);
+    letter-spacing: -0.01em;
+}
+.settings-group-title .group-emoji {
+    font-size: 1.05em; line-height: 1;
+    transform: translateY(1px);
+}
+.settings-group-title .group-hint {
+    margin-left: auto;
+    font-family: var(--font-sans);
+    font-size: var(--fs-small);
+    font-weight: 400;
+    color: var(--ink-secondary);
+    letter-spacing: 0;
+}
+/* 그룹 안의 카드 — 외부 간격이 그룹 단위로 잡혀있어서 하단 여백만 살짝 */
+.settings-group .card-section { margin-bottom: var(--sp-3); }
+.settings-group .card-section:last-child { margin-bottom: 0; }
+
 /* ── Card section ── */
 .card-section {
     background: var(--surface-card);
@@ -9745,6 +9779,38 @@ html[data-accent="beige"] .onboarding-swan-bubble {
     white-space: pre-line;
     min-height: 4.7em;
 }
+
+/* (2026-05-18 후속) 온보딩 큰 폰트 모드 — 누구나 편하게 읽으시도록.
+ *   showOnboardingModal 에서 <html data-onboarding-large-font="true"> 박힘.
+ *   step 9 (폰트 설정) 진입 시 또는 모달 닫힐 때 자연 해제.
+ *   범위: .onboarding-modal 안만 — 사이드바·메인 영향 없음. */
+html[data-onboarding-large-font="true"] .onboarding-modal { font-size: 17px; }
+html[data-onboarding-large-font="true"] .onboarding-modal .onboarding-swan-text {
+    font-size: 16.5px;
+    line-height: 1.6;
+}
+html[data-onboarding-large-font="true"] .onboarding-modal .onboarding-swan-hero-greeting {
+    font-size: 30px;
+    line-height: 1.5;
+}
+@media (max-width: 480px) {
+    html[data-onboarding-large-font="true"] .onboarding-modal .onboarding-swan-hero-greeting {
+        font-size: 24px;
+    }
+}
+html[data-onboarding-large-font="true"] .onboarding-modal .onboarding-title { font-size: 22px; }
+html[data-onboarding-large-font="true"] .onboarding-modal .onboarding-sub {
+    font-size: 15px;
+    line-height: 1.65;
+}
+html[data-onboarding-large-font="true"] .onboarding-modal .onboarding-input,
+html[data-onboarding-large-font="true"] .onboarding-modal .onboarding-textarea { font-size: 16px; }
+html[data-onboarding-large-font="true"] .onboarding-modal .onboarding-btn {
+    font-size: 15.5px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+}
+html[data-onboarding-large-font="true"] .onboarding-modal .onboarding-label { font-size: 13.5px; }
 
 /* (2026-05-18 후속) 인트로 단순화 — 백조·서브·메타 제거, 인사 + [다음]만 */
 .onboarding-card-swan-hero-simple {

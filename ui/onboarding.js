@@ -251,6 +251,11 @@ export async function showOnboardingModal({ userId, dek, onComplete, existingCar
     `;
     document.body.appendChild(backdrop);
 
+    // (2026-05-18 후속) 온보딩 안에선 누구나 편하게 읽으시도록 큰 폰트 강제.
+    //   step 9 (폰트 설정) 진입 시 해제 → 사용자가 고른 폰트로 미리보기 자연 작동.
+    //   closeOnboardingModal 에서도 자연 해제.
+    document.documentElement.setAttribute('data-onboarding-large-font', 'true');
+
     // 닫기 버튼 — 저장 없이 모달만 닫고 원래 화면 그대로 보여줌.
     if (isReplay) {
         document.getElementById('onboarding-close-btn')?.addEventListener('click', () => {
@@ -265,6 +270,8 @@ export async function showOnboardingModal({ userId, dek, onComplete, existingCar
 export function closeOnboardingModal() {
     const existing = document.getElementById('onboarding-backdrop');
     if (existing) existing.remove();
+    // (2026-05-18 후속) 큰 폰트 모드 해제
+    document.documentElement.removeAttribute('data-onboarding-large-font');
     _state = null;
 }
 
@@ -307,6 +314,12 @@ function renderStep(step) {
     else if (step === 9) renderFontStep(body);
     else if (step === 10) renderMeditationStep(body); // 첫 묵상 한 절
     else if (step === 99) renderFinishCard(body);
+
+    // (2026-05-18 후속) step 9 (폰트 설정) 진입 시 큰 폰트 모드 해제 →
+    //   사용자가 칩 클릭하면 그 즉시 미리보기 자연 작동.
+    if (step >= 9) {
+        document.documentElement.removeAttribute('data-onboarding-large-font');
+    }
 
     // (2026-05-18 후속) 모든 step 공통: 카드 enter 애니메이션 + SWAN 말풍선 타이핑.
     const card = body.querySelector('.onboarding-card');
