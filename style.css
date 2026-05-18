@@ -9921,6 +9921,64 @@ html[data-onboarding-large-font="true"] .onboarding-modal .onboarding-btn {
 }
 html[data-onboarding-large-font="true"] .onboarding-modal .onboarding-label { font-size: 13.5px; }
 
+/* (2026-05-18 후속) step 8 책 picker — 추천 5권 ↔ 66권 전체 토글 */
+.onboarding-book-picker-head-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 12px 0 10px;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.onboarding-book-toggle-all {
+    border: 1px solid var(--line, #e4e0d8);
+    border-radius: 8px;
+    background: var(--surface, #fff);
+    padding: 6px 12px;
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--ink-secondary, #6a6a6a);
+    transition: border-color 0.15s, color 0.15s;
+}
+.onboarding-book-toggle-all:hover {
+    border-color: var(--accent, #7c8b6f);
+    color: var(--ink, #2a2a2a);
+}
+.onboarding-book-grid-all.hidden,
+.onboarding-book-picker .onboarding-book-grid.hidden { display: none; }
+.onboarding-book-testament-head {
+    margin: 14px 0 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-secondary, #6a6a6a);
+    letter-spacing: 0.02em;
+}
+.onboarding-book-testament-head:first-child { margin-top: 0; }
+.onboarding-book-grid-compact {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+}
+@media (max-width: 480px) {
+    .onboarding-book-grid-compact { grid-template-columns: repeat(3, 1fr); }
+}
+.onboarding-book-chip {
+    border: 1px solid var(--line, #e4e0d8);
+    border-radius: 8px;
+    background: var(--surface, #fff);
+    padding: 8px 6px;
+    font-size: 13px;
+    color: var(--ink, #2a2a2a);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s, transform 0.1s;
+}
+.onboarding-book-chip:hover { border-color: var(--accent, #7c8b6f); }
+.onboarding-book-chip.selected {
+    border-color: var(--accent, #7c8b6f);
+    background: rgba(124, 139, 111, 0.10);
+    font-weight: 600;
+}
+
 /* (2026-05-18 후속) 인트로 단순화 — 백조·서브·메타 제거, 인사 + [다음]만 */
 .onboarding-card-swan-hero-simple {
     padding-top: 40px;

@@ -34,7 +34,7 @@ import { DEFAULT_TRACK_BY_LEVEL } from '../config/devotionalTracks.js';
 import {
     BIBLE_VERSIONS, DEFAULT_BIBLE_VERSION,
     RECOMMENDED_PRINCIPLE, firstMeditationForLevel,
-    RECOMMENDED_TRACKS_BY_LEVEL, ONE_BOOK_QUICK_PICKS, firstMeditationForTrack,
+    RECOMMENDED_TRACKS_BY_LEVEL, ONE_BOOK_QUICK_PICKS, firstMeditationForTrack, BIBLE_BOOKS_66,
     // (베타 슬림 v1 A 묶음 2026-05-18) 도시·타임존
     CITY_PRESETS, TIMEZONE_OPTIONS, detectBrowserTimezone,
 } from '../config/onboardingDefaults.js';
@@ -661,8 +661,12 @@ function renderTrackStep(body) {
         </div>
 
         <div id="onboarding-book-picker" class="onboarding-book-picker"${showBookPicker ? '' : ' hidden'}>
-          <p class="onboarding-book-picker-head">어떤 책을 통독하실까요?</p>
-          <div class="onboarding-book-grid">
+          <div class="onboarding-book-picker-head-row">
+            <p class="onboarding-book-picker-head">어떤 책을 통독하실까요?</p>
+            <button type="button" class="onboarding-book-toggle-all" id="onboarding-book-toggle-all"
+                    data-mode="quick">📚 전체 66권 보기</button>
+          </div>
+          <div class="onboarding-book-grid" id="onboarding-book-grid-quick">
             ${ONE_BOOK_QUICK_PICKS.map(b => `
               <button type="button" class="onboarding-book-card${_state.draft.oneBookAbbr === b.abbr ? ' selected' : ''}"
                       data-book-abbr="${escapeAttr(b.abbr)}">
@@ -671,6 +675,28 @@ function renderTrackStep(body) {
                 <span class="onboarding-book-desc">${escapeHtml(b.desc)}</span>
               </button>
             `).join('')}
+          </div>
+          <div class="onboarding-book-grid-all hidden" id="onboarding-book-grid-all">
+            <div class="onboarding-book-testament-head">구약 (39권)</div>
+            <div class="onboarding-book-grid-compact">
+              ${BIBLE_BOOKS_66.filter(b => b.testament === 'old').map(b => `
+                <button type="button" class="onboarding-book-chip${_state.draft.oneBookAbbr === b.abbr ? ' selected' : ''}"
+                        data-book-abbr="${escapeAttr(b.abbr)}"
+                        title="${escapeAttr(b.label)} (${b.chapters}장)">
+                  ${escapeHtml(b.label)}
+                </button>
+              `).join('')}
+            </div>
+            <div class="onboarding-book-testament-head">신약 (27권)</div>
+            <div class="onboarding-book-grid-compact">
+              ${BIBLE_BOOKS_66.filter(b => b.testament === 'new').map(b => `
+                <button type="button" class="onboarding-book-chip${_state.draft.oneBookAbbr === b.abbr ? ' selected' : ''}"
+                        data-book-abbr="${escapeAttr(b.abbr)}"
+                        title="${escapeAttr(b.label)} (${b.chapters}장)">
+                  ${escapeHtml(b.label)}
+                </button>
+              `).join('')}
+            </div>
           </div>
         </div>
 
@@ -707,13 +733,42 @@ function renderTrackStep(body) {
         });
     });
 
+    // (2026-05-18 후속) 책 선택 — 추천 5권 또는 66권 칩 어디든 클릭 가능.
+    const onBookSelect = (abbr) => {
+        _state.draft.oneBookAbbr = abbr;
+        document.querySelectorAll('.onboarding-book-card').forEach(b =>
+            b.classList.toggle('selected', b.dataset.bookAbbr === abbr));
+        document.querySelectorAll('.onboarding-book-chip').forEach(b =>
+            b.classList.toggle('selected', b.dataset.bookAbbr === abbr));
+        updateBtn();
+    };
     document.querySelectorAll('.onboarding-book-card').forEach(btn => {
-        btn.addEventListener('click', () => {
-            _state.draft.oneBookAbbr = btn.dataset.bookAbbr;
-            document.querySelectorAll('.onboarding-book-card').forEach(b => b.classList.toggle('selected', b === btn));
-            updateBtn();
-        });
+        btn.addEventListener('click', () => onBookSelect(btn.dataset.bookAbbr));
     });
+    document.querySelectorAll('.onboarding-book-chip').forEach(btn => {
+        btn.addEventListener('click', () => onBookSelect(btn.dataset.bookAbbr));
+    });
+
+    // 추천 5권 ↔ 66권 전체 토글
+    const toggleBtn = document.getElementById('onboarding-book-toggle-all');
+    const quickGrid = document.getElementById('onboarding-book-grid-quick');
+    const allGrid = document.getElementById('onboarding-book-grid-all');
+    if (toggleBtn && quickGrid && allGrid) {
+        toggleBtn.addEventListener('click', () => {
+            const isAll = toggleBtn.dataset.mode === 'all';
+            if (isAll) {
+                quickGrid.classList.remove('hidden');
+                allGrid.classList.add('hidden');
+                toggleBtn.dataset.mode = 'quick';
+                toggleBtn.textContent = '📚 전체 66권 보기';
+            } else {
+                quickGrid.classList.add('hidden');
+                allGrid.classList.remove('hidden');
+                toggleBtn.dataset.mode = 'all';
+                toggleBtn.textContent = '✨ 추천 5권만 보기';
+            }
+        });
+    }
 
     // (베타 슬림 v1 A 묶음) track: back=7(bible) · next=9(font)
     document.getElementById('onboarding-back').addEventListener('click', () => renderStep(7));
@@ -1045,7 +1100,9 @@ async function persistAll() {
         } else if (track === 'preset-4parts' || track === 'preset-newtestament') {
             setActivePlanId(track);
         } else if (track === 'one-book' && draft.oneBookAbbr) {
-            const pick = ONE_BOOK_QUICK_PICKS.find(b => b.abbr === draft.oneBookAbbr);
+            // (2026-05-18 후속) 66권 전체에서 검색 — 추천 5권 외 사용자가 직접 고른 책도 등록.
+            const pick = ONE_BOOK_QUICK_PICKS.find(b => b.abbr === draft.oneBookAbbr)
+                      || BIBLE_BOOKS_66.find(b => b.abbr === draft.oneBookAbbr);
             if (pick) {
                 // scriptureSettings.addUserPlan 시그니처: books = [[abbr, full, chapters], ...]
                 //   addUserPlan 안에서 자동으로 activePlanId 갱신 — setActivePlanId 별도 호출 X.

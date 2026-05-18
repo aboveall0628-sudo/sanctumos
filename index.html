@@ -506,15 +506,59 @@
             <div id="view-settings" class="view hidden">
                 <header class="page-header">
                     <h1><i class="page-icon" data-lucide="settings"></i> 설정</h1>
-                    <p class="subtitle">필요한 자리만 찾아 다듬을 수 있게 카테고리로 묶어 뒀어요.</p>
                 </header>
-                <div id="settings-container">
+                <div id="settings-container" class="settings-windows-layout">
                     <!--
-                        (2026-05-18) 옵션 A 카테고리 묶음.
-                        - settings.js 의 injectExtraSections 가 카드별 그룹 body 에 append.
-                        - 슬림 모드 = [data-slim="hidden"] 그룹 단위 통째 숨김.
-                        - 단독 자리 1개: 내 프로필 (settings.js 가 selfCard 를 컨테이너 firstChild 로 prepend).
+                        (2026-05-18 v68) 윈도우 설정 스타일 2단 레이아웃.
+                        - 데스크탑(≥ 768px): 좌측 nav + 우측 한 카테고리만 노출.
+                        - 모바일(< 768px): nav 숨김, 모든 그룹 세로 스택(자연 옵션 A).
+                        - 슬림 모드 분기: nav 항목·그룹 둘 다 [data-slim="hidden"] 자연 적용.
+                        - 내 프로필: nav 첫 항목으로 통합 (selfCard 가 group-body-profile 안으로 append).
+                        - bindSettingsNav 가 nav 클릭 ↔ 우측 그룹 .active 동기화.
                     -->
+
+                    <!-- ── 좌측 카테고리 nav ── -->
+                    <nav class="settings-side-nav" aria-label="설정 카테고리">
+                        <button type="button" class="settings-nav-item" data-target="settings-group-profile" data-slim="hidden">
+                            <span class="nav-emoji">👤</span> 내 프로필
+                        </button>
+                        <hr class="settings-nav-divider" data-slim="hidden">
+                        <button type="button" class="settings-nav-item" data-target="settings-group-appearance">
+                            <span class="nav-emoji">🎨</span> 보이는 방식
+                        </button>
+                        <button type="button" class="settings-nav-item" data-target="settings-group-meditation">
+                            <span class="nav-emoji">📖</span> 묵상 자리
+                        </button>
+                        <button type="button" class="settings-nav-item" data-target="settings-group-security">
+                            <span class="nav-emoji">🔐</span> 보안·복구
+                        </button>
+                        <hr class="settings-nav-divider" data-slim="hidden">
+                        <button type="button" class="settings-nav-item" data-target="settings-group-modes" data-slim="hidden">
+                            <span class="nav-emoji">🌱</span> 모드·진입
+                        </button>
+                        <button type="button" class="settings-nav-item" data-target="settings-group-cleanup" data-slim="hidden">
+                            <span class="nav-emoji">🧹</span> 정리
+                        </button>
+                        <button type="button" class="settings-nav-item" data-target="settings-group-more" data-slim="hidden">
+                            <span class="nav-emoji">🛠</span> 더보기
+                        </button>
+                        <button type="button" class="settings-nav-item" data-target="settings-group-admin" data-slim="hidden" hidden>
+                            <span class="nav-emoji">🦢</span> 운영
+                        </button>
+                    </nav>
+
+                    <!-- ── 우측 콘텐츠 영역 ── -->
+                    <div class="settings-pane" id="settings-pane">
+
+                        <!-- ── 👤 내 프로필 ── (슬림 숨김 · selfCard 가 settings.js 에서 group-body-profile 로 append) -->
+                        <section class="settings-group" id="settings-group-profile" data-slim="hidden">
+                            <h2 class="settings-group-title">
+                                <span class="group-emoji">👤</span> 내 프로필
+                            </h2>
+                            <div class="settings-group-body" id="settings-group-body-profile">
+                                <!-- (settings.js append) selfCard -->
+                            </div>
+                        </section>
 
                     <!-- ── 🎨 보이는 방식 ── (슬림 노출) -->
                     <section class="settings-group" id="settings-group-appearance">
@@ -659,6 +703,8 @@
                             <!-- (settings.js append) 피드백 관리 -->
                         </div>
                     </section>
+
+                    </div><!-- /.settings-pane -->
                 </div>
             </div>
         </main>

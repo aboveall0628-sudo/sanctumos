@@ -229,6 +229,90 @@ export const ONE_BOOK_QUICK_PICKS = [
 ];
 
 /**
+ * (2026-05-18 후속) 성경 66권 전체 — 사용자 명시 "성경 커스텀 기능".
+ *   onboarding step 8 [전체 보기] 또는 검색 자리에 노출. ONE_BOOK_QUICK_PICKS 는 그대로 상단 추천.
+ *   구약 39 + 신약 27. abbr 는 BIBLE_DATA 안 키와 동일.
+ */
+export const BIBLE_BOOKS_66 = [
+    // ─ 구약 모세오경 ─
+    { abbr: '창', label: '창세기',     testament: 'old', chapters: 50 },
+    { abbr: '출', label: '출애굽기',   testament: 'old', chapters: 40 },
+    { abbr: '레', label: '레위기',     testament: 'old', chapters: 27 },
+    { abbr: '민', label: '민수기',     testament: 'old', chapters: 36 },
+    { abbr: '신', label: '신명기',     testament: 'old', chapters: 34 },
+    // ─ 구약 역사서 ─
+    { abbr: '수', label: '여호수아',   testament: 'old', chapters: 24 },
+    { abbr: '삿', label: '사사기',     testament: 'old', chapters: 21 },
+    { abbr: '룻', label: '룻기',       testament: 'old', chapters: 4 },
+    { abbr: '삼상', label: '사무엘상', testament: 'old', chapters: 31 },
+    { abbr: '삼하', label: '사무엘하', testament: 'old', chapters: 24 },
+    { abbr: '왕상', label: '열왕기상', testament: 'old', chapters: 22 },
+    { abbr: '왕하', label: '열왕기하', testament: 'old', chapters: 25 },
+    { abbr: '대상', label: '역대상',   testament: 'old', chapters: 29 },
+    { abbr: '대하', label: '역대하',   testament: 'old', chapters: 36 },
+    { abbr: '스', label: '에스라',     testament: 'old', chapters: 10 },
+    { abbr: '느', label: '느헤미야',   testament: 'old', chapters: 13 },
+    { abbr: '에', label: '에스더',     testament: 'old', chapters: 10 },
+    // ─ 구약 시가서 ─
+    { abbr: '욥', label: '욥기',       testament: 'old', chapters: 42 },
+    { abbr: '시', label: '시편',       testament: 'old', chapters: 150 },
+    { abbr: '잠', label: '잠언',       testament: 'old', chapters: 31 },
+    { abbr: '전', label: '전도서',     testament: 'old', chapters: 12 },
+    { abbr: '아', label: '아가',       testament: 'old', chapters: 8 },
+    // ─ 구약 대선지서 ─
+    { abbr: '사', label: '이사야',     testament: 'old', chapters: 66 },
+    { abbr: '렘', label: '예레미야',   testament: 'old', chapters: 52 },
+    { abbr: '애', label: '예레미야애가', testament: 'old', chapters: 5 },
+    { abbr: '겔', label: '에스겔',     testament: 'old', chapters: 48 },
+    { abbr: '단', label: '다니엘',     testament: 'old', chapters: 12 },
+    // ─ 구약 소선지서 ─
+    { abbr: '호', label: '호세아',     testament: 'old', chapters: 14 },
+    { abbr: '욜', label: '요엘',       testament: 'old', chapters: 3 },
+    { abbr: '암', label: '아모스',     testament: 'old', chapters: 9 },
+    { abbr: '옵', label: '오바댜',     testament: 'old', chapters: 1 },
+    { abbr: '욘', label: '요나',       testament: 'old', chapters: 4 },
+    { abbr: '미', label: '미가',       testament: 'old', chapters: 7 },
+    { abbr: '나', label: '나훔',       testament: 'old', chapters: 3 },
+    { abbr: '합', label: '하박국',     testament: 'old', chapters: 3 },
+    { abbr: '습', label: '스바냐',     testament: 'old', chapters: 3 },
+    { abbr: '학', label: '학개',       testament: 'old', chapters: 2 },
+    { abbr: '슥', label: '스가랴',     testament: 'old', chapters: 14 },
+    { abbr: '말', label: '말라기',     testament: 'old', chapters: 4 },
+    // ─ 신약 복음서 ─
+    { abbr: '마', label: '마태복음',   testament: 'new', chapters: 28 },
+    { abbr: '막', label: '마가복음',   testament: 'new', chapters: 16 },
+    { abbr: '눅', label: '누가복음',   testament: 'new', chapters: 24 },
+    { abbr: '요', label: '요한복음',   testament: 'new', chapters: 21 },
+    // ─ 신약 역사서 ─
+    { abbr: '행', label: '사도행전',   testament: 'new', chapters: 28 },
+    // ─ 신약 바울 서신 ─
+    { abbr: '롬', label: '로마서',     testament: 'new', chapters: 16 },
+    { abbr: '고전', label: '고린도전서', testament: 'new', chapters: 16 },
+    { abbr: '고후', label: '고린도후서', testament: 'new', chapters: 13 },
+    { abbr: '갈', label: '갈라디아서', testament: 'new', chapters: 6 },
+    { abbr: '엡', label: '에베소서',   testament: 'new', chapters: 6 },
+    { abbr: '빌', label: '빌립보서',   testament: 'new', chapters: 4 },
+    { abbr: '골', label: '골로새서',   testament: 'new', chapters: 4 },
+    { abbr: '살전', label: '데살로니가전서', testament: 'new', chapters: 5 },
+    { abbr: '살후', label: '데살로니가후서', testament: 'new', chapters: 3 },
+    { abbr: '딤전', label: '디모데전서', testament: 'new', chapters: 6 },
+    { abbr: '딤후', label: '디모데후서', testament: 'new', chapters: 4 },
+    { abbr: '딛', label: '디도서',     testament: 'new', chapters: 3 },
+    { abbr: '몬', label: '빌레몬서',   testament: 'new', chapters: 1 },
+    // ─ 신약 일반서신 ─
+    { abbr: '히', label: '히브리서',   testament: 'new', chapters: 13 },
+    { abbr: '약', label: '야고보서',   testament: 'new', chapters: 5 },
+    { abbr: '벧전', label: '베드로전서', testament: 'new', chapters: 5 },
+    { abbr: '벧후', label: '베드로후서', testament: 'new', chapters: 3 },
+    { abbr: '요일', label: '요한1서',  testament: 'new', chapters: 5 },
+    { abbr: '요이', label: '요한2서',  testament: 'new', chapters: 1 },
+    { abbr: '요삼', label: '요한3서',  testament: 'new', chapters: 1 },
+    { abbr: '유', label: '유다서',     testament: 'new', chapters: 1 },
+    // ─ 신약 예언서 ─
+    { abbr: '계', label: '요한계시록', testament: 'new', chapters: 22 },
+];
+
+/**
  * 트랙 id 별 첫 묵상 본문.
  *   온보딩 [9/9] 에서 사용자가 고른 트랙·책에 맞춰 자동 추천.
  *

@@ -71,6 +71,7 @@ export function renderSettingsView(userId, userEmail) {
     _userId = userId;
     _userEmail = userEmail || null;
     injectExtraSections();
+    bindSettingsNav();
     bindEvents();
     // v1 식별자 입력란에 이메일 기본값 채우기
     const v1Input = document.getElementById('v1-id-input');
@@ -191,17 +192,68 @@ function appendToGroup(groupBodyId, card, containerFallback) {
     else if (containerFallback) containerFallback.appendChild(card);
 }
 
+/**
+ * (2026-05-18 v68) 윈도우 설정 스타일 좌측 nav ↔ 우측 그룹 동기화.
+ *   - 데스크탑(≥ 768px)에서만 의미 있음. 모바일은 CSS 에서 nav 숨김 + 모든 그룹 스택.
+ *   - 클릭 시 active 토글 + 우측 그룹 active 토글.
+ *   - 초기 활성 = 첫 visible nav 항목 (슬림 모드면 보이는 방식부터).
+ *   - 이벤트는 nav 자체에 한 번만 매달리도록 dataset.bound 가드.
+ */
+function bindSettingsNav() {
+    const nav = document.querySelector('.settings-side-nav');
+    const pane = document.getElementById('settings-pane');
+    if (!nav || !pane) return;
+
+    const isNavItemVisible = (item) => {
+        if (item.hidden) return false;
+        const slimMode = document.documentElement.dataset.tier === 'slim';
+        if (slimMode && item.dataset.slim === 'hidden') return false;
+        return true;
+    };
+
+    const activate = (targetId) => {
+        nav.querySelectorAll('.settings-nav-item').forEach((btn) => {
+            btn.classList.toggle('active', btn.dataset.target === targetId);
+        });
+        pane.querySelectorAll('.settings-group').forEach((group) => {
+            group.classList.toggle('active', group.id === targetId);
+        });
+    };
+
+    if (!nav.dataset.bound) {
+        nav.addEventListener('click', (e) => {
+            const btn = e.target.closest('.settings-nav-item');
+            if (!btn || !nav.contains(btn)) return;
+            if (!isNavItemVisible(btn)) return;
+            const targetId = btn.dataset.target;
+            if (!targetId) return;
+            activate(targetId);
+        });
+        nav.dataset.bound = '1';
+    }
+
+    // 초기 활성 — 이미 active 가 자리잡혔으면 유지, 없으면 첫 visible 항목
+    const current = nav.querySelector('.settings-nav-item.active');
+    if (current && isNavItemVisible(current)) {
+        activate(current.dataset.target);
+    } else {
+        const firstVisible = Array.from(nav.querySelectorAll('.settings-nav-item'))
+            .find(isNavItemVisible);
+        if (firstVisible) activate(firstVisible.dataset.target);
+    }
+}
+
 function injectExtraSections() {
     const container = document.getElementById('settings-container');
     if (!container || document.getElementById('settings-extra-injected')) return;
 
-    // (B-4 본인 프로필 트랙 2026-05-13) "내 프로필" 진입 카드 — 가장 위 단독 자리.
-    //   사이드바에서도 진입 가능해서, 설정 안에서는 풀모드만 노출. (slim 에선 카테고리 그룹 흐름이 깔끔)
+    // (B-4 본인 프로필 트랙 2026-05-13) "내 프로필" 진입 카드.
+    //   v68 윈도우 설정 스타일에서는 nav 첫 항목 = 내 프로필 그룹 안 카드로 합류.
+    //   사이드바에도 진입 자리가 있으니 슬림 모드에서는 nav·그룹 자체가 자연 숨김.
     if (!document.getElementById('settings-self-profile-card')) {
         const selfCard = document.createElement('div');
         selfCard.id = 'settings-self-profile-card';
         selfCard.className = 'card-section';
-        selfCard.dataset.slim = 'hidden';
         selfCard.innerHTML = `
             <h3 class="section-title"><i class="section-icon" data-lucide="user-circle"></i> 내 프로필</h3>
             <p class="section-desc">
@@ -212,8 +264,7 @@ function injectExtraSections() {
                 <i data-lucide="user-circle" class="btn-icon"></i> 내 프로필 열기
             </button>
         `;
-        // 가장 첫 자리에 끼워넣기
-        container.insertBefore(selfCard, container.firstChild);
+        appendToGroup('settings-group-body-profile', selfCard, container);
     }
 
     // 진단 카드 안에 v1 식별자 입력 추가
@@ -568,6 +619,9 @@ function injectExtraSections() {
         appendToGroup('settings-group-body-admin', adminCard, container);
         const adminGroup = document.getElementById('settings-group-admin');
         if (adminGroup) adminGroup.hidden = false;
+        // (v68) 윈도우 설정 nav 운영 항목도 함께 노출
+        const adminNavBtn = document.querySelector('.settings-nav-item[data-target="settings-group-admin"]');
+        if (adminNavBtn) adminNavBtn.hidden = false;
 
         adminCard.querySelector('#settings-open-feedback-admin')?.addEventListener('click', () => {
             if (typeof window.__sanctumSwitchView === 'function') {
