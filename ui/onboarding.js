@@ -325,20 +325,12 @@ function renderStep(step) {
 // 챗 *기분* 톤만 — 카드 형식 그대로 + SWAN 말풍선 한 줄.
 function renderSwanIntroStep(body) {
     body.innerHTML = `
-      <div class="onboarding-card onboarding-card-swan-hero">
-        <div class="onboarding-swan-hero-icon" aria-hidden="true">🦢</div>
+      <div class="onboarding-card onboarding-card-swan-hero onboarding-card-swan-hero-simple">
         <h2 class="onboarding-swan-hero-greeting" id="onboarding-title"
             data-swan-hero
-            data-swan-message="안녕하세요,&#10;묵상 보조 AI SWAN이에요."></h2>
-        <p class="onboarding-swan-hero-sub">
-          몇 가지만 알려주시면, 묵상이 삶으로 옮겨가도록 도와드릴게요.<br>
-          10분 정도 걸려요. 중간에 멈춰도 괜찮아요.
-        </p>
-        <div class="onboarding-swan-intro-meta">
-          <span>🕊️ 묵상 → 다짐 → 시간표 → 했/안함 → 주간 거울</span>
-        </div>
+            data-swan-message="안녕하세요,&#10;말씀이 삶으로 옮겨가도록 도와드리는&#10;묵상 보조 AI, SWAN이에요."></h2>
         <div class="onboarding-actions">
-          <button type="button" class="onboarding-btn onboarding-btn-primary onboarding-btn-block" id="onboarding-next">같이 가요</button>
+          <button type="button" class="onboarding-btn onboarding-btn-primary onboarding-btn-block" id="onboarding-next">다음</button>
         </div>
       </div>
     `;

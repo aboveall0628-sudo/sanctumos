@@ -9737,13 +9737,23 @@ html[data-accent="beige"] .onboarding-swan-bubble {
     font-family: 'Noto Serif KR', serif;
     font-size: 26px;
     font-weight: 600;
-    line-height: 1.4;
-    margin: 0 0 14px;
+    line-height: 1.55;
+    margin: 0 0 24px;
     color: var(--ink, #2a2a2a);
     letter-spacing: -0.01em;
-    /* (타이핑) 줄바꿈 \n 자연 반영 + 빈 상태 높이 보존 */
+    /* (타이핑) 줄바꿈 \n 자연 반영 + 빈 상태 높이 보존 (3 줄 자리) */
     white-space: pre-line;
-    min-height: 2.8em;
+    min-height: 4.7em;
+}
+
+/* (2026-05-18 후속) 인트로 단순화 — 백조·서브·메타 제거, 인사 + [다음]만 */
+.onboarding-card-swan-hero-simple {
+    padding-top: 40px;
+    padding-bottom: 32px;
+    text-align: left;
+}
+.onboarding-card-swan-hero-simple .onboarding-swan-hero-greeting {
+    text-align: left;
 }
 @media (max-width: 480px) {
     .onboarding-swan-hero-icon { font-size: 72px; margin-bottom: 14px; }
