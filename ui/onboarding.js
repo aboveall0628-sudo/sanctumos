@@ -352,13 +352,9 @@ function renderSwanIntroStep(body) {
 
 // ─── Step 2: 이름 ─────────────────────────────────────────
 function renderNameStep(body) {
-    const tone = getTone();
     body.innerHTML = `
       <div class="onboarding-card">
-        ${swanBubbleHTML('어떻게 불러드릴까요? 이름이나 자주 쓰시는 이름이면 돼요.')}
-        <p class="onboarding-greeting">${escapeHtml(tone.welcomeGreeting)}</p>
-        <p class="onboarding-sub">${escapeHtml(tone.welcomeSub)}</p>
-        <h2 class="onboarding-title" id="onboarding-title">어떻게 불러드릴까요?</h2>
+        ${swanBubbleHTML('어떻게 불러드릴까요?')}
         <label class="onboarding-label">이름 또는 자주 쓰는 이름</label>
         <input type="text" class="onboarding-input" id="onboarding-name"
                value="${escapeAttr(_state.draft.name)}"
@@ -384,9 +380,7 @@ function renderNameStep(body) {
 function renderNicknameStep(body) {
     body.innerHTML = `
       <div class="onboarding-card">
-        ${swanBubbleHTML(`${_state.draft.name || '친구'}님, 더 친근하게 부를 별명도 있으세요?`)}
-        <h2 class="onboarding-title">${escapeHtml(_state.draft.name)}님, 별명도 있으세요?</h2>
-        <p class="onboarding-sub">아침에 가장 듣고 싶은 호칭이 있다면 적어보세요. (선택)</p>
+        ${swanBubbleHTML(`${_state.draft.name || '친구'}님, 더 친근하게 부를 별명이 있을까요?`)}
         <input type="text" class="onboarding-input" id="onboarding-nickname"
                value="${escapeAttr(_state.draft.nickname)}"
                placeholder="예: 선재, 형제님, 자매님" maxlength="40" autofocus />
@@ -416,9 +410,7 @@ function renderBirthdayStep(body) {
     const isLunar = !!_state.draft.birthdayLunar;
     body.innerHTML = `
       <div class="onboarding-card">
-        ${swanBubbleHTML('생일도 알려주실래요? 나이대에 맞는 말투로 인사하려고요.')}
-        <h2 class="onboarding-title">생일이 언제이신가요?</h2>
-        <p class="onboarding-sub">양력·음력 골라서 적으실 수 있어요. 정확한 날짜 모르면 연도만 적어도 돼요.</p>
+        ${swanBubbleHTML('생일을 입력해주세요.')}
         <div class="onboarding-birthday-toggle" role="radiogroup" aria-label="양력 또는 음력">
           <button type="button" class="onboarding-toggle-chip${!isLunar ? ' selected' : ''}"
                   role="radio" aria-checked="${!isLunar}" data-lunar="false">양력</button>
@@ -472,9 +464,7 @@ function renderLocationStep(body) {
 
     body.innerHTML = `
       <div class="onboarding-card">
-        ${swanBubbleHTML('어디서 같이 가는 중이세요? 알람·일정 시간 맞춰드리려고요.')}
-        <h2 class="onboarding-title">사는 지역이 어디예요?</h2>
-        <p class="onboarding-sub">시간대 자동으로 맞춰드릴게요. 자주 가는 도시가 없으면 "다른 곳"으로 골라주세요.</p>
+        ${swanBubbleHTML('살고 계신 지역을 선택해주세요.')}
         <div class="onboarding-city-grid" role="radiogroup" aria-label="사는 지역">
           ${CITY_PRESETS.map(c => `
             <button type="button"
@@ -547,12 +537,9 @@ function renderLocationStep(body) {
 
 // ─── Step 6: 큐티 수준 ────────────────────────────────────
 function renderCutiStep(body) {
-    const tone = getTone();
     body.innerHTML = `
       <div class="onboarding-card">
-        ${swanBubbleHTML('평소 묵상은 어느 정도 하세요? 마음에 닿는 깊이로 시작 자리를 골라드릴게요.')}
-        <h2 class="onboarding-title">${escapeHtml(tone.cutiPrompt)}</h2>
-        <p class="onboarding-sub">평소 묵상 깊이에 맞춰 시작 자리를 정해드려요. 나중에 언제든 바꿀 수 있어요.</p>
+        ${swanBubbleHTML('평소 묵상 습관이 있으신가요?')}
         <div class="onboarding-cuti-cards" role="radiogroup" aria-label="큐티 수준">
           ${CUTI_LEVELS.map(lv => `
             <button type="button" class="onboarding-cuti-card${_state.draft.devotionalLevel === lv.id ? ' selected' : ''}"
@@ -593,9 +580,7 @@ function renderCutiStep(body) {
 function renderBibleVersionStep(body) {
     body.innerHTML = `
       <div class="onboarding-card">
-        ${swanBubbleHTML('어떤 성경으로 읽으시나요? 지금은 개역개정으로 만나실 수 있어요.')}
-        <h2 class="onboarding-title">어떤 성경으로 묵상하시나요?</h2>
-        <p class="onboarding-sub">지금은 개역개정으로 만나실 수 있어요. 다른 번역본도 곧 준비 중이에요.</p>
+        ${swanBubbleHTML('어떤 성경으로 묵상을 하고 싶으신가요?')}
         <div class="onboarding-bible-list" role="radiogroup" aria-label="성경 번역본">
           ${BIBLE_VERSIONS.map(v => `
             <button type="button"
@@ -645,9 +630,7 @@ function renderTrackStep(body) {
 
     body.innerHTML = `
       <div class="onboarding-card onboarding-card-track">
-        ${swanBubbleHTML('어디서부터 묵상하실래요? 선택하신 수준에 맞춰 추천해드릴게요.')}
-        <h2 class="onboarding-title">어디서부터 묵상하실래요?</h2>
-        <p class="onboarding-sub">선택하신 수준에 맞춘 추천이에요. 마음에 닿는 자리로 골라 보세요. 나중에 언제든 바꿀 수 있어요.</p>
+        ${swanBubbleHTML('어디서부터 묵상해보실래요? 원하시는 말씀을 골라주세요.')}
 
         <div class="onboarding-track-primary">
           <button type="button" class="onboarding-track-card onboarding-track-card-primary${_state.draft.selectedTrack === rec.primary.id ? ' selected' : ''}"
@@ -741,10 +724,7 @@ function renderTrackStep(body) {
 function renderFontStep(body) {
     body.innerHTML = `
       <div class="onboarding-card">
-        ${swanBubbleHTML('글씨 크기는 어떻게 보이세요? 고르시면 바로 화면이 바뀌어요.')}
-        <h2 class="onboarding-title">글자 크기를 정해볼까요?</h2>
-        <p class="onboarding-sub">고르는 즉시 화면에 미리 보여요. 마음 편한 크기로 정하세요.</p>
-
+        ${swanBubbleHTML('글씨 크기는 어떻게 보는게 편하세요?')}
         <div class="onboarding-font-group">
           <label class="onboarding-label">시스템 글자 크기 — 헤더·카드·라벨</label>
           <div class="onboarding-font-row" id="onboarding-system-font-row">
@@ -851,9 +831,7 @@ function renderMeditationStep(body) {
 
     body.innerHTML = `
       <div class="onboarding-card onboarding-card-meditation">
-        ${swanBubbleHTML('마지막이에요. 오늘 한 절 같이 만나볼까요?')}
-        <h2 class="onboarding-title">${escapeHtml(tone.firstDotInvite || '오늘 한 절 만나볼까요?')}</h2>
-        <p class="onboarding-sub">실제 묵상하는 것처럼 한 번 해볼까요. 본문을 노트로 옮기고, 떠오른 한 줄을 적어 보세요.</p>
+        ${swanBubbleHTML('오늘 한 절 같이 만나볼까요?')}
 
         <div class="onboarding-verse-card onboarding-verse-card-interactive" id="onboarding-verse-card">
           <span class="onboarding-verse-ref">📖 ${escapeHtml(passage.ref)}</span>
@@ -953,8 +931,8 @@ function renderFinishCard(body) {
     body.innerHTML = `
       <div class="onboarding-card onboarding-card-finish">
         <div class="onboarding-finish-celebrate">🎉</div>
-        <h2 class="onboarding-title">${escapeHtml(callee)}님, 첫 한 바퀴 끝났어요</h2>
-        <p class="onboarding-sub">방금 자리잡은 것들 — 신분증·추천 원칙·첫 묵상 한 절. 천천히 같이 가요.</p>
+        <h2 class="onboarding-title">${escapeHtml(callee)}님, 오늘의 첫 걸음에 참여해주셔서 감사합니다.</h2>
+        <p class="onboarding-sub">앞으로의 미션을 통해 천천히 알아가봐요.</p>
 
         <div class="onboarding-finish-missions">
           <p class="onboarding-finish-missions-title">🎯 14일 동안 천천히 열릴 미션들</p>
