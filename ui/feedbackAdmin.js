@@ -20,8 +20,9 @@ import {
     getMyFeedbacks,
     markAsRead,
     markAsUnread,
-    updateCategory,
-    updateSwanNote,
+    softDeleteFeedback,
+    restoreFeedback,
+    deleteFeedback,
 } from '../data/feedbacksRepo.js';
 import { isSwanAdmin } from '../config/adminConfig.js';
 import { db, collectionGroup, onSnapshot } from '../data/firebase.js';
@@ -160,6 +161,7 @@ function renderList(container) {
             ${renderTabButton('feedback',   '피드백',     counts.feedback)}
             ${renderTabButton('preSurvey',  '사전 설문',  counts.preSurvey)}
             ${renderTabButton('postSurvey', '사후 설문',  counts.postSurvey)}
+            ${renderTabButton('trash',      '휴지통',     counts.trash)}
         </nav>
 
         <div class="fbadmin-toolbar">
@@ -403,14 +405,9 @@ function renderDetail(container) {
             <section class="fbadmin-section">
                 <h3 class="fbadmin-section-title">자동 분류 & 요약</h3>
                 <div class="fbadmin-category-row">
-                    <label>분류
-                        <select id="fbadmin-category-edit" class="fbadmin-select">
-                            <option value="error"           ${row.category==='error'?'selected':''}>🔴 오류</option>
-                            <option value="ux_ui"           ${row.category==='ux_ui'?'selected':''}>🟡 UX·UI</option>
-                            <option value="feature_request" ${row.category==='feature_request'?'selected':''}>🔵 신기능</option>
-                            <option value="other"           ${row.category==='other'?'selected':''}>⚪ 기타</option>
-                        </select>
-                    </label>
+                    <span class="fbadmin-category-readonly">
+                        ${categoryEmoji(row.category)} ${escapeHtml(categoryLabel(row.category))}
+                    </span>
                     <span class="fbadmin-confidence">신뢰도 ${Math.round((row.categoryConfidence || 0) * 100)}%</span>
                 </div>
                 <p class="fbadmin-summary">${escapeHtml(row.summary || '(요약 없음)')}</p>
@@ -440,22 +437,26 @@ function renderDetail(container) {
             </ul>
         </section>
 
-        <section class="fbadmin-section">
-            <h3 class="fbadmin-section-title">운영자 메모</h3>
-            <textarea id="fbadmin-swan-note" class="fbadmin-note" rows="3"
-                      placeholder="짧게 적어 둘 한 줄… (자동 저장)">${escapeHtml(row.swanNote || '')}</textarea>
-        </section>
+        ${row.swanNote ? `
+            <section class="fbadmin-section">
+                <h3 class="fbadmin-section-title">운영자 메모 (읽기 전용)</h3>
+                <p class="fbadmin-summary">${escapeHtml(row.swanNote)}</p>
+            </section>
+        ` : ''}
 
         <footer class="fbadmin-detail-footer">
             <button type="button" id="fbadmin-copy-single" class="fbadmin-btn">📋 markdown 복사</button>
+            ${row.deletedAt ? `
+                <button type="button" id="fbadmin-restore" class="fbadmin-btn fbadmin-btn-soft">↩ 복구</button>
+                <button type="button" id="fbadmin-hard-delete" class="fbadmin-btn fbadmin-btn-danger">영구 삭제</button>
+            ` : `
+                <button type="button" id="fbadmin-soft-delete" class="fbadmin-btn fbadmin-btn-danger">🗑 삭제</button>
+            `}
         </footer>
     `;
 
     // 이벤트 바인딩
     container.querySelector('#fbadmin-back')?.addEventListener('click', () => {
-        // (2026-05-18 fix) 브라우저 뒤로가기 자리와 동일 흐름 — history.back() 호출.
-        //   popstate listener 가 receiveda state 보고 자연 list 모드 복원.
-        //   history 에 detail entry 없으면 (예: 직접 detail URL 진입) 폴백으로 직접 list 갱신.
         if (typeof history !== 'undefined' && history.state?.detailId) {
             history.back();
         } else {
@@ -465,16 +466,12 @@ function renderDetail(container) {
         }
     });
     container.querySelector('#fbadmin-toggle-read')?.addEventListener('click', () => toggleRead(row));
-    container.querySelector('#fbadmin-category-edit')?.addEventListener('change', (e) => editCategory(row, e.target.value));
     container.querySelector('#fbadmin-copy-single')?.addEventListener('click', () => copyMarkdown([row]));
 
-    // swanNote 자동 저장 (1초 debounce)
-    let noteTimer = null;
-    container.querySelector('#fbadmin-swan-note')?.addEventListener('input', (e) => {
-        clearTimeout(noteTimer);
-        const v = e.target.value;
-        noteTimer = setTimeout(() => saveNote(row, v), 1000);
-    });
+    // (2026-05-18) 삭제·복구·영구삭제
+    container.querySelector('#fbadmin-soft-delete')?.addEventListener('click', () => handleSoftDelete(row));
+    container.querySelector('#fbadmin-restore')?.addEventListener('click', () => handleRestore(row));
+    container.querySelector('#fbadmin-hard-delete')?.addEventListener('click', () => handleHardDelete(row));
 }
 
 function renderSurveyExtract(extract, kind) {
@@ -547,23 +544,65 @@ async function toggleRead(row) {
     }
 }
 
-async function editCategory(row, newCategory) {
+// (2026-05-18) 삭제·복구·영구 삭제 — 사용자 명시 "수정은 안 됨, 삭제·복구는 OK"
+async function handleSoftDelete(row) {
+    if (!confirm('이 항목을 휴지통으로 옮길까요? (휴지통 탭에서 복구할 수 있어요)')) return;
     try {
-        await updateCategory(row.userId, row.id, newCategory);
-        row.category = newCategory;
-        showToast('분류 바꿨어요.');
+        await softDeleteFeedback(row.userId, row.id);
+        row.deletedAt = new Date();
+        showToast('휴지통으로 옮겼어요.');
+        // 목록 자리로 자연 복귀
+        if (typeof history !== 'undefined' && history.state?.detailId) {
+            history.back();
+        } else {
+            _state.mode = 'list';
+            _state.detailId = null;
+            const container = document.getElementById('view-feedback-admin');
+            if (container) renderList(container);
+        }
     } catch (e) {
-        console.error('[feedbackAdmin] updateCategory failed:', e);
-        showToast('분류 바꾸기에 실패했어요.');
+        console.error('[feedbackAdmin] soft delete failed:', e);
+        showToast('삭제에 실패했어요.');
     }
 }
 
-async function saveNote(row, note) {
+async function handleRestore(row) {
     try {
-        await updateSwanNote(row.userId, row.id, note);
-        row.swanNote = note;
+        await restoreFeedback(row.userId, row.id);
+        row.deletedAt = null;
+        showToast('복구했어요.');
+        if (typeof history !== 'undefined' && history.state?.detailId) {
+            history.back();
+        } else {
+            _state.mode = 'list';
+            _state.detailId = null;
+            const container = document.getElementById('view-feedback-admin');
+            if (container) renderList(container);
+        }
     } catch (e) {
-        console.warn('[feedbackAdmin] updateSwanNote failed:', e);
+        console.error('[feedbackAdmin] restore failed:', e);
+        showToast('복구에 실패했어요.');
+    }
+}
+
+async function handleHardDelete(row) {
+    if (!confirm('영구 삭제하시겠어요? 한 번 지우면 복구할 수 없어요.')) return;
+    try {
+        await deleteFeedback(row.userId, row.id);
+        // _state.rows 에서도 제거
+        _state.rows = _state.rows.filter(r => r.id !== row.id);
+        showToast('영구 삭제했어요.');
+        if (typeof history !== 'undefined' && history.state?.detailId) {
+            history.back();
+        } else {
+            _state.mode = 'list';
+            _state.detailId = null;
+            const container = document.getElementById('view-feedback-admin');
+            if (container) renderList(container);
+        }
+    } catch (e) {
+        console.error('[feedbackAdmin] hard delete failed:', e);
+        showToast('영구 삭제에 실패했어요.');
     }
 }
 
@@ -626,11 +665,27 @@ ${turns}`;
 // ─── 헬퍼 ────────────────────────────────────────────────────
 
 function applyFilters(rows, kindTab, st) {
-    const targetKind = kindTab; // 디폴트 'feedback'
+    // (2026-05-18) trash 탭은 deletedAt 있는 자리만, 다른 탭은 deletedAt 없는 자리만.
+    if (kindTab === 'trash') {
+        return rows.filter(r => {
+            if (!r.deletedAt) return false;
+            if (st.search) {
+                const q = st.search.toLowerCase();
+                const hay = [
+                    r.summary || '',
+                    r.nickname || '',
+                    r.screenPath || '',
+                    ...(r.turns || []).map(t => t.text || ''),
+                ].join(' ').toLowerCase();
+                if (!hay.includes(q)) return false;
+            }
+            return true;
+        });
+    }
     return rows.filter(r => {
-        // kind 필터 (구버전 데이터는 kind 필드 없음 → 'feedback' 으로 취급)
+        if (r.deletedAt) return false;       // 삭제된 자리는 일반 탭에 X
         const rk = r.kind || 'feedback';
-        if (rk !== targetKind) return false;
+        if (rk !== kindTab) return false;
         if (st.statusF !== 'all'   && r.status   !== st.statusF)   return false;
         if (st.categoryF !== 'all' && (r.category || 'other') !== st.categoryF) return false;
         if (st.search) {
@@ -648,8 +703,9 @@ function applyFilters(rows, kindTab, st) {
 }
 
 function countByKind(rows) {
-    const out = { feedback: 0, preSurvey: 0, postSurvey: 0 };
+    const out = { feedback: 0, preSurvey: 0, postSurvey: 0, trash: 0 };
     for (const r of rows) {
+        if (r.deletedAt) { out.trash++; continue; }
         const k = r.kind || 'feedback';
         if (out[k] != null) out[k]++;
     }
@@ -657,7 +713,7 @@ function countByKind(rows) {
 }
 
 function tabLabel(kind) {
-    return ({ feedback: '피드백', preSurvey: '사전 설문', postSurvey: '사후 설문' })[kind] || kind;
+    return ({ feedback: '피드백', preSurvey: '사전 설문', postSurvey: '사후 설문', trash: '휴지통' })[kind] || kind;
 }
 
 function categoryEmoji(c) {

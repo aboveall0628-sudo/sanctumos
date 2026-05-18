@@ -242,8 +242,24 @@ export async function updateSwanNote(userId, feedbackId, note) {
     await updateDoc(feedbackDocRef(userId, feedbackId), { swanNote: note || '' });
 }
 
-// ─── 삭제 (드물게) ──────────────────────────────────────────
+// ─── 삭제 (soft) + 복구 + 영구 삭제 ──────────────────────────
+// (2026-05-18) 사용자 명시 — 삭제 가능 + 복구 가능. 수정은 X.
+//   soft delete = deletedAt 자리. getAllFeedbacksForAdmin 기본 결과에서 제외.
+//   휴지통 탭에서 복구 또는 영구 삭제 선택.
 
+export async function softDeleteFeedback(userId, feedbackId) {
+    await updateDoc(feedbackDocRef(userId, feedbackId), {
+        deletedAt: serverTimestamp(),
+    });
+}
+
+export async function restoreFeedback(userId, feedbackId) {
+    await updateDoc(feedbackDocRef(userId, feedbackId), {
+        deletedAt: null,
+    });
+}
+
+// 영구 삭제 — 휴지통 안 항목만 호출 (Firestore doc 완전 제거)
 export async function deleteFeedback(userId, feedbackId) {
     await deleteDoc(feedbackDocRef(userId, feedbackId));
 }

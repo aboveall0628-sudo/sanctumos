@@ -44,7 +44,7 @@ service cloud.firestore {
         allow read: if isSwanAdmin();
         allow update: if isSwanAdmin()
           && request.resource.data.diff(resource.data).affectedKeys()
-              .hasOnly(['status', 'swanNote', 'category', 'categoryConfidence']);
+              .hasOnly(['status', 'swanNote', 'category', 'categoryConfidence', 'deletedAt']);
       }
 
       // 사용자 서브컬렉션의 모든 깊이 — 캐비닛 안은 통째로 본인만 접근
