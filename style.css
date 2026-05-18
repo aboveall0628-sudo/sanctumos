@@ -8011,7 +8011,9 @@ button.mission-progress-block:hover {
     background: var(--surface, #fbfaf6);
     z-index: 9500;  /* 미션 게이트 모달(9000)보다 위 — 온보딩 끝나기 전엔 다른 모달 X */
     display: flex;
-    align-items: center;
+    /* (2026-05-18 후속) 마침 카드처럼 큰 컨텐츠는 align center 일 때 *위쪽이 잘림*.
+       flex-start 로 자리잡고 modal 에 margin: auto — 짧으면 가운데, 길면 위에서 스크롤. */
+    align-items: flex-start;
     justify-content: center;
     padding: 1.5rem;
     overflow-y: auto;
@@ -8025,6 +8027,8 @@ button.mission-progress-block:hover {
 .onboarding-modal {
     width: 100%;
     max-width: 32rem;       /* rem 기반 — 사용자 폰트 키워도 비율 유지 */
+    /* (2026-05-18 후속) 짧으면 가운데, 길면 위에서 스크롤 — backdrop flex-start 정합 */
+    margin: auto;
     background: var(--surface, #fbfaf6);
     border-radius: 1rem;
     box-shadow: 0 1rem 3rem rgba(36, 36, 32, 0.08);
@@ -9977,30 +9981,21 @@ html[data-onboarding-large-font="true"] .onboarding-modal .onboarding-btn {
 }
 html[data-onboarding-large-font="true"] .onboarding-modal .onboarding-label { font-size: 13.5px; }
 
-/* (2026-05-18 후속) 운영자 빠른 도구 — 사이드바 상단. isSwanAdmin 일 때만 보임 */
-.admin-quick-tools {
-    display: flex;
-    gap: 6px;
-    padding: 8px 12px 4px;
-    flex-wrap: wrap;
+/* (2026-05-18 후속) 운영자 페이지 — view-admin 카드 톤 */
+#view-admin .admin-card {
+    margin-bottom: 16px;
 }
-.admin-quick-tools.hidden { display: none; }
-.admin-quick-btn {
-    flex: 0 1 auto;
-    border: 1px solid var(--line, #e4e0d8);
-    border-radius: 8px;
-    background: var(--surface, #fff);
-    padding: 6px 10px;
-    font-size: 12px;
-    color: var(--ink, #2a2a2a);
-    cursor: pointer;
-    transition: border-color 0.15s, background 0.15s, transform 0.1s;
+#view-admin .admin-card .section-desc {
+    margin: 0 0 14px;
+    color: var(--ink-secondary, #6a6a6a);
+    line-height: 1.6;
 }
-.admin-quick-btn:hover {
-    border-color: var(--accent, #7c8b6f);
-    background: rgba(124, 139, 111, 0.08);
+#view-admin #admin-tier-row {
+    margin-top: 0;
 }
-.admin-quick-btn:active { transform: scale(0.96); }
+#view-admin .primary-btn {
+    margin-top: 4px;
+}
 
 /* (2026-05-18 후속) step 8 책 picker — 추천 5권 ↔ 66권 전체 토글 */
 .onboarding-book-picker-head-row {

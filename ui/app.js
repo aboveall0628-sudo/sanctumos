@@ -549,10 +549,11 @@ async function onVaultUnlocked(dek) {
     if (isSwanAdmin(currentUserId)) {
         const adminBtn = document.getElementById('nav-feedback-admin');
         if (adminBtn) adminBtn.classList.remove('hidden');
+        // (2026-05-18 후속) 운영자 단독 메뉴 — 슬림이든 메인이든 항상 보임 (사용자 명시)
+        const navAdmin = document.getElementById('nav-admin');
+        if (navAdmin) navAdmin.classList.remove('hidden');
         // (2026-05-18) 미확인 피드백 뱃지 실시간 갱신 — 사용자 풍선 보내면 즉시 빨간 숫자.
         try { startFeedbackUnreadBadgeWatch(currentUserId); } catch (e) { console.warn('[feedbackBadge] start failed:', e); }
-        // (2026-05-18 후속) 운영자 빠른 도구 패널 — 슬림이든 메인이든 항상 보임
-        mountAdminQuickTools(currentUserId);
     }
     // 설정 페이지·외부 진입에서 사전 설문 시작할 수 있도록 전역 노출.
     window.__sanctumOpenPreSurvey = openSwanPreSurvey;
@@ -661,50 +662,6 @@ async function refreshTodayEconomyCard() {
     }
 }
 
-// (2026-05-18 후속) 운영자 빠른 도구 — 슬림이든 메인이든 사이드바 상단에 항상 보임.
-//   isSwanAdmin 일 때만 #admin-quick-tools hidden 제거 + 3 핸들러 자리잡기.
-function mountAdminQuickTools(userId) {
-    const root = document.getElementById('admin-quick-tools');
-    if (!root) return;
-    root.classList.remove('hidden');
-
-    const tierLabel = document.getElementById('admin-toggle-tier-label');
-    const updateTierLabel = () => {
-        if (!tierLabel) return;
-        tierLabel.textContent = getTier() === 'slim' ? '🌿 메인 가기' : '🌱 슬림 가기';
-    };
-    updateTierLabel();
-
-    document.getElementById('admin-toggle-tier')?.addEventListener('click', () => {
-        const next = getTier() === 'slim' ? 'full' : 'slim';
-        setTier(next);
-        updateTierLabel();
-    });
-
-    document.getElementById('admin-replay-onboarding')?.addEventListener('click', async () => {
-        const dek = getDEK();
-        if (!dek) {
-            alert('잠금이 해제되어야 온보딩을 다시 보실 수 있어요.');
-            return;
-        }
-        try {
-            const { showOnboardingModal } = await import('./onboarding.js');
-            await showOnboardingModal({ userId, dek, onComplete: () => {} });
-        } catch (e) {
-            console.error('[admin-quick-tools] onboarding replay failed:', e);
-            alert('온보딩 모달을 여는 중 오류가 났어요: ' + (e?.message || e));
-        }
-    });
-
-    document.getElementById('admin-open-settings')?.addEventListener('click', () => {
-        try {
-            switchView('settings');
-        } catch (e) {
-            console.warn('[admin-quick-tools] open settings failed:', e);
-        }
-    });
-}
-
 // ─── 네비게이션 ───
 function setupNavigation() {
     // nav-goals 메뉴는 제거됨 — '나의 목표'는 대시보드 안으로 통합.
@@ -718,6 +675,7 @@ function setupNavigation() {
         'nav-persons': 'persons',
         'nav-organizations': 'organizations',
         'nav-economy': 'economy',
+        'nav-admin': 'admin',                // (2026-05-18 후속) 운영자 단독 페이지
         'nav-feedback-admin': 'feedback-admin',
         'nav-settings': 'settings',
     };
@@ -950,6 +908,12 @@ function switchView(viewId) {
         renderEconomyView(currentUserId);
     } else if (viewId === 'feedback-admin') {
         renderFeedbackAdminView(currentUserId);
+    } else if (viewId === 'admin') {
+        // (2026-05-18 후속) 운영자 페이지 — dynamic import (한 번도 안 들어가면 다운로드 X)
+        import('./admin.js').then(({ renderAdminView }) => {
+            const root = document.getElementById('view-admin');
+            renderAdminView(root);
+        }).catch(e => console.warn('[app] admin view failed:', e));
     }
 
     // 뷰 전환 직후엔 항상 새 뷰의 최상단에서 시작 (main-content + window 둘 다).

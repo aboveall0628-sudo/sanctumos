@@ -112,22 +112,12 @@
             <div id="sidebar-current-date" class="sidebar-current-date" title="지금 작업 중인 날짜"></div>
             <!-- (베타 슬림 v1, 2026-05-18) 슬림 모드일 때만 보이는 배지 — featureFlags.js -->
             <div class="slim-mode-badge" title="베타 버전 — 핵심 6 화면 루프">베타 버전</div>
-            <!-- (2026-05-18 후속) 운영자 전용 빠른 도구 — 슬림이든 메인이든 항상 보임.
-                 ui/app.js 가 isSwanAdmin 확인 후 hidden 제거. -->
-            <div id="admin-quick-tools" class="admin-quick-tools hidden" aria-label="운영자 빠른 도구">
-                <button type="button" id="admin-toggle-tier" class="admin-quick-btn" title="슬림 ↔ 메인 토글">
-                    <span id="admin-toggle-tier-label">🌱 슬림</span>
-                </button>
-                <button type="button" id="admin-replay-onboarding" class="admin-quick-btn" title="온보딩 다시 보기">
-                    🦢 온보딩
-                </button>
-                <button type="button" id="admin-open-settings" class="admin-quick-btn" title="설정 열기">
-                    ⚙️
-                </button>
-            </div>
             <nav class="sidebar-nav">
                 <!-- 2026-05-13 v2: 사용자 명시 메뉴 순서 (HC#1 후 검증 피드백 #11).
                      Alt+1~9 단축키도 이 순서대로 매핑됨 (shortcuts/registry.js). -->
+                <!-- (2026-05-18 후속) 운영자 전용 단독 메뉴 — isSwanAdmin 시 JS 가 hidden 제거.
+                     슬림이든 메인이든 항상 보임. 안에서 슬림/메인 토글 + 피드백 관리 진입. -->
+                <button class="sidebar-item hidden" id="nav-admin"><i class="icon" data-lucide="shield"></i> 운영자</button>
                 <button class="sidebar-item" id="nav-self-profile" data-slim="visible"><i class="icon" data-lucide="user-circle"></i> 내 프로필</button>
                 <button class="sidebar-item active" id="nav-today" data-slim="visible"><i class="icon" data-lucide="calendar"></i> 오늘</button>
                 <button class="sidebar-item" id="nav-dashboard" data-slim="hidden"><i class="icon" data-lucide="layout-dashboard"></i> 대시보드</button>
@@ -537,6 +527,7 @@
 
             <!-- ── 피드백 관리 뷰 (CS AI 트랙 §9-6, Swan 관리자 전용) ── -->
             <div id="view-feedback-admin" class="view hidden"></div>
+            <div id="view-admin" class="view hidden"></div>
 
             <!-- ── 설정 뷰 ── -->
             <div id="view-settings" class="view hidden">

@@ -350,7 +350,7 @@ function renderSwanIntroStep(body) {
       <div class="onboarding-card onboarding-card-swan-hero onboarding-card-swan-hero-simple">
         <h2 class="onboarding-swan-hero-greeting" id="onboarding-title"
             data-swan-hero
-            data-swan-message="안녕하세요,&#10;말씀이 삶으로 옮겨가도록 도와드리는&#10;묵상 보조 AI, SWAN이에요."></h2>
+            data-swan-message="안녕하세요,&#10;말씀이 삶으로 살아지도록 돕는&#10;묵상 보조 AI, SWAN이에요."></h2>
         <div class="onboarding-actions">
           <button type="button" class="onboarding-btn onboarding-btn-primary onboarding-btn-block" id="onboarding-next">다음</button>
         </div>
@@ -363,7 +363,7 @@ function renderSwanIntroStep(body) {
 function renderNameStep(body) {
     body.innerHTML = `
       <div class="onboarding-card">
-        ${swanBubbleHTML('어떻게 불러드릴까요?')}
+        ${swanBubbleHTML('성함이 어떻게 되시나요?')}
         <label class="onboarding-label">이름 또는 자주 쓰는 이름</label>
         <input type="text" class="onboarding-input" id="onboarding-name"
                value="${escapeAttr(_state.draft.name)}"
@@ -548,7 +548,7 @@ function renderLocationStep(body) {
 function renderCutiStep(body) {
     body.innerHTML = `
       <div class="onboarding-card">
-        ${swanBubbleHTML('평소 묵상 습관이 있으신가요?')}
+        ${swanBubbleHTML('평소 묵상 습관이 어떻게 되시나요?')}
         <div class="onboarding-cuti-cards" role="radiogroup" aria-label="큐티 수준">
           ${CUTI_LEVELS.map(lv => `
             <button type="button" class="onboarding-cuti-card${_state.draft.devotionalLevel === lv.id ? ' selected' : ''}"
@@ -1110,7 +1110,7 @@ function renderFinishCard(body) {
           </div>
         </div>
 
-        <p class="onboarding-finish-cta">미션은 사용하시다 보면 자연스럽게 하나씩 열려요. 부담 없이 둘러보세요.</p>
+        <p class="onboarding-finish-cta">미션은 사용하시다 보면 자연스럽게 하나씩 열려요.<br>부담 없이 둘러보세요.</p>
 
         <div class="onboarding-finish-freemium">
           <span class="onboarding-finish-freemium-icon">🌱</span>
