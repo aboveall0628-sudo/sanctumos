@@ -31,6 +31,7 @@ import {
     saveSurveyExtract,
 } from '../data/feedbacksRepo.js';
 import { THINKING_COPY, typeText, shouldReduceMotion } from './aiThinking.js';
+import { FAQ_CATALOG, FAQ_FALLBACK_HINT_CHAT, findFaqById } from '../config/faqCatalog.js';
 
 // ─── 카피 (Rule 9 §10-1~4 디폴트, 2026-05-15) ─────────────────
 const COPY = {
@@ -172,11 +173,14 @@ async function startSession({ kind = 'feedback' } = {}) {
     }
 
     // 2) 모달 DOM
-    const { overlay, listEl, inputEl, sendBtn, closeBtn, titleEl } = renderModal(copy.title);
+    const { overlay, listEl, inputEl, sendBtn, closeBtn, titleEl } = renderModal(copy.title, kind);
     document.body.appendChild(overlay);
     if (window.lucide?.createIcons) window.lucide.createIcons({ icons: window.lucide.icons });
 
     if (openingTurn) appendTurnDOM(listEl, openingTurn);
+
+    // (v73) feedback 모드 — FAQ chip row 클릭 핸들러 바인딩 (preSurvey 시 chip row 자체 X)
+    if (kind === 'feedback') bindFaqChips(overlay, listEl);
 
     _session = {
         feedbackId,
@@ -233,10 +237,12 @@ function escapeHtml(s) {
     }[ch]));
 }
 
-function renderModal(title = 'SWAN') {
+function renderModal(title = 'SWAN', kind = 'feedback') {
     const overlay = document.createElement('div');
     overlay.id = 'swan-feedback-overlay';
     overlay.className = 'swan-overlay';
+    // (v73) feedback 모드에서만 FAQ chip row 노출 — preSurvey 흐름 방해 X.
+    const faqBarHtml = kind === 'feedback' ? renderFaqBarHtml() : '';
     overlay.innerHTML = `
         <div class="swan-modal" role="dialog" aria-labelledby="swan-title">
             <header class="swan-header">
@@ -248,6 +254,7 @@ function renderModal(title = 'SWAN') {
                     <i data-lucide="x"></i>
                 </button>
             </header>
+            ${faqBarHtml}
             <ul class="swan-turns" id="swan-turns" aria-live="polite"></ul>
             <footer class="swan-footer">
                 <textarea
@@ -267,7 +274,44 @@ function renderModal(title = 'SWAN') {
         sendBtn:  overlay.querySelector('#swan-send-btn'),
         closeBtn: overlay.querySelector('#swan-close-btn'),
         titleEl:  overlay.querySelector('#swan-title'),
+        faqBarEl: overlay.querySelector('#swan-faq-bar'),
     };
+}
+
+/**
+ * (2026-05-18 v73) SWAN 채팅 안 FAQ chip row — 정적 카탈로그 + 클릭 시 두 turn 자연 삽입.
+ *   AI 호출 X. 답에 없는 자리는 자유 채팅으로 그대로 흘러가 운영자에게 전달.
+ */
+function renderFaqBarHtml() {
+    const chips = FAQ_CATALOG.map(f =>
+        `<button type="button" class="swan-faq-chip" data-faq-id="${escapeHtml(f.id)}">${escapeHtml(f.question)}</button>`
+    ).join('');
+    return `
+        <div class="swan-faq-bar" id="swan-faq-bar">
+            <div class="swan-faq-label">자주 묻는 질문</div>
+            <div class="swan-faq-chips">${chips}</div>
+            <p class="swan-faq-hint">${escapeHtml(FAQ_FALLBACK_HINT_CHAT)}</p>
+        </div>
+    `;
+}
+
+function bindFaqChips(overlay, listEl) {
+    overlay.querySelectorAll('.swan-faq-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+            const faqId = chip.dataset.faqId;
+            const faq = findFaqById(faqId);
+            if (!faq) return;
+            // 사용자 turn + SWAN 답 turn (DOM 표시만, Firestore 저장 X — 단순 도움말 자리)
+            const now = new Date().toISOString();
+            appendTurnDOM(listEl, { role: 'user', text: faq.question, at: now });
+            appendTurnDOM(listEl, { role: 'swan', text: faq.answer, at: now });
+            // _session.turns 에도 push — AI 호출 시 컨텍스트로 자연 전달
+            if (_session) {
+                _session.turns.push({ role: 'user', text: faq.question, at: now });
+                _session.turns.push({ role: 'swan', text: faq.answer, at: now });
+            }
+        });
+    });
 }
 
 function appendTurnDOM(listEl, turn) {

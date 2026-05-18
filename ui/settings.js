@@ -43,6 +43,8 @@ import { getNotificationPermission, requestNotificationPermission, scheduleDaily
 import { BIBLE_VERSIONS, DEFAULT_BIBLE_VERSION } from '../config/onboardingDefaults.js';
 import { isSwanAdmin } from '../config/adminConfig.js';
 import { ensureSelfCard, saveSelfCard } from '../data/personRepo.js';
+// (2026-05-18 v73) FAQ 카탈로그 — SWAN 채팅·설정 안내 두 자리 공통 출처
+import { FAQ_CATALOG, FAQ_FALLBACK_HINT_SETTINGS } from '../config/faqCatalog.js';
 
 let _userId = null;
 let _userEmail = null;
@@ -393,6 +395,35 @@ function injectExtraSections() {
         </button>
     `;
     appendToGroup('settings-group-body-modes', onboardingReplayCard, container);
+
+    // (2026-05-18 v73) 자주 묻는 질문 (FAQ) 카드 — 같은 카탈로그가 SWAN 채팅 안에도 노출.
+    //   아코디언 형식 — 질문 클릭 시 답 펼침. 답에 없는 질문은 우하단 풍선(SWAN) 으로.
+    const faqCard = document.createElement('div');
+    faqCard.id = 'settings-faq-card';
+    faqCard.className = 'card-section';
+    faqCard.innerHTML = `
+        <h3 class="section-title"><i class="section-icon" data-lucide="help-circle"></i> 자주 묻는 질문</h3>
+        <p class="section-desc">
+            베타 사용자들이 자주 묻는 질문을 한 자리에 모았어요. 질문을 누르시면 답이 펼쳐져요.
+        </p>
+        <ul class="settings-faq-list" id="settings-faq-list">
+            ${FAQ_CATALOG.map(f => `
+                <li class="settings-faq-item">
+                    <button type="button" class="settings-faq-question" data-faq-id="${escapeHtmlInline(f.id)}" aria-expanded="false">
+                        <span class="settings-faq-q-text">${escapeHtmlInline(f.question)}</span>
+                        <i class="settings-faq-chevron" data-lucide="chevron-down"></i>
+                    </button>
+                    <div class="settings-faq-answer" data-faq-answer-for="${escapeHtmlInline(f.id)}" hidden>
+                        ${escapeHtmlInline(f.answer)}
+                    </div>
+                </li>
+            `).join('')}
+        </ul>
+        <p class="section-desc-foot" style="margin-top:12px;">
+            ${escapeHtmlInline(FAQ_FALLBACK_HINT_SETTINGS)}
+        </p>
+    `;
+    appendToGroup('settings-group-body-modes', faqCard, container);
 
     // (2026-05-13 HC#1 N7) 매일 묵상 알람 카드 — 1개 시각, 인앱 종 빨간 점.
     // spiritualLock 도큐먼트의 dailyAlarmEnabled + dailyAlarmTime 사용.
@@ -889,6 +920,21 @@ async function bindEconomyThresholdSettings() {
 }
 
 function bindEvents() {
+    // (2026-05-18 v73) FAQ 아코디언 — 질문 클릭 시 답 토글 (한 번에 여러 펼침 OK)
+    document.querySelectorAll('.settings-faq-question').forEach((btn) => {
+        if (btn.dataset.bound === '1') return;
+        btn.dataset.bound = '1';
+        btn.addEventListener('click', () => {
+            const faqId = btn.dataset.faqId;
+            const answer = document.querySelector(`.settings-faq-answer[data-faq-answer-for="${faqId}"]`);
+            if (!answer) return;
+            const isOpen = !answer.hidden;
+            answer.hidden = isOpen;
+            btn.setAttribute('aria-expanded', String(!isOpen));
+            btn.classList.toggle('is-open', !isOpen);
+        });
+    });
+
     // (B-4 본인 프로필 트랙 2026-05-13) "내 프로필 열기" 버튼 — view-self-profile 로 전환
     const btnOpenSelf = document.getElementById('btn-open-self-profile');
     if (btnOpenSelf) {
