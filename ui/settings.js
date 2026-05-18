@@ -746,10 +746,8 @@ function injectExtraSections() {
             <p class="section-desc">베타 사용자 풍선·SWAN 사전·사후 설문 결과를 한 자리에서 봐요.</p>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
                 <button type="button" id="settings-open-feedback-admin" class="primary-btn">피드백 관리 열기</button>
-                <button type="button" id="settings-start-pre-survey" class="secondary-btn">사전 설문 미리 해보기 (채팅 v1)</button>
-                <button type="button" id="settings-start-pre-survey-form" class="secondary-btn">사전 설문 폼 v2 시안</button>
-                <button type="button" id="settings-start-onboarding-presurvey" class="secondary-btn">온보딩 → 사전 설문 한 흐름 테스트</button>
-                <button type="button" id="settings-test-full-signup-flow" class="primary-btn">🎯 전체 회원가입 루트 테스트 (동의 → 온보딩 → 사전 설문)</button>
+                <button type="button" id="settings-start-pre-survey-form" class="secondary-btn">사전 설문 폼 단독 테스트</button>
+                <button type="button" id="settings-test-full-signup-flow" class="secondary-btn">전체 가입 흐름 테스트 (동의·온보딩·설문)</button>
             </div>
         `;
         appendToGroup('settings-group-body-admin', adminCard, container);
@@ -764,31 +762,9 @@ function injectExtraSections() {
                 window.__sanctumSwitchView('feedback-admin');
             }
         });
-        adminCard.querySelector('#settings-start-pre-survey')?.addEventListener('click', () => {
-            if (typeof window.__sanctumOpenPreSurvey === 'function') {
-                window.__sanctumOpenPreSurvey();
-            }
-        });
         adminCard.querySelector('#settings-start-pre-survey-form')?.addEventListener('click', () => {
             if (typeof window.__sanctumOpenPreSurveyForm === 'function') {
                 window.__sanctumOpenPreSurveyForm();
-            }
-        });
-        // (2026-05-18) 온보딩 → 사전 설문 한 흐름 테스트 — 사용자 명시 "폰트 후 바로 설문"
-        //   사전 설문 진입은 onboarding step 9(폰트) [다음] 안에서 자연 끼움 → 별도 hook 불필요
-        adminCard.querySelector('#settings-start-onboarding-presurvey')?.addEventListener('click', async () => {
-            if (!_userId || _userId === 'anonymous') return;
-            const dek = getDEK();
-            if (!dek) return;
-            try {
-                const { showOnboardingModal } = await import('./onboarding.js');
-                await showOnboardingModal({
-                    userId: _userId,
-                    dek,
-                    onComplete: () => {},
-                });
-            } catch (e) {
-                console.warn('[settings] onboarding → presurvey 흐름 진입 실패:', e);
             }
         });
 
