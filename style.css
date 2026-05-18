@@ -739,6 +739,7 @@ button .btn-icon { vertical-align: text-bottom; }
 html[data-mode="settings"] .sidebar-profile,
 html[data-mode="settings"] .sidebar-current-date,
 html[data-mode="settings"] .slim-mode-badge,
+html[data-mode="settings"] .admin-quick-tools,
 html[data-mode="settings"] .sidebar-nav,
 html[data-mode="settings"] .sidebar-bottom {
     display: none;
@@ -9975,6 +9976,31 @@ html[data-onboarding-large-font="true"] .onboarding-modal .onboarding-btn {
     padding-bottom: 12px;
 }
 html[data-onboarding-large-font="true"] .onboarding-modal .onboarding-label { font-size: 13.5px; }
+
+/* (2026-05-18 후속) 운영자 빠른 도구 — 사이드바 상단. isSwanAdmin 일 때만 보임 */
+.admin-quick-tools {
+    display: flex;
+    gap: 6px;
+    padding: 8px 12px 4px;
+    flex-wrap: wrap;
+}
+.admin-quick-tools.hidden { display: none; }
+.admin-quick-btn {
+    flex: 0 1 auto;
+    border: 1px solid var(--line, #e4e0d8);
+    border-radius: 8px;
+    background: var(--surface, #fff);
+    padding: 6px 10px;
+    font-size: 12px;
+    color: var(--ink, #2a2a2a);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s, transform 0.1s;
+}
+.admin-quick-btn:hover {
+    border-color: var(--accent, #7c8b6f);
+    background: rgba(124, 139, 111, 0.08);
+}
+.admin-quick-btn:active { transform: scale(0.96); }
 
 /* (2026-05-18 후속) step 8 책 picker — 추천 5권 ↔ 66권 전체 토글 */
 .onboarding-book-picker-head-row {

@@ -25,7 +25,7 @@ import { applyFontSizeToCSS as applyScriptureFontSize } from './scriptureSetting
 import { applySystemFontFromStorage } from '../config/systemFont.js';
 import { applyAccentFromStorage } from '../config/accentColor.js';
 // 베타 슬림 v1 (2026-05-18): tier 분기 — ?tier=slim 또는 설정 토글로 6 화면만 노출
-import { applyTierFromURL, applyTierFromStorage } from '../config/featureFlags.js';
+import { applyTierFromURL, applyTierFromStorage, getTier, setTier } from '../config/featureFlags.js';
 import { initTodayView, refreshTodayView } from './todayView.js';
 import { initTimeline, refreshTimeline, scrollTimelineToNow } from './timeline.js';
 // 워크플로우 트랙 STEP 2 (2026-05-13) — 등산로 카드
@@ -551,6 +551,8 @@ async function onVaultUnlocked(dek) {
         if (adminBtn) adminBtn.classList.remove('hidden');
         // (2026-05-18) 미확인 피드백 뱃지 실시간 갱신 — 사용자 풍선 보내면 즉시 빨간 숫자.
         try { startFeedbackUnreadBadgeWatch(currentUserId); } catch (e) { console.warn('[feedbackBadge] start failed:', e); }
+        // (2026-05-18 후속) 운영자 빠른 도구 패널 — 슬림이든 메인이든 항상 보임
+        mountAdminQuickTools(currentUserId);
     }
     // 설정 페이지·외부 진입에서 사전 설문 시작할 수 있도록 전역 노출.
     window.__sanctumOpenPreSurvey = openSwanPreSurvey;
@@ -657,6 +659,50 @@ async function refreshTodayEconomyCard() {
     } catch (e) {
         console.warn('[economy] today card refresh failed:', e);
     }
+}
+
+// (2026-05-18 후속) 운영자 빠른 도구 — 슬림이든 메인이든 사이드바 상단에 항상 보임.
+//   isSwanAdmin 일 때만 #admin-quick-tools hidden 제거 + 3 핸들러 자리잡기.
+function mountAdminQuickTools(userId) {
+    const root = document.getElementById('admin-quick-tools');
+    if (!root) return;
+    root.classList.remove('hidden');
+
+    const tierLabel = document.getElementById('admin-toggle-tier-label');
+    const updateTierLabel = () => {
+        if (!tierLabel) return;
+        tierLabel.textContent = getTier() === 'slim' ? '🌿 메인 가기' : '🌱 슬림 가기';
+    };
+    updateTierLabel();
+
+    document.getElementById('admin-toggle-tier')?.addEventListener('click', () => {
+        const next = getTier() === 'slim' ? 'full' : 'slim';
+        setTier(next);
+        updateTierLabel();
+    });
+
+    document.getElementById('admin-replay-onboarding')?.addEventListener('click', async () => {
+        const dek = getDEK();
+        if (!dek) {
+            alert('잠금이 해제되어야 온보딩을 다시 보실 수 있어요.');
+            return;
+        }
+        try {
+            const { showOnboardingModal } = await import('./onboarding.js');
+            await showOnboardingModal({ userId, dek, onComplete: () => {} });
+        } catch (e) {
+            console.error('[admin-quick-tools] onboarding replay failed:', e);
+            alert('온보딩 모달을 여는 중 오류가 났어요: ' + (e?.message || e));
+        }
+    });
+
+    document.getElementById('admin-open-settings')?.addEventListener('click', () => {
+        try {
+            switchView('settings');
+        } catch (e) {
+            console.warn('[admin-quick-tools] open settings failed:', e);
+        }
+    });
 }
 
 // ─── 네비게이션 ───
