@@ -458,7 +458,7 @@ async function onVaultUnlocked(dek) {
     initTodayView({ userId: currentUserId, date: currentDate });
     await refreshTodayView({ userId: currentUserId, date: currentDate });
     // 2026-05-13 재기획: view-today 위 "오늘의 시작" 영역(시간대 인사 + 핀 원칙 + 어제 질문 + 미열람 Q&A)
-    renderTodayStartIntoView(currentUserId).catch(e =>
+    renderTodayStartIntoView(currentUserId, currentDate).catch(e =>
         console.warn('today-start render failed:', e)
     );
 
@@ -565,7 +565,7 @@ async function onVaultUnlocked(dek) {
                 onComplete: () => {
                     switchView('today');
                     // 어체 따라 시간대 인사 등 갱신 위해 오늘의 시작 영역 다시 렌더
-                    renderTodayStartIntoView(currentUserId).catch(() => {});
+                    renderTodayStartIntoView(currentUserId, currentDate).catch(() => {});
                 }
             });
         }
@@ -892,7 +892,7 @@ function switchView(viewId) {
     if (viewId === 'today') {
         requestAnimationFrame(() => scrollTimelineToNow());
         // 2026-05-13 재기획: '오늘의 시작' 영역 (시간대 인사 + 핀 원칙 + 어제 질문) 갱신
-        renderTodayStartIntoView(currentUserId).catch(() => {});
+        renderTodayStartIntoView(currentUserId, currentDate).catch(() => {});
         // (S-C / S-E / S-E6) 미션 게이트 UI 한 번에 갱신 — 사이드바 회색 톤·진행도·추천 카드.
         refreshMissionGateUI(
             getDEK(),

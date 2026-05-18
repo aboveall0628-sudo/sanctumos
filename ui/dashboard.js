@@ -26,7 +26,7 @@ import { getAllPersons } from '../data/personRepo.js';
 import { getAllOrganizations } from '../data/orgRepo.js';
 import { computeAllPersonStats, computeAllOrgStats, formatMinutes, ratingDotsHtml } from '../data/cardStats.js';
 import { readDocument } from '../crypto/cryptoService.js';
-import { getDayReport } from '../reports/dayReportRepo.js';
+import { getDayReport, listDayReports } from '../reports/dayReportRepo.js';
 import { getDashboardWeeklyBrief } from './aiClient.js';
 import { getDEK } from './lockScreen.js';
 // Phase E-8/D: 통독 진도 = 활성 plan + anchor 기반 자동 계산. Firestore bibleProgress 의존 제거.
@@ -109,36 +109,87 @@ export async function renderDashboardView(userId) {
  * (2026-05-13) view-today 위 "오늘의 시작" 영역을 위한 진입.
  * 대시보드와 분리 — view-today 진입 시 호출. 같은 #today-start-content id 재사용.
  */
-export async function renderTodayStartIntoView(userId) {
+export async function renderTodayStartIntoView(userId, currentDate) {
     window.__sanctumUserId = userId;
     const dek = getDEK();
     if (!dek) return;
+
+    // (2026-05-16 fix) currentDate 기반 — 사용자가 캘린더에서 다른 날짜 옮기면 자연 갱신.
+    //   currentDate 안 주면 시스템 오늘 폴백.
     const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    const yesterday = new Date();
+    const baseDate = currentDate
+        ? new Date(currentDate + 'T00:00:00')
+        : new Date();
+    const yesterday = new Date(baseDate);
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayStr = fmt(yesterday);
+
     const [pinned, yesterdayReport] = await Promise.all([
         getPinnedPrinciple(dek, userId).catch(() => null),
         getDayReport(dek, userId, yesterdayStr).catch(() => null),
     ]);
+
+    // (2026-05-16 fix) 전날 리포트 없으면 — 그 이전 가장 최근 리포트로 fallback.
+    //   사용자 명시: "마지막 날짜에 묵상에 가져간 질문에 대해서". baseDate 보다 전 자리 찾기.
+    let questionsSource = yesterdayReport;
+    let sourceDate = yesterdayStr;
+    if (!yesterdayReport || !(yesterdayReport.questionsForMeditation || []).length) {
+        try {
+            const recents = await listDayReports(dek, userId, 30);
+            const baseStr = fmt(baseDate);
+            const candidate = recents.find(r =>
+                r.startDate && r.startDate < baseStr
+                && (r.questionsForMeditation || []).length > 0
+            );
+            if (candidate) {
+                questionsSource = candidate;
+                sourceDate = candidate.startDate;
+            }
+        } catch (e) {
+            console.warn('[yesterdayQuestions] fallback search failed:', e?.message || e);
+        }
+    }
+
     renderTodayStart(pinned, yesterdayReport);
     // (2026-05-16) 어제 묵상이 남긴 질문 — 말씀 자리 직전 큰 카드. 사용자가 자연 흐름으로 회개·감사 기도 → 본문 이어가도록.
-    renderYesterdayQuestionsCard(yesterdayReport);
+    renderYesterdayQuestionsCard(questionsSource, sourceDate, baseDate);
     if (typeof window.__sanctumRenderLucide === 'function') window.__sanctumRenderLucide();
 }
 
 // ─── (2026-05-16) 어제 묵상이 남긴 질문 카드 ──────────────────
-function renderYesterdayQuestionsCard(yesterdayReport) {
+function renderYesterdayQuestionsCard(report, sourceDate, baseDate) {
     const section = document.getElementById('section-yesterday-questions');
     const listEl = document.getElementById('yesterday-questions-list');
+    const titleEl = section?.querySelector('.section-title');
     if (!section || !listEl) return;
 
-    const questions = (yesterdayReport?.questionsForMeditation || []).filter(q => q && q.trim());
+    const questions = (report?.questionsForMeditation || []).filter(q => q && q.trim());
     if (questions.length === 0) {
         section.classList.add('hidden');
         listEl.innerHTML = '';
         return;
     }
+
+    // (2026-05-16 fix) 라벨 자연 자리잡기 — baseDate-1 자리면 "어제", 더 이전이면 날짜 명시.
+    const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const base = baseDate instanceof Date ? baseDate : new Date();
+    const yest = new Date(base);
+    yest.setDate(yest.getDate() - 1);
+    const yesterdayStr = fmt(yest);
+
+    let label = '어제 묵상이 남긴 질문';
+    if (sourceDate && sourceDate !== yesterdayStr) {
+        const d = new Date(sourceDate + 'T00:00:00');
+        if (!isNaN(d.getTime())) {
+            const m = d.getMonth() + 1;
+            const dd = d.getDate();
+            label = `지난 묵상이 남긴 질문 · ${m}월 ${dd}일`;
+        }
+    }
+    if (titleEl) {
+        titleEl.innerHTML = `<i class="section-icon" data-lucide="sparkles"></i> ${escapeHtml(label)}`;
+    }
+
     section.classList.remove('hidden');
     listEl.innerHTML = questions.map(q =>
         `<li class="yesterday-question-item">${escapeHtml(q)}</li>`
