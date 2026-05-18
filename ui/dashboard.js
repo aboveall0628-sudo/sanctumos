@@ -20,7 +20,7 @@
  *   - 비교의 함정 회피 — "더 / 덜" 같은 표현은 데이터가 있을 때만 신중히.
  */
 
-import { db, collection, query, where, getDocs } from '../data/firebase.js';
+import { db, collection, query, where, getDocs, doc, getDoc, setDoc, serverTimestamp } from '../data/firebase.js';
 import { getDotsByDateRange, computeDotStats } from '../data/dotsRepo.js';
 import { getAllPersons } from '../data/personRepo.js';
 import { getAllOrganizations } from '../data/orgRepo.js';
@@ -210,6 +210,51 @@ function renderYesterdayQuestionsCard(report, sourceDate, baseDate) {
     listEl.innerHTML = questions.map(q =>
         `<li class="yesterday-question-item">${escapeHtml(q)}</li>`
     ).join('');
+
+    // (2026-05-16) 묵상 전 감사·회개 기도시간 체크박스 — 날짜별 자연 저장/복원.
+    bindPrayerCheckbox(base);
+}
+
+// ─── (2026-05-16) 묵상 전 기도시간 체크인 — 날짜별 plain Firestore 자리 ───
+function _fmtDate(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+async function bindPrayerCheckbox(baseDate) {
+    const checkbox = document.getElementById('yesterday-prayer-checkbox');
+    if (!checkbox) return;
+    const userId = window.__sanctumUserId;
+    if (!userId) return;
+    const dateStr = _fmtDate(baseDate instanceof Date ? baseDate : new Date());
+
+    // 복원 — 기존 doc 있으면 체크 상태 복원
+    try {
+        const snap = await getDoc(doc(db, 'prayerCheckIns', `pc_${userId}_${dateStr}`));
+        checkbox.checked = snap.exists() ? !!snap.data().checked : false;
+    } catch (e) {
+        console.warn('[prayerCheck] load failed:', e?.message || e);
+        checkbox.checked = false;
+    }
+
+    // 변경 핸들러 — 매번 다시 자리잡힘 안전하게 cloneNode 후 새 listener
+    const fresh = checkbox.cloneNode(true);
+    fresh.checked = checkbox.checked;
+    checkbox.parentNode.replaceChild(fresh, checkbox);
+    fresh.addEventListener('change', async () => {
+        try {
+            await setDoc(doc(db, 'prayerCheckIns', `pc_${userId}_${dateStr}`), {
+                id:        `pc_${userId}_${dateStr}`,
+                userId,
+                date:      dateStr,
+                checked:   fresh.checked,
+                updatedAt: serverTimestamp(),
+            }, { merge: true });
+        } catch (e) {
+            console.error('[prayerCheck] save failed:', e?.message || e);
+            // 실패 시 토글 복원
+            fresh.checked = !fresh.checked;
+        }
+    });
 }
 
 function renderLocked() {

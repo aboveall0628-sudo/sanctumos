@@ -10080,3 +10080,32 @@ html[data-accent="beige"] .onboarding-swan-bubble {
     border: 1px solid var(--color-border, var(--border));
 }
 
+/* 묵상 전 감사·회개 기도시간 체크박스 */
+.yesterday-prayer-check {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: var(--sp-3, 12px);
+    padding: 10px 14px;
+    background: var(--color-surface, var(--bg-card));
+    border-radius: var(--radius-md, 10px);
+    border: 1px solid var(--color-border, var(--border));
+    cursor: pointer;
+    transition: background var(--motion-fast, 150ms) var(--ease-out);
+    font-size: 14px;
+    color: var(--color-ink-primary, var(--ink-primary));
+}
+.yesterday-prayer-check:hover {
+    background: var(--accent-soft, var(--brand-soft));
+}
+.yesterday-prayer-check input[type="checkbox"] {
+    width: 17px;
+    height: 17px;
+    accent-color: var(--accent, var(--brand-primary));
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.yesterday-prayer-check span {
+    flex: 1;
+}
+
