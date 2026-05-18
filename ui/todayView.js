@@ -1179,6 +1179,28 @@ async function saveMeditationDoc() {
             } catch (e) {
                 console.warn('[saveMeditationDoc] mission trigger failed:', e?.message || e);
             }
+
+            // (2026-05-18 후속) 슬림 베타 자리 정합 — 묵상 저장 시 kind='meditation' 도트 1건 자동 자리.
+            //   주간 리포트 통계가 도트 기반이라 슬림 사용자도 *진짜 리포트* 받을 수 있게.
+            //   같은 날 묵상 도트는 *덮어쓰기* — id 고정 'dot_meditation_{userId}_{date}'.
+            try {
+                const { saveDot } = await import('../data/dotsRepo.js');
+                const dotId = `dot_meditation_${_userId}_${_date}`;
+                await saveDot(dek, {
+                    id: dotId,
+                    userId: _userId,
+                    date: _date,
+                    kind: 'meditation',
+                    plannedTask: '오늘의 묵상',
+                    actualTask: '묵상 노트 작성',
+                    executed: 'done',
+                    executionSatisfaction: 4,
+                    outcomeSatisfaction: 4,
+                    reason: (sensitive.content || '').slice(0, 80),
+                });
+            } catch (e) {
+                console.warn('[saveMeditationDoc] auto-dot failed:', e?.message || e);
+            }
         }
 
         const ok = '🔐 안전하게 보관됐어요';
