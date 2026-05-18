@@ -9260,6 +9260,48 @@ button.mission-progress-block:hover {
     color: var(--text-secondary);
     line-height: 1.6;
 }
+
+/* (v75 2026-05-18) 설정 [안내] 추천 링크 카드 톤 — selfProfile 카드와 일관 */
+.settings-referral-row {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    margin: 8px 0 12px;
+}
+.settings-referral-url {
+    flex: 1;
+    padding: 8px 10px;
+    font-size: 13px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--bg);
+    color: var(--text-primary);
+    font-family: inherit;
+    min-width: 0;
+}
+.settings-referral-copy {
+    padding: 8px 14px;
+    background: var(--accent);
+    color: var(--surface-card, #fff);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity var(--ease);
+}
+.settings-referral-copy:hover { opacity: 0.9; }
+.settings-referral-count {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+.settings-referral-count strong {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
 .swan-title {
     display: flex;
     align-items: center;

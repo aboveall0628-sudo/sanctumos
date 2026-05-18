@@ -26,6 +26,7 @@ import { applySystemFontFromStorage } from '../config/systemFont.js';
 import { applyAccentFromStorage } from '../config/accentColor.js';
 // 베타 슬림 v1 (2026-05-18): tier 분기 — ?tier=slim 또는 설정 토글로 6 화면만 노출
 import { applyTierFromURL, applyTierFromStorage, getTier, setTier } from '../config/featureFlags.js';
+import { captureRefFromUrl } from '../data/referralRepo.js';
 import { initTodayView, refreshTodayView } from './todayView.js';
 import { initTimeline, refreshTimeline, scrollTimelineToNow } from './timeline.js';
 // 워크플로우 트랙 STEP 2 (2026-05-13) — 등산로 카드
@@ -353,6 +354,9 @@ async function init() {
     // (베타 슬림 v1 2026-05-18) tier — URL ?tier=slim 우선, 없으면 localStorage 값으로 <html data-tier> 적용
     applyTierFromURL();
     applyTierFromStorage();
+    // (추천 링크 회로 v75 2026-05-18) URL ?ref=swan-3a9k2 → sessionStorage 박힘.
+    //   가입 흐름 끝까지 살아남아 ensureSelfCard 에서 referredBy 박힘 + 그 코드 카운트 1 증가.
+    captureRefFromUrl();
     setupNavigation();
     renderLucideIcons();
 

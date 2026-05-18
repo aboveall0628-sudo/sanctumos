@@ -100,8 +100,48 @@ function pageTemplate(d) {
         <div class="sf-cards">
             ${identityCardHtml(d)}
             ${meditationCardHtml(d)}
+            ${referralCardHtml(d)}
         </div>
     `;
+}
+
+/**
+ * (2026-05-18 v75) 내 추천 링크 카드 — 친구 초대 자리.
+ *   referralCode 가 박힌 시점부터 노출. 같은 카드가 설정 [안내] 카테고리에도 자리잡힘.
+ */
+function referralCardHtml(d) {
+    const code = d.referralCode;
+    if (!code) {
+        // 코드 아직 생성 안 됨(레거시 또는 일시 실패) — 카드 자체 숨김
+        return '';
+    }
+    const url = referralUrl(code);
+    const count = Number(d.referralCount || 0);
+    return `
+        <section class="sf-card">
+            <h2 class="sf-card-title">
+                <i class="sf-card-icon" data-lucide="link"></i> 내 추천 링크
+            </h2>
+            <p class="sf-referral-desc">
+                친구나 가족과 함께하고 싶을 때 이 링크를 보내주세요. 함께 베타에 합류하시면 ${escapeHtml(d.nicknames?.[0] || d.name || '나')}님 페이지에 "${count}명 함께함" 자리에 +1 돼요.
+            </p>
+            <div class="sf-referral-row">
+                <input type="text" class="sf-referral-url" id="sf-referral-url" value="${escapeAttr(url)}" readonly>
+                <button type="button" class="sf-referral-copy" id="sf-referral-copy">복사</button>
+            </div>
+            <p class="sf-referral-count">
+                <strong>${count}명</strong> 함께하셨어요
+            </p>
+        </section>
+    `;
+}
+
+function referralUrl(code) {
+    // 도메인은 현재 host. dev/메인 자연 적응. 운영 도메인 박히면 자동 sanctumos.kr.
+    const origin = (typeof window !== 'undefined' && window.location)
+        ? `${window.location.origin}${window.location.pathname.replace(/index\.html$/, '')}`
+        : '/';
+    return `${origin}?ref=${encodeURIComponent(code)}`;
 }
 
 function identityCardHtml(d) {
@@ -184,6 +224,25 @@ function bindEvents(container) {
         const editBtn = row.querySelector('[data-edit]');
         if (editBtn) editBtn.addEventListener('click', () => enterEditMode(row));
     });
+
+    // (v75) 내 추천 링크 — 복사 버튼
+    const copyBtn = container.querySelector('#sf-referral-copy');
+    const urlInput = container.querySelector('#sf-referral-url');
+    if (copyBtn && urlInput) {
+        copyBtn.addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(urlInput.value);
+                copyBtn.textContent = '복사됨';
+                setTimeout(() => { copyBtn.textContent = '복사'; }, 1500);
+            } catch (e) {
+                // 폴백 — 인라인 select
+                urlInput.select();
+                document.execCommand('copy');
+                copyBtn.textContent = '복사됨';
+                setTimeout(() => { copyBtn.textContent = '복사'; }, 1500);
+            }
+        });
+    }
 }
 
 function enterEditMode(row) {
@@ -500,6 +559,53 @@ function injectStylesOnce() {
                 justify-self: end;
                 margin-top: 4px;
             }
+        }
+
+        /* (v75 2026-05-18) 내 추천 링크 카드 톤 */
+        .sf-referral-desc {
+            margin: 0 0 var(--sp-3);
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+        .sf-referral-row {
+            display: flex;
+            align-items: center;
+            gap: var(--sp-2);
+            margin: 0 0 var(--sp-3);
+        }
+        .sf-referral-url {
+            flex: 1;
+            padding: 8px 10px;
+            font-size: 13px;
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            background: var(--bg);
+            color: var(--text-primary);
+            font-family: inherit;
+            min-width: 0;
+        }
+        .sf-referral-copy {
+            padding: 8px 14px;
+            background: var(--accent);
+            color: var(--surface-card, #fff);
+            border: 1px solid var(--accent);
+            border-radius: var(--radius);
+            font-size: 13px;
+            font-family: inherit;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: opacity var(--ease);
+        }
+        .sf-referral-copy:hover { opacity: 0.9; }
+        .sf-referral-count {
+            margin: 0;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        .sf-referral-count strong {
+            color: var(--text-primary);
+            font-weight: 600;
         }
     `;
     document.head.appendChild(style);

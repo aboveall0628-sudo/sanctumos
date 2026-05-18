@@ -297,7 +297,15 @@ export const POLICY = {
             // (R1) 클리어한 히든 미션 ID 목록 — ['hm-01', 'hm-02', ...]
             //   다음 미션 발현 조건(prerequisiteHiddenMission) 빠른 평문 체크용.
             //   상세 응답(answers)·익명 토글·공개 동의는 암호화(hiddenMissionAnswers) 자리.
-            'hiddenMissionsCleared'
+            'hiddenMissionsCleared',
+            // ─── (2026-05-18 v75) 추천 링크 회로 3 자리 ───
+            //   1차 베타 v6: 14명 시작 + 추천 링크로 100명 도달.
+            //   referralCode 는 사용자가 공유하는 자리(URL 안), referredBy 는 가입 흐름 통계,
+            //   referralCount 는 자기 페이지 표시용. 모두 평문 — 가입 흐름 안에서만 사용.
+            //   상세: project_referral_link_track.md
+            'referralCode',      // 본인 추천 코드 (예: 'swan-3a9k2') — 첫 가입 시 자동 생성, 변경 X
+            'referredBy',        // 누구의 추천 코드로 가입했나 (URL ?ref). 없으면 null
+            'referralCount'      // 본인 코드로 가입한 사람 수 (referralCodes/{code}.count 거울)
         ],
         encrypted: [
             'name', 'nicknames', 'avatarUrl',

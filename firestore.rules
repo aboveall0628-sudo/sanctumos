@@ -63,6 +63,27 @@ service cloud.firestore {
     }
 
     // ─────────────────────────────────────────────────────────────
+    //  (2026-05-18 v75) referralCodes 컬렉션 — 1차 베타 추천 링크 회로
+    //
+    //  도큐먼트: { code, ownerUserId, count, createdAt }
+    //  - read: 누구나 — 가입 흐름 안 코드 유효성 확인 (URL ?ref 검증)
+    //  - create: 본인 uid 도큐먼트만. ownerUserId == auth.uid 강제.
+    //  - update: count 1 증가만 허용. 다른 필드 변경 X.
+    //
+    //  주의: 새 사용자가 가입 흐름 안에서 다른 사용자 코드 count 증가 시킴 → auth.uid != ownerUserId.
+    //    update 규칙은 ownerUserId 와 무관하게 count + 1 만 허용해서 자연 작동.
+    // ─────────────────────────────────────────────────────────────
+    match /referralCodes/{code} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && request.resource.data.ownerUserId == request.auth.uid
+        && request.resource.data.count == 0;
+      allow update: if request.auth != null
+        && request.resource.data.count == resource.data.count + 1
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['count']);
+    }
+
+    // ─────────────────────────────────────────────────────────────
     //  v2.1 — 루트 컬렉션 (도트, 묵상, 결단, 원칙, 목표, 리포트 등)
     //  요건: 본인 userId 필드를 가진 문서만 접근 가능.
     //

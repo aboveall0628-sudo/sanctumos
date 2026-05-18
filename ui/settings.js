@@ -95,6 +95,74 @@ export function renderSettingsView(userId, userEmail) {
     refreshHiddenMissionCard().catch(err => {
         console.warn('[settings] hidden mission card refresh failed:', err);
     });
+    // (v75) 내 추천 링크 카드 — selfCard.referralCode·referralCount 비동기 채움
+    refreshReferralCard().catch(err => {
+        console.warn('[settings] referral card refresh failed:', err);
+    });
+}
+
+/**
+ * (v75) 설정 화면 [안내] 카테고리 내 추천 링크 카드 비동기 갱신.
+ *   selfCard.referralCode 가 있으면 URL 박힘 + count 표시.
+ *   selfCard.referralCode 없으면 카드 hidden (이전 가입자 fallback — 정상 흐름에선 ensureSelfCard 가 자동 박힘).
+ */
+async function refreshReferralCard() {
+    const card = document.getElementById('settings-referral-card');
+    if (!card || !_userId) return;
+
+    const dek = getDEK();
+    if (!dek) {
+        card.hidden = true;
+        return;
+    }
+
+    try {
+        const self = await ensureSelfCard(dek, _userId);
+        const code = self?.referralCode;
+        if (!code) { card.hidden = true; return; }
+
+        // URL 박힘
+        const origin = (typeof window !== 'undefined' && window.location)
+            ? `${window.location.origin}${window.location.pathname.replace(/index\.html$/, '')}`
+            : '/';
+        const url = `${origin}?ref=${encodeURIComponent(code)}`;
+        const urlInput = document.getElementById('settings-referral-url');
+        if (urlInput) urlInput.value = url;
+
+        // 카운트 — selfCard.referralCount 거울(시점 캐시) + referralCodes 컬렉션 실시간 한번 더
+        let count = Number(self.referralCount || 0);
+        try {
+            const { getReferralCountByCode } = await import('../data/referralRepo.js');
+            const live = await getReferralCountByCode(code);
+            if (Number.isFinite(live)) count = live;
+        } catch (_) { /* 실패해도 캐시 그대로 */ }
+
+        const countEl = document.getElementById('settings-referral-count');
+        if (countEl) {
+            countEl.innerHTML = `<strong>${count}명</strong> 함께하셨어요`;
+        }
+
+        // 복사 버튼
+        const copyBtn = document.getElementById('settings-referral-copy');
+        if (copyBtn && !copyBtn.dataset.bound) {
+            copyBtn.dataset.bound = '1';
+            copyBtn.addEventListener('click', async () => {
+                try {
+                    await navigator.clipboard.writeText(url);
+                    copyBtn.textContent = '복사됨';
+                    setTimeout(() => { copyBtn.textContent = '복사'; }, 1500);
+                } catch (_) {
+                    urlInput?.select();
+                    try { document.execCommand('copy'); } catch (_) {}
+                    copyBtn.textContent = '복사됨';
+                    setTimeout(() => { copyBtn.textContent = '복사'; }, 1500);
+                }
+            });
+        }
+    } catch (e) {
+        console.warn('[settings] refreshReferralCard failed:', e);
+        card.hidden = true;
+    }
 }
 
 /**
@@ -425,6 +493,26 @@ function injectExtraSections() {
         </p>
     `;
     appendToGroup('settings-group-body-modes', faqCard, container);
+
+    // (2026-05-18 v75) 내 추천 링크 카드 — 본인 프로필에 있는 카드와 동일.
+    //   selfCard.referralCode 가 박힌 시점부터 노출. 두 자리에서 같은 회로 사용.
+    const referralCard = document.createElement('div');
+    referralCard.id = 'settings-referral-card';
+    referralCard.className = 'card-section';
+    referralCard.innerHTML = `
+        <h3 class="section-title"><i class="section-icon" data-lucide="link"></i> 내 추천 링크</h3>
+        <p class="section-desc">
+            친구나 가족과 함께하고 싶을 때 이 링크를 보내주세요. 함께 베타에 합류하시면 내 페이지 "함께함" 자리에 +1 돼요.
+        </p>
+        <div class="settings-referral-row">
+            <input type="text" id="settings-referral-url" class="settings-referral-url" readonly>
+            <button type="button" id="settings-referral-copy" class="settings-referral-copy">복사</button>
+        </div>
+        <p class="settings-referral-count" id="settings-referral-count">
+            <strong>0명</strong> 함께하셨어요
+        </p>
+    `;
+    appendToGroup('settings-group-body-modes', referralCard, container);
 
     // (2026-05-13 HC#1 N7) 매일 묵상 알람 카드 — 1개 시각, 인앱 종 빨간 점.
     // spiritualLock 도큐먼트의 dailyAlarmEnabled + dailyAlarmTime 사용.

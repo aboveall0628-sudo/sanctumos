@@ -17,6 +17,11 @@
 
 import { db, doc, deleteDoc, query, where, orderBy } from './firebase.js';
 import { saveRecord, getRecord, queryRecords, subPath, colRef } from './baseRepo.js';
+// (2026-05-18 v75) 추천 링크 회로 — 신규 가입 시 referralCode 자동 생성 + ?ref 박힘
+import {
+    generateUniqueReferralCode, registerReferralCode, getReferralCode,
+    incrementReferralCount, getCapturedRef, clearCapturedRef,
+} from './referralRepo.js';
 
 const SUB = 'persons';
 
@@ -246,11 +251,49 @@ export async function ensureSelfCard(dek, userId) {
         devotionalProgress: {},
         // (R18) 튜토리얼 상태 사적 — { [missionId]: { completedAt, signal, contextDotId? } }
         tutorialState: {},
+        // ─── (2026-05-18 v75) 추천 링크 회로 3 자리 — 신규 selfCard 한정 자동 처리 ───
+        referralCode: null,    // 아래에서 자동 생성
+        referredBy: null,      // ?ref 박힘 또는 null
+        referralCount: 0,
         // 메타
         lastSelfUpdatedAt: now,
         createdAt: now,
         updatedAt: now,
     };
+
+    // (v75) referralCode 자동 생성 + Firestore referralCodes 컬렉션 자리잡음
+    try {
+        const code = await generateUniqueReferralCode(data.nicknames?.[0] || data.name || '');
+        await registerReferralCode(code, userId);
+        data.referralCode = code;
+    } catch (e) {
+        console.warn('[ensureSelfCard] referralCode 생성 실패 (무시):', e);
+    }
+
+    // (v75) URL ?ref= 박힌 추천 코드 — 유효성 + 자기 자신 추천 막기 + count 1 증가
+    const capturedRef = getCapturedRef();
+    if (capturedRef) {
+        if (capturedRef === data.referralCode) {
+            // 자기 자신 추천 시도 — 무효 처리
+            console.warn('[ensureSelfCard] self-referral ignored:', capturedRef);
+            clearCapturedRef();
+        } else {
+            try {
+                const refData = await getReferralCode(capturedRef);
+                if (refData && refData.ownerUserId && refData.ownerUserId !== userId) {
+                    data.referredBy = capturedRef;
+                    await incrementReferralCount(capturedRef);
+                    clearCapturedRef();
+                } else {
+                    // 무효 코드 — 조용히 무시
+                    clearCapturedRef();
+                }
+            } catch (e) {
+                console.warn('[ensureSelfCard] referredBy 처리 실패 (무시):', e);
+            }
+        }
+    }
+
     await savePerson(dek, userId, data);
     return data;
 }
