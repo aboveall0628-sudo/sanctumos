@@ -164,6 +164,24 @@ function renderList(container) {
             ${renderTabButton('trash',      '휴지통',     counts.trash)}
         </nav>
 
+        <!-- (2026-05-18) 네이버 메일 톤 — 액션 줄 + 필터 줄 2단 -->
+        <div class="fbadmin-action-row">
+            <label class="fbadmin-select-all-box">
+                <input type="checkbox" id="fbadmin-select-all"
+                       ${allSelected ? 'checked' : ''}>
+            </label>
+            ${_state.kindTab === 'trash' ? `
+                <button type="button" class="fbadmin-action-btn" id="fbadmin-bulk-restore">↩ 복구</button>
+                <button type="button" class="fbadmin-action-btn fbadmin-action-danger" id="fbadmin-bulk-hard-delete">영구 삭제</button>
+            ` : `
+                <button type="button" class="fbadmin-action-btn" id="fbadmin-bulk-read">읽음</button>
+                <button type="button" class="fbadmin-action-btn" id="fbadmin-bulk-unread">안읽음</button>
+                <button type="button" class="fbadmin-action-btn fbadmin-action-danger" id="fbadmin-bulk-soft-delete">🗑 삭제</button>
+            `}
+            <button type="button" class="fbadmin-action-btn" id="fbadmin-bulk-copy">📋 복사</button>
+            <span class="fbadmin-action-count">${_state.selectedIds.size > 0 ? `${_state.selectedIds.size}건 선택` : ''}</span>
+        </div>
+
         <div class="fbadmin-toolbar">
             <input type="search" id="fbadmin-search" class="fbadmin-search"
                    placeholder="본문·요약·닉네임 검색…" value="${escapeHtml(_state.search)}">
@@ -190,15 +208,6 @@ function renderList(container) {
                 <option value="50"  ${_state.pageSize===50?'selected':''}>50줄 보기</option>
                 <option value="100" ${_state.pageSize===100?'selected':''}>100줄 보기</option>
             </select>
-            <label class="fbadmin-select-all-row">
-                <input type="checkbox" id="fbadmin-select-all"
-                       ${allSelected ? 'checked' : ''}
-                       ${(!allSelected && someSelected) ? 'data-indeterminate="1"' : ''}>
-                <span>전체 선택</span>
-            </label>
-            <button type="button" id="fbadmin-bulk-copy" class="fbadmin-btn">
-                📋 묶음 복사 (<span id="fbadmin-bulk-count">${_state.selectedIds.size}</span>)
-            </button>
         </div>
 
         <div class="fbadmin-list-meta">
@@ -266,7 +275,13 @@ function renderList(container) {
         }
         renderList(container);
     });
+    // (2026-05-18) 네이버 톤 묶음 액션 — 읽음 / 안읽음 / 삭제 / 복구 / 영구 삭제 / 복사
     container.querySelector('#fbadmin-bulk-copy')?.addEventListener('click', handleBulkCopy);
+    container.querySelector('#fbadmin-bulk-read')?.addEventListener('click', () => handleBulkStatus('read'));
+    container.querySelector('#fbadmin-bulk-unread')?.addEventListener('click', () => handleBulkStatus('unread'));
+    container.querySelector('#fbadmin-bulk-soft-delete')?.addEventListener('click', handleBulkSoftDelete);
+    container.querySelector('#fbadmin-bulk-restore')?.addEventListener('click', handleBulkRestore);
+    container.querySelector('#fbadmin-bulk-hard-delete')?.addEventListener('click', handleBulkHardDelete);
 
     // 리스트 행 클릭/체크박스
     container.querySelectorAll('.fbadmin-row').forEach(rowEl => {
@@ -613,6 +628,91 @@ function handleBulkCopy() {
     }
     const rows = _state.rows.filter(r => _state.selectedIds.has(r.id));
     copyMarkdown(rows);
+}
+
+// (2026-05-18) 네이버 톤 묶음 액션 — 읽음 / 안읽음 / 삭제 / 복구 / 영구 삭제
+function _selectedRows() {
+    return _state.rows.filter(r => _state.selectedIds.has(r.id));
+}
+
+async function handleBulkStatus(status) {
+    const rows = _selectedRows();
+    if (rows.length === 0) {
+        showToast('먼저 자료를 골라 주세요.');
+        return;
+    }
+    try {
+        const fn = status === 'read' ? markAsRead : markAsUnread;
+        await Promise.all(rows.map(r => fn(r.userId, r.id).catch(e => console.warn(e))));
+        rows.forEach(r => { r.status = status; });
+        showToast(`${rows.length}건 ${status === 'read' ? '읽음' : '안읽음'} 처리했어요.`);
+        _state.selectedIds.clear();
+        const container = document.getElementById('view-feedback-admin');
+        if (container) renderList(container);
+    } catch (e) {
+        console.error('[feedbackAdmin] bulk status failed:', e);
+        showToast('처리에 실패했어요.');
+    }
+}
+
+async function handleBulkSoftDelete() {
+    const rows = _selectedRows();
+    if (rows.length === 0) {
+        showToast('먼저 삭제할 자료를 골라 주세요.');
+        return;
+    }
+    if (!confirm(`${rows.length}건을 휴지통으로 옮길까요? (휴지통 탭에서 복구할 수 있어요)`)) return;
+    try {
+        await Promise.all(rows.map(r => softDeleteFeedback(r.userId, r.id).catch(e => console.warn(e))));
+        rows.forEach(r => { r.deletedAt = new Date(); });
+        showToast(`${rows.length}건 휴지통으로 옮겼어요.`);
+        _state.selectedIds.clear();
+        const container = document.getElementById('view-feedback-admin');
+        if (container) renderList(container);
+    } catch (e) {
+        console.error('[feedbackAdmin] bulk soft delete failed:', e);
+        showToast('삭제에 실패했어요.');
+    }
+}
+
+async function handleBulkRestore() {
+    const rows = _selectedRows();
+    if (rows.length === 0) {
+        showToast('먼저 복구할 자료를 골라 주세요.');
+        return;
+    }
+    try {
+        await Promise.all(rows.map(r => restoreFeedback(r.userId, r.id).catch(e => console.warn(e))));
+        rows.forEach(r => { r.deletedAt = null; });
+        showToast(`${rows.length}건 복구했어요.`);
+        _state.selectedIds.clear();
+        const container = document.getElementById('view-feedback-admin');
+        if (container) renderList(container);
+    } catch (e) {
+        console.error('[feedbackAdmin] bulk restore failed:', e);
+        showToast('복구에 실패했어요.');
+    }
+}
+
+async function handleBulkHardDelete() {
+    const rows = _selectedRows();
+    if (rows.length === 0) {
+        showToast('먼저 삭제할 자료를 골라 주세요.');
+        return;
+    }
+    if (!confirm(`${rows.length}건을 영구 삭제하시겠어요? 한 번 지우면 복구할 수 없어요.`)) return;
+    try {
+        await Promise.all(rows.map(r => deleteFeedback(r.userId, r.id).catch(e => console.warn(e))));
+        const removedIds = new Set(rows.map(r => r.id));
+        _state.rows = _state.rows.filter(r => !removedIds.has(r.id));
+        showToast(`${rows.length}건 영구 삭제했어요.`);
+        _state.selectedIds.clear();
+        const container = document.getElementById('view-feedback-admin');
+        if (container) renderList(container);
+    } catch (e) {
+        console.error('[feedbackAdmin] bulk hard delete failed:', e);
+        showToast('영구 삭제에 실패했어요.');
+    }
 }
 
 async function copyMarkdown(rows) {
