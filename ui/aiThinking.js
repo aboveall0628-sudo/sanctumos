@@ -46,12 +46,54 @@ export const THINKING_COPY = {
         '답변 살피는 중...',
         '정리하는 중...',
     ],
+    reportGenerate: [
+        '오늘의 도트 모으는 중...',
+        '흐름 따라가는 중...',
+        '산문 정리하는 중...',
+        '묵상에 가져갈 질문 다듬는 중...',
+    ],
     // 디폴트 (어디 자리든 안 잡힐 때)
     generic: [
         '잠깐만요...',
         '정리하는 중...',
     ],
 };
+
+// ─── 버튼 자리 inline thinking ─────────────────────────────────────
+
+/**
+ * 버튼이 있던 자리에 thinking 카드를 자연 자리잡-... (실은 자리잡-)...
+ *   _아니_, 자리잡으-... 흠.
+ *   ─ 한 줄로: 버튼을 hide 하고 같은 부모 안에 ai-thinking 카드를 만들어요.
+ *   finish() 시 카드 사라지고 버튼 자연 노출 복원.
+ *
+ * @param {HTMLElement} buttonEl
+ * @param {Object} opts
+ *   @param {string[]} opts.labels
+ * @returns {{ finish: () => void, dispose: () => void }}
+ */
+export function inlineThinkingForButton(buttonEl, opts = {}) {
+    if (!buttonEl || !buttonEl.parentElement) {
+        return { finish: () => {}, dispose: () => {} };
+    }
+    const prevDisplay = buttonEl.style.display;
+    buttonEl.style.display = 'none';
+
+    const handle = createThinking(buttonEl.parentElement, opts);
+    return {
+        finish() {
+            handle.finish();
+            // 카드 사라진 후 버튼 노출 복원 (필요한 자리만 — 호출 측이 새 UI 만들면 알아서)
+            setTimeout(() => {
+                if (buttonEl.isConnected) buttonEl.style.display = prevDisplay || '';
+            }, 260);
+        },
+        dispose() {
+            handle.dispose();
+            if (buttonEl.isConnected) buttonEl.style.display = prevDisplay || '';
+        },
+    };
+}
 
 // ─── 단계 라벨 회전 + 가짜 progress bar ───────────────────────────
 

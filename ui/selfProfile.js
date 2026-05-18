@@ -27,8 +27,8 @@ import { ensureSelfCard, saveSelfCard } from '../data/personRepo.js';
 import { showToast } from './quickReview.js';
 // (53번 본인 프로필 AI 부트스트랩 — 2026-05-14) 묶음당 2~3 짧은 질문 + 일괄 제안
 import { callProfileBootstrap } from './aiClient.js';
-// (Phase C 2026-05-16) AI 로딩 보강 — 단계 라벨 회전 + progress bar
-import { THINKING_COPY } from './aiThinking.js';
+// (Phase C 2026-05-16) AI 로딩 보강 — 단계 라벨 회전 + progress bar + typing breath
+import { THINKING_COPY, typeText, shouldReduceMotion } from './aiThinking.js';
 // (#58 후속 2026-05-14) 음력 → 올해 양력 자동 표시
 import { parseBirthdayMonthDay, lunarBirthdayToUpcomingSolar } from '../infra/lunarCalendar.js';
 
@@ -698,9 +698,10 @@ function renderBody() {
     if (!root || !_bootstrapState) return;
 
     if (_bootstrapState.phase === 'asking') {
+        // (Phase C 2026-05-16 fix) SWAN 라벨 통일 + thinking 자리를 채팅 거품 안 inline 으로.
         const turnsHtml = _bootstrapState.groupAnswers.map(t => `
             <div class="sf-bs-turn sf-bs-turn-ai">
-                <span class="sf-bs-turn-label">AI</span>
+                <span class="sf-bs-turn-label">SWAN</span>
                 <div class="sf-bs-turn-text">${escapeHtml(t.q)}</div>
             </div>
             <div class="sf-bs-turn sf-bs-turn-user">
@@ -709,11 +710,25 @@ function renderBody() {
             </div>
         `).join('');
 
-        const currentQHtml = _bootstrapState.currentQuestion ? `
-            <div class="sf-bs-turn sf-bs-turn-ai">
-                <span class="sf-bs-turn-label">AI · ${_bootstrapState.groupQuestionNumber}/${_bootstrapState.currentGroup.maxQuestions}</span>
-                <div class="sf-bs-turn-text">${escapeHtml(_bootstrapState.currentQuestion)}</div>
+        // SWAN 응답 자리 — currentQuestion 있으면 질문 텍스트, 없으면 thinking inline
+        const showThinking = !_bootstrapState.currentQuestion;
+        const numLabel = _bootstrapState.currentQuestion
+            ? ` · ${_bootstrapState.groupQuestionNumber}/${_bootstrapState.currentGroup.maxQuestions}`
+            : '';
+        const swanTurnContent = showThinking
+            ? `<div class="ai-thinking ai-thinking-sm">
+                   <div class="ai-thinking-bar"></div>
+                   <span class="ai-thinking-label">${escapeHtml(THINKING_COPY.profileBootstrap[0])}</span>
+               </div>`
+            : `${escapeHtml(_bootstrapState.currentQuestion)}`;
+        const swanTurnHtml = `
+            <div class="sf-bs-turn sf-bs-turn-ai" id="sf-bs-current-ai-turn">
+                <span class="sf-bs-turn-label">SWAN${numLabel}</span>
+                <div class="sf-bs-turn-text" data-bs-turn-text="current">${swanTurnContent}</div>
             </div>
+        `;
+
+        const answerWrapHtml = _bootstrapState.currentQuestion ? `
             <div class="sf-bs-answer-wrap">
                 <textarea id="sf-bs-answer" class="sf-bs-answer" rows="2"
                     placeholder="한 줄이면 충분해요. '없어요' '잘 모르겠어요'도 OK."
@@ -726,27 +741,29 @@ function renderBody() {
                     </button>
                 </div>
             </div>
-        ` : `
-            <div class="sf-bs-loading">
-                <div class="ai-thinking ai-thinking-sm">
-                    <div class="ai-thinking-bar"></div>
-                    <span class="ai-thinking-label">${escapeHtml(THINKING_COPY.profileBootstrap[0])}</span>
-                </div>
-            </div>
-        `;
+        ` : '';
 
         root.innerHTML = `
             <div class="sf-bs-group-intro">
                 <strong>${escapeHtml(_bootstrapState.currentGroup.label)}</strong>
                 <span>· ${escapeHtml(_bootstrapState.currentGroup.intro)}</span>
             </div>
-            <div class="sf-bs-conversation">${turnsHtml}${currentQHtml}</div>
+            <div class="sf-bs-conversation">${turnsHtml}${swanTurnHtml}${answerWrapHtml}</div>
         `;
 
         // 이벤트 바인딩
         document.getElementById('sf-bs-next')?.addEventListener('click', onNextClick);
         document.getElementById('sf-bs-skip')?.addEventListener('click', onSkipGroup);
-        setTimeout(() => document.getElementById('sf-bs-answer')?.focus(), 30);
+
+        // (Phase C 2026-05-16) 새 질문이 막 왔으면 typing breath 적용. textarea 포커스는 typing 끝나면.
+        if (_bootstrapState.currentQuestion && _bootstrapState.questionNeedsTyping) {
+            _bootstrapState.questionNeedsTyping = false;
+            _typeBootstrapQuestion(_bootstrapState.currentQuestion)
+                .then(() => setTimeout(() => document.getElementById('sf-bs-answer')?.focus(), 50))
+                .catch(() => {});
+        } else if (_bootstrapState.currentQuestion) {
+            setTimeout(() => document.getElementById('sf-bs-answer')?.focus(), 30);
+        }
 
     } else if (_bootstrapState.phase === 'extracting') {
         root.innerHTML = `
@@ -811,6 +828,25 @@ function renderBody() {
     _activateProfileBootstrapRotation();
 }
 
+// (Phase C 2026-05-16 fix) SWAN 질문 typing breath — 한 자씩 자연 노출.
+//   sf-bs-current-ai-turn 안 data-bs-turn-text="current" 자리만 타깃. 끝나면 textarea 포커스.
+async function _typeBootstrapQuestion(fullText) {
+    const el = document.querySelector('#sf-bs-current-ai-turn [data-bs-turn-text="current"]');
+    if (!el) return;
+    if (shouldReduceMotion() || !fullText) {
+        el.textContent = fullText || '';
+        return;
+    }
+    el.textContent = '';
+    el.classList.add('ai-typing');
+    for (let i = 0; i < fullText.length; i++) {
+        if (!el.isConnected) return;     // 사용자가 닫았으면 중단
+        el.textContent = fullText.slice(0, i + 1);
+        await new Promise(r => setTimeout(r, 24));
+    }
+    el.classList.remove('ai-typing');
+}
+
 // (Phase C 2026-05-16) profileBootstrap 단계 라벨 회전 — DOM 안 ai-thinking-label 만 자연 자리.
 function _activateProfileBootstrapRotation() {
     const root = document.getElementById('sf-bs-body');
@@ -862,10 +898,12 @@ async function askNextQuestion() {
         });
 
         if (fallback || !text) {
-            showToast('AI를 지금 부를 수 없어요. 묶음을 건너뛰셔도 돼요.');
+            showToast('SWAN을 지금 부를 수 없어요. 묶음을 건너뛰셔도 돼요.');
             _bootstrapState.currentQuestion = '(질문을 못 받았어요. 건너뛰거나 X로 닫으세요.)';
+            _bootstrapState.questionNeedsTyping = false;     // 에러 카피는 typing 없이 즉시 노출
         } else {
             _bootstrapState.currentQuestion = text;
+            _bootstrapState.questionNeedsTyping = true;       // 새 질문 — typing breath 한 번
         }
         _bootstrapState.loading = false;
         renderBody();

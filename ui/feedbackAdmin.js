@@ -17,6 +17,7 @@
 
 import {
     getAllFeedbacksForAdmin,
+    getMyFeedbacks,
     markAsRead,
     markAsUnread,
     updateCategory,
@@ -76,14 +77,37 @@ async function refreshAndRender() {
             limit:   200,
             orderDir: _state.sortDir,
         });
+        console.log(`[feedbackAdmin] loaded ${_state.rows.length} feedback(s) total`,
+            _state.rows.map(r => ({ id: r.id, kind: r.kind || 'feedback', userId: r.userId, status: r.status })));
+
+        // (2026-05-16 fix) collectionGroup 쿼리가 권한·인덱스 문제로 비어 돌아오는 경우
+        //   본인 자기 데이터는 직접 쿼리로 합쳐 fallback 보장.
+        if (_state.rows.length === 0 && _state.userId) {
+            try {
+                const myOwn = await getMyFeedbacks(_state.userId, 200);
+                if (myOwn.length > 0) {
+                    console.log(`[feedbackAdmin] fallback: 본인 자기 ${myOwn.length}건 합류`);
+                    _state.rows = myOwn;
+                }
+            } catch (e2) {
+                console.warn('[feedbackAdmin] my-own fallback failed:', e2);
+            }
+        }
     } catch (e) {
         console.error('[feedbackAdmin] load failed:', e);
-        container.innerHTML = `
-            <div class="fbadmin-empty">
-                <p>불러오기에 실패했어요. 새로고침해 볼까요?</p>
-                <p style="color:var(--ink-tertiary);font-size:13px">${escapeHtml(e?.message || String(e))}</p>
-            </div>`;
-        return;
+        // collectionGroup 쿼리 실패 — 본인 자기 데이터만이라도 보여주기
+        try {
+            const myOwn = await getMyFeedbacks(_state.userId, 200);
+            _state.rows = myOwn;
+            console.warn('[feedbackAdmin] fallback to my-own only:', myOwn.length);
+        } catch (e2) {
+            container.innerHTML = `
+                <div class="fbadmin-empty">
+                    <p>불러오기에 실패했어요. 새로고침해 볼까요?</p>
+                    <p style="color:var(--ink-tertiary);font-size:13px">${escapeHtml(e?.message || String(e))}</p>
+                </div>`;
+            return;
+        }
     }
 
     if (_state.mode === 'detail' && _state.detailId) {

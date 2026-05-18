@@ -27,6 +27,8 @@ import { findCategory } from '../data/dotCategories.js';
 // Reports 모듈 v3 — 새 spec dayReport 표시
 import { getDayReport } from '../reports/dayReportRepo.js';
 import { generateDailyReport } from '../reports/dailyReportFlow.js';
+// (Phase C 2026-05-16 fix) 리포트 생성 시 inline thinking 카드
+import { inlineThinkingForButton, THINKING_COPY } from './aiThinking.js';
 // Phase F: 오늘 리포트 안에 거래 통계 블록
 import { getTransactionsByDate } from '../data/economyRepo.js';
 import { bucketLabel, categoryLabel } from '../config/economyBuckets.js';
@@ -267,9 +269,13 @@ function renderTodayReportButton(body, dek) {
     `;
     document.getElementById('today-make-report-btn')?.addEventListener('click', async () => {
         const btn = document.getElementById('today-make-report-btn');
-        if (btn) { btn.disabled = true; btn.textContent = '만드는 중이에요...'; }
+        if (!btn) return;
+        btn.disabled = true;
+        // (Phase C 2026-05-16) 버튼 자리에 ai-thinking 카드 자연 자리잡힘 — 라벨 회전 + 가짜 progress bar.
+        const thinkingHandle = inlineThinkingForButton(btn, { labels: THINKING_COPY.reportGenerate });
         try {
             const result = await generateDailyReport(dek, _userId, _date);
+            thinkingHandle.finish();
             if (result.status === 'no-dots') {
                 body.innerHTML = `<p style="color:var(--text-secondary); font-size:13px">오늘 기록된 도트가 아직 없어요. 평가를 채워가 봐요.</p>`;
                 renderSaturdayLayers(body);
@@ -279,6 +285,7 @@ function renderTodayReportButton(body, dek) {
             await loadTodayReport(dek);
         } catch (e) {
             console.error('today report generate failed:', e);
+            thinkingHandle.dispose();
             body.innerHTML = `<p style="color:var(--dot-red); font-size:13px">리포트를 만드는 중에 잠깐 막혔어요. 잠시 후 다시 시도해 주실래요?</p>`;
         }
     });

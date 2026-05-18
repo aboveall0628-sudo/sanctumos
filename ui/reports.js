@@ -8,6 +8,8 @@
  */
 
 import { listDayReports } from '../reports/dayReportRepo.js';
+// (Phase C 2026-05-16 fix) 리포트 재작성 inline thinking 카드
+import { inlineThinkingForButton, THINKING_COPY } from './aiThinking.js';
 import { listWeekReports } from '../reports/weekReportRepo.js';
 import { generateWeeklyReport } from '../reports/weeklyReportFlow.js';
 import { listMonthReports } from '../reports/monthReportRepo.js';
@@ -575,16 +577,17 @@ function bindWeekRegenerateButtons(dek) {
                 return;
             }
             btn.disabled = true;
-            btn.textContent = '다시 만드는 중이에요...';
+            const thinkingHandle = inlineThinkingForButton(btn, { labels: THINKING_COPY.reportGenerate });
             try {
                 await generateWeeklyReport(dek, _userId, weekStart, weekEnd, { force: true });
+                thinkingHandle.finish();
                 await loadReports();   // 목록 통째로 다시
                 showToast('주간 리포트가 새로 만들어졌어요');
             } catch (e) {
                 console.error('week regenerate failed:', e);
+                thinkingHandle.dispose();
                 showToast('재작성이 잠깐 막혔어요. 잠시 후 다시 시도해 주세요');
                 btn.disabled = false;
-                btn.textContent = '↻ 리포트 재작성하기';
             }
         });
     });
@@ -822,16 +825,17 @@ function bindMonthRegenerateButtons(dek) {
                 return;
             }
             btn.disabled = true;
-            btn.textContent = '다시 만드는 중이에요...';
+            const thinkingHandle = inlineThinkingForButton(btn, { labels: THINKING_COPY.reportGenerate });
             try {
                 await generateMonthlyReport(dek, _userId, monthStart, monthEnd, { force: true });
+                thinkingHandle.finish();
                 await loadReports();
                 showToast('월간 리포트가 새로 만들어졌어요');
             } catch (e) {
                 console.error('month regenerate failed:', e);
+                thinkingHandle.dispose();
                 showToast('재작성이 잠깐 막혔어요. 잠시 후 다시 시도해 주세요');
                 btn.disabled = false;
-                btn.textContent = '↻ 리포트 재작성하기';
             }
         });
     });
@@ -987,16 +991,17 @@ function bindQuarterRegenerateButtons(dek) {
                 return;
             }
             btn.disabled = true;
-            btn.textContent = '다시 만드는 중이에요...';
+            const thinkingHandle = inlineThinkingForButton(btn, { labels: THINKING_COPY.reportGenerate });
             try {
                 await generateQuarterlyReport(dek, _userId, quarterStart, quarterEnd, { force: true });
+                thinkingHandle.finish();
                 await loadReports();
                 showToast('분기 리포트가 새로 만들어졌어요');
             } catch (e) {
                 console.error('quarter regenerate failed:', e);
+                thinkingHandle.dispose();
                 showToast('재작성이 잠깐 막혔어요. 잠시 후 다시 시도해 주세요');
                 btn.disabled = false;
-                btn.textContent = '↻ 리포트 재작성하기';
             }
         });
     });
@@ -1203,16 +1208,17 @@ function bindYearRegenerateButtons(dek) {
                 return;
             }
             btn.disabled = true;
-            btn.textContent = '다시 만드는 중이에요...';
+            const thinkingHandle = inlineThinkingForButton(btn, { labels: THINKING_COPY.reportGenerate });
             try {
                 await generateYearlyReport(dek, _userId, yearStart, yearEnd, { force: true });
+                thinkingHandle.finish();
                 await loadReports();
                 showToast('연간 리포트가 새로 만들어졌어요');
             } catch (e) {
                 console.error('yearly regenerate failed:', e);
+                thinkingHandle.dispose();
                 showToast('재작성이 잠깐 막혔어요. 잠시 후 다시 시도해 주세요');
                 btn.disabled = false;
-                btn.textContent = '↻ 리포트 재작성하기';
             }
         });
     });
