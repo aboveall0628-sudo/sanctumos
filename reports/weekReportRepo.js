@@ -47,13 +47,18 @@ export async function saveWeekReport(dek, userId, weekStart, weekEnd, stats, aiS
 
     const reportId = `${userId}_${yearWeek}`;
 
+    // (2026-05-18 후속) Firestore 는 nested array 미지원 — sanitize 후 저장.
+    //   stats 안 [[a,b],[c,d]] 같은 자리를 [{_arr:[a,b]},{_arr:[c,d]}] 객체로 자연 변환.
+    //   읽을 때 unwrap 안 해도 화면에서는 stats 통째 사용 안 함 (개별 필드만).
+    const safeStats = sanitizeNestedArrays(stats);
+
     const data = {
         id:                     reportId,
         userId,
         period:                 'week',
         startDate:              weekStart,
         endDate:                weekEnd,
-        stats,                                                              // 평문 (수치·통계)
+        stats:                  safeStats,                                  // 평문 (수치·통계)
         aiSummary:              aiSections.aiSummary              ?? null,  // 암호화
         hypotheses:             aiSections.hypotheses             ?? [],    // 암호화
         decisionFlow:           aiSections.decisionFlow           ?? null,  // 암호화 (A3 산문)
@@ -74,6 +79,33 @@ export async function saveWeekReport(dek, userId, weekStart, weekEnd, stats, aiS
         console.warn('[saveWeekReport] mission trigger failed:', e?.message || e);
     }
     return reportId;
+}
+
+/**
+ * (2026-05-18 후속) Firestore nested array 거부 우회 — 재귀 sanitize.
+ *   배열 안 배열 자리를 { _arr: [...] } 객체로 자연 변환.
+ *   화면은 stats 평문 필드만 직접 사용하므로 unwrap 의존 자리 거의 없음.
+ *   안전 위해 객체·기본 타입은 그대로 자리 유지.
+ */
+function sanitizeNestedArrays(value) {
+    if (Array.isArray(value)) {
+        return value.map(item => {
+            if (Array.isArray(item)) {
+                return { _arr: item.map(sanitizeNestedArrays) };
+            }
+            return sanitizeNestedArrays(item);
+        });
+    }
+    if (value && typeof value === 'object') {
+        // Firestore Timestamp · Date 등은 그대로
+        if (value._seconds !== undefined || value instanceof Date) return value;
+        const out = {};
+        for (const k of Object.keys(value)) {
+            out[k] = sanitizeNestedArrays(value[k]);
+        }
+        return out;
+    }
+    return value;
 }
 
 /**
