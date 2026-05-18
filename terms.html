@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#FAF7F2" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#1A1814" media="(prefers-color-scheme: dark)">
+    <title>서비스 이용약관 — Sanctum OS</title>
+    <meta name="description" content="Sanctum OS 서비스 이용약관 — 서비스 정의·이용 자격·회원 의무·베타 단계·AI 응답 한계·종료 조건·분쟁 해결">
+    <meta name="robots" content="index, follow">
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
+    <link rel="icon" type="image/svg+xml" href="assets/sanctum-mark.svg">
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+    <script>
+        (function () {
+            try {
+                var t = localStorage.getItem('sanctum-theme');
+                if (!t && matchMedia('(prefers-color-scheme: dark)').matches) t = 'dark';
+                if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+            } catch (_) {}
+        })();
+    </script>
+    <style>
+        :root {
+            --bg: #FAF7F2;
+            --surface: #FFFFFF;
+            --ink: #1A1814;
+            --ink-soft: #4A4640;
+            --ink-faint: #8A857C;
+            --border: #E8E2D6;
+            --accent: #7C8B6F;
+            --warn-bg: #F4EEE0;
+            --warn-border: #D9C9A0;
+        }
+        [data-theme="dark"] {
+            --bg: #1A1814;
+            --surface: #232019;
+            --ink: #FAF7F2;
+            --ink-soft: #C6C1B6;
+            --ink-faint: #7A7568;
+            --border: #3A352C;
+            --accent: #9AAD8A;
+            --warn-bg: #2A2519;
+            --warn-border: #4A3E22;
+        }
+        * { box-sizing: border-box; }
+        html, body {
+            margin: 0;
+            padding: 0;
+            background: var(--bg);
+            color: var(--ink);
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif;
+            font-size: 16px;
+            line-height: 1.7;
+            -webkit-font-smoothing: antialiased;
+        }
+        .legal-root {
+            max-width: 760px;
+            margin: 0 auto;
+            padding: 48px 24px 96px;
+        }
+        .legal-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--ink-faint);
+            text-decoration: none;
+            font-size: 14px;
+            margin-bottom: 32px;
+        }
+        .legal-back:hover { color: var(--accent); }
+        .legal-header {
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 24px;
+            margin-bottom: 40px;
+        }
+        .legal-header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin: 0 0 8px;
+            letter-spacing: -0.02em;
+        }
+        .legal-meta {
+            color: var(--ink-faint);
+            font-size: 14px;
+        }
+        .legal-toc {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px 24px;
+            margin-bottom: 48px;
+        }
+        .legal-toc h2 {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--ink-faint);
+            margin: 0 0 12px;
+            letter-spacing: 0.02em;
+        }
+        .legal-toc ol {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .legal-toc li {
+            margin: 6px 0;
+            font-size: 15px;
+        }
+        .legal-toc a {
+            color: var(--ink-soft);
+            text-decoration: none;
+        }
+        .legal-toc a:hover { color: var(--accent); text-decoration: underline; }
+        section.legal-section {
+            margin-bottom: 48px;
+            scroll-margin-top: 24px;
+        }
+        section.legal-section h2 {
+            font-size: 20px;
+            font-weight: 700;
+            margin: 0 0 16px;
+            letter-spacing: -0.01em;
+        }
+        section.legal-section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 24px 0 12px;
+            color: var(--ink-soft);
+        }
+        section.legal-section p {
+            margin: 8px 0 16px;
+            color: var(--ink-soft);
+        }
+        section.legal-section ul, section.legal-section ol {
+            margin: 8px 0 16px;
+            padding-left: 22px;
+            color: var(--ink-soft);
+        }
+        section.legal-section li { margin: 4px 0; }
+        section.legal-section strong { color: var(--ink); font-weight: 600; }
+        .legal-callout {
+            background: var(--warn-bg);
+            border: 1px solid var(--warn-border);
+            border-left: 3px solid var(--accent);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 16px 0;
+            font-size: 15px;
+        }
+        .legal-callout strong { color: var(--ink); }
+        .legal-footer {
+            border-top: 1px solid var(--border);
+            padding-top: 24px;
+            margin-top: 48px;
+            color: var(--ink-faint);
+            font-size: 14px;
+        }
+        .legal-footer p { margin: 4px 0; }
+        .legal-footer a { color: var(--ink-soft); text-decoration: underline; }
+        @media (max-width: 600px) {
+            .legal-root { padding: 32px 20px 80px; }
+            .legal-header h1 { font-size: 24px; }
+            section.legal-section h2 { font-size: 18px; }
+        }
+    </style>
+</head>
+<body>
+    <main class="legal-root">
+        <a class="legal-back" href="/">← Sanctum OS 돌아가기</a>
+
+        <header class="legal-header">
+            <h1>서비스 이용약관</h1>
+            <div class="legal-meta">시행일 2026년 5월 18일 · v1.0</div>
+        </header>
+
+        <nav class="legal-toc" aria-label="목차">
+            <h2>목차</h2>
+            <ol>
+                <li><a href="#s1">서비스 정의·이용 자격</a></li>
+                <li><a href="#s2">회원 의무·운영자 책임 한계</a></li>
+                <li><a href="#s3">베타 단계 안내</a></li>
+                <li><a href="#s4">AI 응답 한계</a></li>
+                <li><a href="#s5">서비스 중단·종료</a></li>
+                <li><a href="#s6">분쟁 해결·관할 법원</a></li>
+                <li><a href="#s7">약관 변경 안내</a></li>
+            </ol>
+        </nav>
+
+        <section class="legal-section" id="s1">
+            <h2>1. 서비스 정의·이용 자격</h2>
+
+            <h3>서비스 정의</h3>
+            <p>Sanctum OS는 일상 묵상·기도·실행을 한 흐름으로 잇는 개인 신앙·생활 시스템입니다. 사용자는 매일의 묵상 본문 위에 자신의 적용 다짐을 자유롭게 적고, 도트·목표·인물·원칙으로 일상 자리에서 그 다짐을 따라가도록 보조합니다.</p>
+
+            <h3>이용 자격</h3>
+            <ul>
+                <li>만 14세 이상 — 개인정보보호법 정합</li>
+                <li>14세 미만은 법정대리인 동의 후 가입 가능 (별도 절차 안내)</li>
+                <li>Google 계정 보유</li>
+            </ul>
+
+            <h3>회원가입</h3>
+            <ul>
+                <li>Google OAuth 로그인으로 가입</li>
+                <li>가입 시 본 약관·개인정보 수집·민감정보 처리·국외이전 4종 동의 (필수)</li>
+            </ul>
+        </section>
+
+        <section class="legal-section" id="s2">
+            <h2>2. 회원 의무·운영자 책임 한계</h2>
+
+            <h3>회원 의무</h3>
+            <ul>
+                <li>본인의 마스터 비밀번호·24단어 복구 키 안전 보관</li>
+                <li>사실과 다른 정보 입력 금지</li>
+                <li>타인의 신앙·인격을 훼손하는 내용 입력 금지</li>
+                <li>서비스 안정성을 해치는 행위 금지 (자동 스크립트·과도한 요청 등)</li>
+            </ul>
+
+            <h3>운영자 책임 한계</h3>
+            <ul>
+                <li><strong>Zero-Knowledge 정합 결과</strong> — 사용자가 비밀번호·복구 키를 모두 잃을 경우, 운영자가 데이터를 복구해 줄 수 없습니다.</li>
+                <li><strong>AI 응답</strong> — 참고용이며, 신앙적·신학적 판단은 사용자 본인의 묵상·기도·공동체 분별을 우선해 주세요.</li>
+                <li><strong>베타 무중단 보장 한계</strong> — 무료 베타 단계로 완전한 무중단 운영은 보장하기 어렵습니다.</li>
+                <li><strong>본인 부주의로 인한 손실</strong> — 비밀번호 분실·계정 도용·외부 시연 유출 등 본인 부주의 손실에 대해 운영자는 책임지지 않습니다.</li>
+            </ul>
+        </section>
+
+        <section class="legal-section" id="s3">
+            <h2>3. 베타 단계 안내</h2>
+            <p>본 서비스는 베타 운영 중입니다.</p>
+
+            <h3>베타 단계 구조</h3>
+            <ul>
+                <li><strong>1차 베타</strong> — 14명 초청 → 추천 링크 확장으로 약 100명 도달까지</li>
+                <li><strong>2차 베타</strong> — 100명에서 시작하는 반-오픈 베타</li>
+                <li><strong>정식 출시</strong> — 2차 베타 종료 + 결제 모델 적용 후</li>
+            </ul>
+
+            <h3>베타 사용자 권리·의무</h3>
+            <ul>
+                <li>모든 기능 무료 이용</li>
+                <li>피드백 가벼운 권유 (강제 X)</li>
+                <li>이미지·스크린샷 외부 공유 자제 권유 (비공식적 NDA)</li>
+            </ul>
+
+            <div class="legal-callout">
+                <strong>베타 데이터 처리 방침</strong>
+                <p>베타 단계 입력 데이터는 정식 출시 후에도 그대로 사용자 데이터로 연속 보관됩니다. 사용자는 언제든 설정 안 내 데이터 백업·복구에서 직접 다운로드 또는 삭제할 수 있습니다. 운영자가 임의로 폐기하지 않습니다.</p>
+            </div>
+        </section>
+
+        <section class="legal-section" id="s4">
+            <h2>4. AI 응답 한계</h2>
+            <p>본 서비스의 AI 기능(SWAN·주간 리포트·도트 평가 추천·자동 분류)은 Google Gemini 2.5 Flash 모델을 사용합니다.</p>
+            <ul>
+                <li>AI 응답은 참고용입니다. 신앙적·신학적·인생 결정은 본인의 묵상·기도·공동체 분별을 우선해 주세요.</li>
+                <li>AI 응답에 오류·부정확·편향이 포함될 수 있습니다.</li>
+                <li>본 서비스는 AI 응답을 의료·법률·재무·신학 자문으로 사용하기를 권하지 않습니다.</li>
+            </ul>
+        </section>
+
+        <section class="legal-section" id="s5">
+            <h2>5. 서비스 중단·종료</h2>
+
+            <h3>일시 중단</h3>
+            <ul>
+                <li>점검·업데이트·외부 인프라(Google·Firebase) 장애 시 일시 중단될 수 있습니다.</li>
+                <li>가급적 사전 공지하지만 긴급 상황은 사후 안내됩니다.</li>
+            </ul>
+
+            <h3>서비스 종료 조건</h3>
+            <ul>
+                <li>운영자 사정으로 서비스 종료 시 3개월 전 공지 후 종료합니다.</li>
+                <li>종료 시점에 사용자는 본인 데이터를 다운로드해서 가져갈 수 있습니다 (설정 → 내 데이터 백업·복구).</li>
+                <li>종료 후 90일 내 모든 데이터 영구 폐기됩니다.</li>
+            </ul>
+
+            <h3>회원 탈퇴</h3>
+            <ul>
+                <li>설정 → 계정 → 탈퇴로 즉시 처리됩니다.</li>
+                <li>탈퇴 즉시 모든 개인정보·민감정보 영구 파기됩니다.</li>
+                <li>탈퇴 후 동일 이메일로 재가입은 가능하나 이전 데이터는 복구되지 않습니다.</li>
+            </ul>
+        </section>
+
+        <section class="legal-section" id="s6">
+            <h2>6. 분쟁 해결·관할 법원</h2>
+
+            <h3>분쟁 해결 절차</h3>
+            <ol>
+                <li>운영자 이메일(aboveall0628@gmail.com)로 협의 요청</li>
+                <li>협의 미해결 시 한국소비자원 또는 분쟁조정위원회 조정 신청</li>
+                <li>조정 미성립 시 민사 소송</li>
+            </ol>
+
+            <h3>관할 법원·준거법</h3>
+            <ul>
+                <li>본 약관 관련 분쟁의 관할 법원은 운영자 주소지 관할 지방법원으로 합니다.</li>
+                <li>본 약관은 대한민국 법률을 준거법으로 합니다.</li>
+            </ul>
+        </section>
+
+        <section class="legal-section" id="s7">
+            <h2>7. 약관 변경 안내</h2>
+            <ul>
+                <li>본 약관은 법령·정책·서비스 변경에 따라 수정될 수 있습니다.</li>
+                <li>중요한 변경 시 7일 전 앱 안 공지 또는 이메일로 안내합니다.</li>
+                <li>현재 버전 — v1.0 (시행일 2026-05-18)</li>
+            </ul>
+        </section>
+
+        <footer class="legal-footer">
+            <p>Sanctum OS · 운영자 Swan Jung · <a href="mailto:aboveall0628@gmail.com">aboveall0628@gmail.com</a></p>
+            <p><a href="/privacy.html">개인정보처리방침</a> · <a href="/">앱으로 돌아가기</a></p>
+        </footer>
+    </main>
+</body>
+</html>

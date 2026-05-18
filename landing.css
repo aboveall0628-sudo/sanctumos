@@ -205,4 +205,20 @@ html, body {
     margin-top: var(--sp-7);          /* 스크린샷 → 푸터 64px */
     font-size: 13px;
     color: var(--text-secondary);
+    line-height: 1.8;
+}
+.landing-footer-sep {
+    margin: 0 6px;
+    color: var(--text-secondary);
+    opacity: 0.5;
+}
+.landing-footer-link {
+    color: var(--text-secondary);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: color 120ms ease, border-color 120ms ease;
+}
+.landing-footer-link:hover {
+    color: var(--text-primary);
+    border-bottom-color: currentColor;
 }
