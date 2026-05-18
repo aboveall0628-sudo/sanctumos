@@ -31,7 +31,7 @@ import {
     saveSurveyExtract,
 } from '../data/feedbacksRepo.js';
 import { THINKING_COPY, typeText, shouldReduceMotion } from './aiThinking.js';
-import { FAQ_CATALOG, FAQ_FALLBACK_HINT_CHAT, findFaqById } from '../config/faqCatalog.js';
+import { FAQ_FALLBACK_HINT_CHAT, findFaqById, getVisibleFaqs } from '../config/faqCatalog.js';
 
 // ─── 카피 (Rule 9 §10-1~4 디폴트, 2026-05-15) ─────────────────
 const COPY = {
@@ -283,7 +283,10 @@ function renderModal(title = 'SWAN', kind = 'feedback') {
  *   AI 호출 X. 답에 없는 자리는 자유 채팅으로 그대로 흘러가 운영자에게 전달.
  */
 function renderFaqBarHtml() {
-    const chips = FAQ_CATALOG.map(f =>
+    // (v74) 슬림 모드에선 slimHidden:true 항목 자연 제외 (분별의 자리 등)
+    const visible = getVisibleFaqs();
+    if (visible.length === 0) return '';
+    const chips = visible.map(f =>
         `<button type="button" class="swan-faq-chip" data-faq-id="${escapeHtml(f.id)}">${escapeHtml(f.question)}</button>`
     ).join('');
     return `
@@ -293,6 +296,15 @@ function renderFaqBarHtml() {
             <p class="swan-faq-hint">${escapeHtml(FAQ_FALLBACK_HINT_CHAT)}</p>
         </div>
     `;
+}
+
+/**
+ * (v74) FAQ bar 자연 숨김 — 사용자가 첫 행동(칩 클릭 또는 텍스트 전송)을 하면 자리 빠짐.
+ *   진입 시점엔 도움말 자리, 행동 후엔 채팅 흐름 우선.
+ */
+function hideFaqBar() {
+    const bar = document.getElementById('swan-faq-bar');
+    if (bar) bar.hidden = true;
 }
 
 function bindFaqChips(overlay, listEl) {
@@ -310,6 +322,8 @@ function bindFaqChips(overlay, listEl) {
                 _session.turns.push({ role: 'user', text: faq.question, at: now });
                 _session.turns.push({ role: 'swan', text: faq.answer, at: now });
             }
+            // (v74) FAQ 칩 한 번 누르면 도움말 자리 자연 빠짐 — 채팅 흐름 우선
+            hideFaqBar();
         });
     });
 }
@@ -386,6 +400,9 @@ async function handleSend() {
     if (!_session || _session.waitingForSwan || _session.finalized) return;
     const text = _session.inputEl.value.trim();
     if (!text) return;
+
+    // (v74) 사용자가 텍스트로 대화 시작하면 FAQ 도움말 자리 자연 빠짐 — 채팅 흐름 우선
+    hideFaqBar();
 
     _session.waitingForSwan = true;
     _session.sendBtn.disabled = true;

@@ -64,6 +64,9 @@ export const FAQ_CATALOG = [
             '어떤 선택 앞에서 망설일 때 자리예요. ' +
             '5개 질문을 거치며 본인의 원칙·과거 기록과 비교해 결정을 다듬으실 수 있어요. ' +
             '(베타 메인 모드에서 보여요)',
+        // (2026-05-18 v74) 분별의 자리는 슬림 모드에서 사이드바 자체가 hidden 인 모듈 →
+        //   슬림 사용자에겐 FAQ 자리에서도 자연 숨김 (어디서 쓰는지 헷갈림 방지).
+        slimHidden: true,
     },
     {
         id: 'after-beta',
@@ -87,4 +90,15 @@ export const FAQ_FALLBACK_HINT_SETTINGS = '여기 없는 질문은 우하단 풍
  */
 export function findFaqById(id) {
     return FAQ_CATALOG.find(f => f.id === id) || null;
+}
+
+/**
+ * (2026-05-18 v74) 현재 tier 에 따라 노출할 FAQ 만 필터.
+ *   슬림 모드(베타) — slimHidden:true 항목 자연 제거.
+ *   풀모드 — 모두 노출.
+ */
+export function getVisibleFaqs() {
+    const isSlim = typeof document !== 'undefined'
+        && document.documentElement.dataset.tier === 'slim';
+    return FAQ_CATALOG.filter(f => !(isSlim && f.slimHidden));
 }

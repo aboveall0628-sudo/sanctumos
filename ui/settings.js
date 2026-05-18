@@ -39,12 +39,13 @@ import { ACCENT_COLORS, getAccentColor, setAccentColor } from '../config/accentC
 // 베타 슬림 v1 (2026-05-18) — tier 토글
 import { TIERS, getTier, setTier } from '../config/featureFlags.js';
 // (2026-05-18 후속) 브라우저 알림 권한 상태·요청 + 매일 묵상 시각 자동 발화 재스케줄
-import { getNotificationPermission, requestNotificationPermission, scheduleDailyMeditationNotification } from './notifications.js';
+import { getNotificationPermission, requestNotificationPermission, scheduleDailyMeditationNotification, triggerNow as triggerNotifNow, clearLastFiredToday } from './notifications.js';
 import { BIBLE_VERSIONS, DEFAULT_BIBLE_VERSION } from '../config/onboardingDefaults.js';
 import { isSwanAdmin } from '../config/adminConfig.js';
 import { ensureSelfCard, saveSelfCard } from '../data/personRepo.js';
 // (2026-05-18 v73) FAQ 카탈로그 — SWAN 채팅·설정 안내 두 자리 공통 출처
-import { FAQ_CATALOG, FAQ_FALLBACK_HINT_SETTINGS } from '../config/faqCatalog.js';
+// (v74) getVisibleFaqs — 슬림 모드에서 slimHidden:true 항목 자연 제외 (분별의 자리 등)
+import { FAQ_FALLBACK_HINT_SETTINGS, getVisibleFaqs } from '../config/faqCatalog.js';
 
 let _userId = null;
 let _userEmail = null;
@@ -407,7 +408,7 @@ function injectExtraSections() {
             베타 사용자들이 자주 묻는 질문을 한 자리에 모았어요. 질문을 누르시면 답이 펼쳐져요.
         </p>
         <ul class="settings-faq-list" id="settings-faq-list">
-            ${FAQ_CATALOG.map(f => `
+            ${getVisibleFaqs().map(f => `
                 <li class="settings-faq-item">
                     <button type="button" class="settings-faq-question" data-faq-id="${escapeHtmlInline(f.id)}" aria-expanded="false">
                         <span class="settings-faq-q-text">${escapeHtmlInline(f.question)}</span>
@@ -452,6 +453,7 @@ function injectExtraSections() {
             </span>
             <span id="notif-permission-status" style="font-size:13px;font-weight:600;">확인 중...</span>
             <button id="btn-enable-notif" class="text-btn" style="display:none;">알림 허용하기</button>
+            <button id="btn-test-notif" class="text-btn" style="display:none;">🔔 지금 한 번 테스트</button>
         </div>
         <p style="font-size:12px;color:var(--ink-secondary, #6a6a6a);margin:8px 0 0;line-height:1.55;">
             허용하시면 정한 시각에 OS 알림으로도 보여드려요. PWA(홈 화면에 추가)하시면 더 잘 작동해요.
@@ -1084,7 +1086,8 @@ function bindEvents() {
                         ? `✓ 매일 ${time} 에 알람이 떠요.`
                         : '✓ 알람을 껐어요.';
                 }
-                // (2026-05-18 후속) 시각 바뀐 즉시 브라우저 알림 재스케줄
+                // (2026-05-18 후속) 시각 바뀐 즉시 — 오늘 발화 기록 자리 클리어 + 재스케줄
+                try { clearLastFiredToday(); } catch (_) {}
                 try { scheduleDailyMeditationNotification(_userId); } catch (_) {}
                 // (S-D 후속 2026-05-15) "알림 시각 정하기" 미션 자연 발화.
                 try {
@@ -1099,9 +1102,10 @@ function bindEvents() {
         });
     }
 
-    // (2026-05-18 후속) 브라우저 알림 권한 상태 표시 + 허용 버튼
+    // (2026-05-18 후속) 브라우저 알림 권한 상태 표시 + 허용 버튼 + 지금 테스트
     const notifStatus = document.getElementById('notif-permission-status');
     const btnEnableNotif = document.getElementById('btn-enable-notif');
+    const btnTestNotif = document.getElementById('btn-test-notif');
     const updateNotifPermissionRow = () => {
         if (!notifStatus) return;
         const p = getNotificationPermission();
@@ -1109,18 +1113,22 @@ function bindEvents() {
             notifStatus.textContent = '✓ 허용됨';
             notifStatus.style.color = 'var(--accent-strong, #5a6850)';
             if (btnEnableNotif) btnEnableNotif.style.display = 'none';
+            if (btnTestNotif) btnTestNotif.style.display = '';
         } else if (p === 'denied') {
             notifStatus.textContent = '✕ 차단됨 (브라우저 설정에서 변경 가능)';
             notifStatus.style.color = 'var(--dot-red, #E5654A)';
             if (btnEnableNotif) btnEnableNotif.style.display = 'none';
+            if (btnTestNotif) btnTestNotif.style.display = 'none';
         } else if (p === 'unsupported') {
             notifStatus.textContent = '이 브라우저는 알림 미지원';
             notifStatus.style.color = 'var(--ink-secondary, #6a6a6a)';
             if (btnEnableNotif) btnEnableNotif.style.display = 'none';
+            if (btnTestNotif) btnTestNotif.style.display = 'none';
         } else {
             notifStatus.textContent = '아직 허용 안 했어요';
             notifStatus.style.color = 'var(--ink-secondary, #6a6a6a)';
             if (btnEnableNotif) btnEnableNotif.style.display = '';
+            if (btnTestNotif) btnTestNotif.style.display = 'none';
         }
     };
     updateNotifPermissionRow();
@@ -1130,6 +1138,27 @@ function bindEvents() {
             updateNotifPermissionRow();
             if (result === 'granted') {
                 try { scheduleDailyMeditationNotification(_userId); } catch (_) {}
+            }
+        });
+    }
+    if (btnTestNotif) {
+        btnTestNotif.addEventListener('click', async () => {
+            try {
+                // 같은 날 중복 차단 자리 비우고 즉시 발화
+                try { clearLastFiredToday(); } catch (_) {}
+                const r = await triggerNotifNow();
+                if (r.ok) {
+                    try {
+                        const { showToast } = await import('./quickReview.js');
+                        showToast('🔔 알림을 보냈어요.');
+                    } catch (_) {}
+                } else if (r.reason === 'permission_not_granted') {
+                    alert('알림 권한이 필요해요. [알림 허용하기] 먼저 눌러주세요.');
+                } else {
+                    alert('알림 발송 실패: ' + r.reason);
+                }
+            } catch (e) {
+                alert('알림 발송 중 오류: ' + (e?.message || e));
             }
         });
     }
