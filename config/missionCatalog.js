@@ -32,6 +32,9 @@
  *   - "다음 해볼 만한 미션" 추천 카드 — difficulty 오름차순 정렬
  */
 
+// (베타 슬림 v1 2026-05-18) `slim` 플래그 — true 이면 슬림 모드에서도 노출.
+//   false 면 풀 모드 전용 (인물·조직·경제·목표·의사결정 모듈 자리).
+//   미션 카드 추가 시 slim 플래그 의무.
 export const MISSION_CATALOG = {
     person_first_dot: {
         moduleId: 'persons',
@@ -41,6 +44,7 @@ export const MISSION_CATALOG = {
         unlockCopy: '인물 모듈이 열렸어요',
         trigger: 'savePerson(isSelf=false) | saveDot(linkedPersonIds≠∅)',
         deferred: false,
+        slim: false,
         difficulty: 2,
     },
     org_first_dot: {
@@ -51,6 +55,7 @@ export const MISSION_CATALOG = {
         unlockCopy: '조직 모듈이 열렸어요',
         trigger: 'saveOrganization | saveDot(linkedOrgIds≠∅)',
         deferred: false,
+        slim: false,
         difficulty: 3,
     },
     economy_first_transaction: {
@@ -62,6 +67,7 @@ export const MISSION_CATALOG = {
         // 1.a 트랙(이벤트 도트 + 거래 9종) 자리잡음 — 트리거는 saveDot(kind='event', eventType='transaction')
         trigger: 'saveDot(kind=event, eventType=transaction)',
         deferred: false,
+        slim: false,
         difficulty: 3,
     },
     goal_first_save: {
@@ -72,6 +78,7 @@ export const MISSION_CATALOG = {
         unlockCopy: '목표 모듈이 열렸어요',
         trigger: 'saveGoal(prev=null)',
         deferred: false,
+        slim: false,
         difficulty: 3,
     },
     decision_first_record: {
@@ -82,6 +89,7 @@ export const MISSION_CATALOG = {
         unlockCopy: '분별의 자리가 열렸어요',
         trigger: 'savePrecedent(isNew)',
         deferred: false,
+        slim: false,
         difficulty: 4,
     },
     report_first_weekly: {
@@ -92,6 +100,7 @@ export const MISSION_CATALOG = {
         unlockCopy: '리포트 모듈이 열렸어요',
         trigger: 'saveWeekReport(첫 호출)',
         deferred: false,
+        slim: true,
         difficulty: 4,
     },
     meditation_first_save: {
@@ -103,6 +112,7 @@ export const MISSION_CATALOG = {
         // 묵상 모듈 자체는 Day 0 부터 활성 — 이 미션은 "묵상 시스템에 노트 발화" 흔적용
         trigger: 'saveMeditationDoc(content·prayer 비어있지 않음)',
         deferred: false,
+        slim: true,
         difficulty: 2,
     },
     // (S-D 후속 2026-05-15) 풀사이클 한 바퀴를 자연 발화로 풀기 위한 3 미션 추가
@@ -114,6 +124,7 @@ export const MISSION_CATALOG = {
         unlockCopy: '지난 묵상 자리를 알게 됐어요',
         trigger: 'switchView(past) | 묵상 1건 다시 열기',
         deferred: false,
+        slim: true,
         difficulty: 2,
     },
     notification_setup: {
@@ -124,6 +135,7 @@ export const MISSION_CATALOG = {
         unlockCopy: '알림이 자리잡았어요',
         trigger: 'saveNotificationTime',
         deferred: false,
+        slim: true,
         difficulty: 1,
     },
     settings_explore: {
@@ -134,6 +146,7 @@ export const MISSION_CATALOG = {
         unlockCopy: '설정 자리를 둘러봤어요',
         trigger: 'switchView(settings)',
         deferred: false,
+        slim: true,
         difficulty: 1,
     },
 };
@@ -148,10 +161,24 @@ export function getMissionByModule(moduleId) {
 /**
  * 카탈로그 안 모든 missionId 배열 (deferred 제외).
  *   사이드바 진행도·"오늘의 시작" 카드에서 deferred 미션은 안 보임.
+ *
+ * (베타 슬림 v1 2026-05-18) opts.slim === true 면 slim:true 미션만 노출.
+ *   인자 없으면 현재 tier 자동 감지 (isSlimMode()).
  */
-export function getActiveMissionIds() {
+export function getActiveMissionIds(opts) {
+    let useSlim = false;
+    if (opts && typeof opts.slim === 'boolean') {
+        useSlim = opts.slim;
+    } else {
+        // 동적 import 회피 — featureFlags 직접 참조
+        try {
+            const html = document.documentElement;
+            useSlim = html.getAttribute('data-tier') === 'slim';
+        } catch (_) { useSlim = false; }
+    }
     return Object.entries(MISSION_CATALOG)
         .filter(([_, m]) => !m.deferred)
+        .filter(([_, m]) => useSlim ? m.slim === true : true)
         .map(([id]) => id);
 }
 

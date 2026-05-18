@@ -52,10 +52,11 @@ import { savePrinciple } from '../data/principlesRepo.js';
 import { saveRecord, getRecord } from '../data/baseRepo.js';
 import { getActiveMissionIds, MISSION_CATALOG } from '../config/missionCatalog.js';
 
-// (베타 슬림 v1 A 묶음 2026-05-18) 11 step 재번호:
-//   1=SWAN 인사(신규) · 2=이름 · 3=별명 · 4=생일+양/음력(신규 토글) · 5=도시·타임존(신규)
-//   6=큐티 수준 · 7=성경 번역본 · 8=묵상 트랙 · 9=폰트 · 10=원칙 · 11=첫 묵상
-const TOTAL_STEPS = 11;
+// (베타 슬림 v1 A 묶음 2026-05-18 / 후속 의사결정 카드 제거) 10 step 재번호:
+//   1=SWAN 인사 · 2=이름 · 3=별명 · 4=생일+양/음력 · 5=도시·타임존
+//   6=큐티 수준 · 7=성경 번역본 · 8=묵상 트랙 · 9=폰트 · 10=첫 묵상
+//   원칙 step 은 사용자 명시 "미션으로 해도 될 것 같음" — 카탈로그·미션으로 이동.
+const TOTAL_STEPS = 10;
 
 const CUTI_LEVELS = [
     {
@@ -122,9 +123,10 @@ export async function showOnboardingModal({ userId, dek, onComplete, existingCar
             bibleVersion: card.bibleVersion || DEFAULT_BIBLE_VERSION,
             systemFont: initialSystemFont,
             scriptureFont: initialScriptureFont,
-            // 원칙 — 추천 디폴트로 미리 채움
-            principleTitle: RECOMMENDED_PRINCIPLE.title,
-            principleBody: RECOMMENDED_PRINCIPLE.body,
+            // (의사결정 제거 후속 2026-05-18) 원칙 — 사용자 명시 "미션으로 해도 될 것 같음".
+            //   온보딩에서 자동 등록 X. 사용자가 미션 카탈로그에서 첫 원칙 직접 등록.
+            principleTitle: '',
+            principleBody: '',
             // (S-E7) 묵상 트랙 — step 6 에서 큐티 수준 따라 추천. 'one-book' 선택 시 oneBookAbbr 채워짐.
             selectedTrack: null,         // 'essentials100' | 'preset-4parts' | 'preset-newtestament' | 'one-book' | 'custom'
             oneBookAbbr: null,           // 'one-book' 선택 시 책 약자 ('시'·'요'·'빌'·'잠'·'창')
@@ -196,18 +198,17 @@ function renderStep(step) {
     const body = document.getElementById('onboarding-body');
     if (!body) return;
 
-    // (베타 슬림 v1 A 묶음 2026-05-18) 11 step 재번호 dispatch.
-    if (step === 1) renderSwanIntroStep(body);        // 신규 — SWAN 첫 인사
+    // (베타 슬림 v1 A 묶음 / 후속 의사결정 제거 2026-05-18) 10 step 재번호 dispatch.
+    if (step === 1) renderSwanIntroStep(body);        // SWAN 첫 인사
     else if (step === 2) renderNameStep(body);
     else if (step === 3) renderNicknameStep(body);
-    else if (step === 4) renderBirthdayStep(body);    // 음력 토글 추가
-    else if (step === 5) renderLocationStep(body);    // 신규 — 사는 지역·타임존
+    else if (step === 4) renderBirthdayStep(body);    // 양/음력 토글
+    else if (step === 5) renderLocationStep(body);    // 도시·타임존
     else if (step === 6) renderCutiStep(body);
     else if (step === 7) renderBibleVersionStep(body);
-    else if (step === 8) renderTrackStep(body);       // (S-E7) 신규 — 묵상 트랙
+    else if (step === 8) renderTrackStep(body);       // 묵상 트랙
     else if (step === 9) renderFontStep(body);
-    else if (step === 10) renderPrincipleStep(body);
-    else if (step === 11) renderMeditationStep(body);
+    else if (step === 10) renderMeditationStep(body); // 첫 묵상 한 절
     else if (step === 99) renderFinishCard(body);
 }
 
@@ -216,17 +217,14 @@ function renderStep(step) {
 // 챗 *기분* 톤만 — 카드 형식 그대로 + SWAN 말풍선 한 줄.
 function renderSwanIntroStep(body) {
     body.innerHTML = `
-      <div class="onboarding-card">
-        <div class="onboarding-swan-bubble">
-          <span class="onboarding-swan-icon">🦢</span>
-          <span class="onboarding-swan-text">
-            안녕하세요, SWAN이에요.<br>
-            같이 가는 친구 같은 거예요.
-          </span>
-        </div>
-        <h2 class="onboarding-title" id="onboarding-title">처음 만나서 같이 정리해볼까요?</h2>
-        <p class="onboarding-sub">
-          몇 가지만 알려주시면, 같이 묵상이 삶으로 옮겨가도록 도와드릴게요.<br>
+      <div class="onboarding-card onboarding-card-swan-hero">
+        <div class="onboarding-swan-hero-icon" aria-hidden="true">🦢</div>
+        <h2 class="onboarding-swan-hero-greeting" id="onboarding-title">
+          안녕하세요,<br>
+          묵상 보조 AI SWAN이에요.
+        </h2>
+        <p class="onboarding-swan-hero-sub">
+          몇 가지만 알려주시면, 묵상이 삶으로 옮겨가도록 도와드릴게요.<br>
           10분 정도 걸려요. 중간에 멈춰도 괜찮아요.
         </p>
         <div class="onboarding-swan-intro-meta">
@@ -691,7 +689,7 @@ function renderFontStep(body) {
             });
         });
     });
-    // (베타 슬림 v1 A 묶음) font: back=8(track) · next=10(principle)
+    // (의사결정 제거 후속 2026-05-18) font: back=8(track) · next=10(meditation으로 직접 — principle 빈 자리)
     document.getElementById('onboarding-back').addEventListener('click', () => renderStep(8));
     document.getElementById('onboarding-next').addEventListener('click', () => renderStep(10));
 }
@@ -776,10 +774,10 @@ function renderMeditationStep(body) {
 
     noteEl.addEventListener('input', () => { _state.draft.meditationNote = noteEl.value; });
 
-    // (S-E7) "묵상 노트로 옮기기" — 본문 마크다운 블록을 에디터에 박음.
-    //   실제 묵상 모듈의 applyScriptureToNote 패턴과 같은 결로 첫 진입 시 자동 자리.
+    // (2026-05-18 후속) 마크다운 마커(`### `) 제거 — 사용자 명시 "실제로 에디터처럼 보이게".
+    //   본문은 평문으로 자리잡고, 사용자가 그 아래에 한 줄 적을 자리만 남김.
     insertBtn.addEventListener('click', () => {
-        const block = `### ${passage.ref}\n${passage.text}\n\n`;
+        const block = `${passage.ref}\n${passage.text}\n\n`;
         const current = noteEl.value;
         // 이미 본문이 있으면 중복 X — 끝에 한 줄 띄움.
         if (current.includes(passage.text)) {
@@ -802,8 +800,8 @@ function renderMeditationStep(body) {
 
     // 오늘 묵상 이미 있는지 비동기 체크 — 있으면 안내 카드 노출, 합치기 모드로 작동
     checkExistingMeditation().catch(() => {});
-    // (베타 슬림 v1 A 묶음 2026-05-18) meditation: back=10(principle)
-    document.getElementById('onboarding-back').addEventListener('click', () => renderStep(10));
+    // (의사결정 제거 후속 2026-05-18) meditation: back=9(font로 직접 — principle 빈 자리)
+    document.getElementById('onboarding-back').addEventListener('click', () => renderStep(9));
     document.getElementById('onboarding-skip').addEventListener('click', async () => {
         _state.draft.meditationNote = '';
         await persistAll();
@@ -866,8 +864,8 @@ function renderFinishCard(body) {
         <div class="onboarding-finish-freemium">
           <span class="onboarding-finish-freemium-icon">🌱</span>
           <div class="onboarding-finish-freemium-body">
-            <p class="onboarding-finish-freemium-title">베타 기간 동안은 모든 기능 무제한 무료예요.</p>
-            <p class="onboarding-finish-freemium-sub">정식 출시 시점에는 슬림(말씀→다짐→실행)은 계속 무료, 더 깊이 도와드리는 기능들(도트 분석·주간 거울 깊이·인물·가계부 같은)은 월 6,900원이 될 거예요.</p>
+            <p class="onboarding-finish-freemium-title">베타 버전이에요.</p>
+            <p class="onboarding-finish-freemium-sub">14일 동안 모든 기능을 자유롭게 둘러보실 수 있어요. 불편한 자리는 우하단 풍선으로 알려주세요.</p>
           </div>
         </div>
 

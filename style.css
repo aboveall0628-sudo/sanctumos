@@ -9713,6 +9713,45 @@ html[data-accent="beige"] .onboarding-swan-bubble {
     text-align: center;
     letter-spacing: 0.02em;
 }
+
+/* (2026-05-18 후속) SWAN 인사 큰 hero — step 1 전용. 사용자 명시: "큼지막하게 보여주고" */
+.onboarding-card-swan-hero {
+    padding-top: 28px;
+    padding-bottom: 24px;
+    text-align: center;
+}
+.onboarding-swan-hero-icon {
+    font-size: 88px;
+    line-height: 1;
+    margin: 0 0 18px;
+    animation: swan-hero-float 3.5s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+    .onboarding-swan-hero-icon { animation: none; }
+}
+@keyframes swan-hero-float {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-6px); }
+}
+.onboarding-swan-hero-greeting {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 26px;
+    font-weight: 600;
+    line-height: 1.4;
+    margin: 0 0 14px;
+    color: var(--ink, #2a2a2a);
+    letter-spacing: -0.01em;
+}
+@media (max-width: 480px) {
+    .onboarding-swan-hero-icon { font-size: 72px; margin-bottom: 14px; }
+    .onboarding-swan-hero-greeting { font-size: 22px; }
+}
+.onboarding-swan-hero-sub {
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--ink-secondary, #6a6a6a);
+    margin: 0 0 4px;
+}
 .onboarding-btn-block {
     width: 100%;
 }
