@@ -220,7 +220,7 @@ function pageTemplate(d) {
 
         <div class="self-profile-intro">
             <p>
-                각 칸 옆 작은 칩(🌍 / 🤝 / 🔒)을 누르면 공개 두께를 바꿀 수 있어요.
+                각 칸 옆 작은 칩(공개 / 친한 사이 / 비공개)을 누르면 공개 두께를 바꿀 수 있어요.
                 <strong>지금은 모델만 자리잡혀 있고, 실제로 다른 사람에게 보내는 기능은 공동체 모듈과 함께 열릴 예정</strong>이에요.
             </p>
             <p class="self-profile-snapshot-note">📷 마지막 저장: <strong>${lastUpdated}</strong></p>
@@ -358,7 +358,7 @@ function pageTemplate(d) {
         <!-- 능력 8축 -->
         <section class="card-section self-section">
             <h2 class="section-title"><i class="section-icon" data-lucide="award"></i> 능력</h2>
-            <p class="section-desc-foot">자기 평가예요. 공동체에서 "이런 일은 자신 있어요" 알리고 싶은 칸이라 디폴트가 🌍 공개로 잡혀 있어요.</p>
+            <p class="section-desc-foot">자기 평가예요. 공동체에서 "이런 일은 자신 있어요" 알리고 싶은 칸이라 디폴트가 공개로 잡혀 있어요.</p>
             ${v('competencies')}
             ${COMPETENCY_KEYS.map(([k, name]) => sliderBlockHtml('comp', k, name, '', d.competencies?.[k])).join('')}
         </section>
@@ -409,10 +409,11 @@ function sliderBlockHtml(group, key, name, hint, currentVal) {
 }
 
 function visibilityChipHtml(field, currentVal) {
+    // (디자인 시스템 v1 §27·28·29 2026-05-16) 카피 안 아이콘 제거 — 한국어 라벨만 노출.
     const meta = VISIBILITY_META[currentVal] || VISIBILITY_META.private;
     return `
-        <button type="button" class="self-vis-chip" data-field="${field}" data-vis="${currentVal}" title="${meta.label} — ${meta.hint}">
-            ${meta.icon}
+        <button type="button" class="self-vis-chip" data-field="${field}" data-vis="${currentVal}" title="${meta.hint}">
+            ${meta.label}
         </button>
     `;
 }
@@ -461,8 +462,8 @@ function bindEvents(container) {
             const cur = chip.dataset.vis;
             const next = VISIBILITY_ORDER[(VISIBILITY_ORDER.indexOf(cur) + 1) % VISIBILITY_ORDER.length];
             chip.dataset.vis = next;
-            chip.textContent = VISIBILITY_META[next].icon;
-            chip.title = `${VISIBILITY_META[next].label} — ${VISIBILITY_META[next].hint}`;
+            chip.textContent = VISIBILITY_META[next].label;
+            chip.title = VISIBILITY_META[next].hint;
             setVisibility(field, next);
         });
     });

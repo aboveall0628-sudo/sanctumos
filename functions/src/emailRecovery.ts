@@ -205,7 +205,7 @@ export const emailRecoveryRegister = onCall(
 
         // 이메일 형식 가벼운 검증
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recoveryEmail)) {
-            throw new HttpsError("invalid-argument", "복구 이메일 형식이 올바르지 않아요.");
+            throw new HttpsError("invalid-argument", "복구 이메일 형식이 살짝 어긋났어요.");
         }
 
         const { wrappedEmailSlotKey } = wrapWithKms(emailSlotKey);

@@ -43,7 +43,7 @@ export async function requestAnalysis(idToken, payload) {
 }
 
 /**
- * AI 브리핑 요청 (타임박싱 모달용)
+ * AI 브리핑 요청 ("시간표에 넣기" 모달용)
  */
 export async function requestBriefing(idToken, taskKeywords, principles, pastStats) {
     const url = `${CLOUD_FUNCTION_BASE}/llmProxy`;

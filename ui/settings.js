@@ -560,7 +560,7 @@ function injectExtraSections() {
             <span class="hm-card-sparkle">✨</span>
             <div class="hm-card-body">
                 <div class="hm-card-title">히든 미션</div>
-                <div class="hm-card-hint">조건부 잠금해제 (조건: 미션 올클리어)</div>
+                <div class="hm-card-hint">조건부 잠금해제 (조건: 모든 미션 마침)</div>
             </div>
         </div>
     `;

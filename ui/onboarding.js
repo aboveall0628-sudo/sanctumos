@@ -690,7 +690,7 @@ function renderFinishCard(body) {
 
         <div class="onboarding-finish-missions">
           <p class="onboarding-finish-missions-title">🎯 14일 동안 천천히 열릴 미션들</p>
-          <p class="onboarding-finish-missions-sub">하다 보면 자연스럽게 클리어돼요. 부담 갖지 마세요.</p>
+          <p class="onboarding-finish-missions-sub">하다 보면 자연스럽게 마쳐져요. 부담 갖지 마세요.</p>
           <div class="onboarding-finish-missions-grid">
             ${missions.map(m => `
               <div class="onboarding-mission-mini">

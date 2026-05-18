@@ -169,7 +169,7 @@ export async function unplaceGoal(dek, goal) {
 }
 
 /**
- * 특정 기간의 활성 목표 조회 (타임박싱 모달 자동 추천용)
+ * 특정 기간의 활성 목표 조회 ("시간표에 넣기" 모달 자동 추천용)
  */
 export async function getActiveGoalsByPeriod(dek, userId, period) {
     const q = query(
