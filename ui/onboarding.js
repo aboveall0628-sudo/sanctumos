@@ -97,25 +97,70 @@ function swanBubbleHTML(message) {
     `;
 }
 
-function activateSwanTyping() {
+// (2026-05-18 후속) 생각하는 척 애니메이션 — typing 시작 직전 점 3개 떴다 사라짐.
+//   사용자 명시 "약간 좀 생각하는 척 하는 애니메이션 추가".
+//   챗봇 톤(0.6~1.0s thinking) → 텍스트 한 자씩 타이핑.
+function showSwanThinking(textEl) {
+    textEl.innerHTML = `
+      <span class="swan-thinking-dots" aria-label="생각하는 중">
+        <span></span><span></span><span></span>
+      </span>
+    `;
+}
+
+async function activateSwanTyping() {
     const reduce = shouldReduceMotion();
-    document.querySelectorAll('.onboarding-swan-bubble-typing').forEach(bubble => {
+    const card = document.querySelector('.onboarding-card');
+    if (!card) return;
+
+    // (사용자 명시 2026-05-18) AI가 말 끝나야 본문(옵션 카드·입력·버튼) 등장.
+    //   카드 안 swan-bubble·hero 다음 형제 요소를 잠시 숨김 → typing 끝나면 fade-in.
+    card.classList.add('onboarding-card-swan-locked');
+
+    const tasks = [];
+
+    // 카드별 swan-bubble — thinking 0.7s → typing (delay 55ms, 사용자 명시 "타이핑 빠름" 반영)
+    const bubbles = Array.from(document.querySelectorAll('.onboarding-swan-bubble-typing'));
+    bubbles.forEach(bubble => {
         const textEl = bubble.querySelector('.onboarding-swan-text');
         if (!textEl) return;
         const msg = textEl.dataset.swanMessage || '';
         if (reduce) {
             setTextInstant(textEl, msg);
-        } else {
-            typeText(textEl, msg, { delay: 28 });
+            return;
         }
+        tasks.push((async () => {
+            showSwanThinking(textEl);
+            await new Promise(r => setTimeout(r, 700));
+            await typeText(textEl, msg, { delay: 55 });
+        })());
     });
-    // hero greeting (step 1) — 별도 자리, 줄바꿈 포함
+
+    // hero greeting (step 1) — 살짝 더 긴 thinking 0.9s + 더 천천히 타이핑(delay 80ms)
     const hero = document.querySelector('[data-swan-hero]');
     if (hero) {
         const msg = hero.dataset.swanMessage || '';
-        if (reduce) setTextInstant(hero, msg);
-        else typeText(hero, msg, { delay: 45 });
+        if (reduce) {
+            setTextInstant(hero, msg);
+        } else {
+            tasks.push((async () => {
+                showSwanThinking(hero);
+                await new Promise(r => setTimeout(r, 900));
+                await typeText(hero, msg, { delay: 80 });
+            })());
+        }
     }
+
+    if (reduce) {
+        card.classList.remove('onboarding-card-swan-locked');
+        return;
+    }
+
+    // 모든 typing 끝나길 기다린 후 본문 fade-in
+    await Promise.all(tasks);
+    // 살짝 호흡 — typing 끝났을 때 바로 등장이 아니라 0.2초 정도 여백
+    await new Promise(r => setTimeout(r, 200));
+    card.classList.remove('onboarding-card-swan-locked');
 }
 
 /**
